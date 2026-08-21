@@ -129,6 +129,12 @@ const Users = {
 const Media = {
   slug: 'media',
   upload: true,
+  // Public marketing site: every section renders an <img> from this
+  // collection, so reads must not require auth (Payload's default access
+  // blocks unauthenticated requests, which 403'd every image on the page).
+  access: {
+    read: () => true,
+  },
   fields: [],
 }
 
