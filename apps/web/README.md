@@ -21,6 +21,21 @@ Deployed URL: TBD — Vercel import pending
 See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a
 Figma variable.
 
+## Environment variables
+
+```bash
+cp apps/web/.env.example apps/web/.env    # then fill in what you need
+```
+
+Bun loads `apps/web/.env` automatically for `bun run dev`, `gen:cms`, `seed` and
+the e2e suite, so one file covers every command — no `dotenv` import and nothing
+to pass inline. `.env` is gitignored; [`.env.example`](.env.example) is the
+committed template and carries names and reasons, never values.
+
+Locally you can leave every value blank and things work: the secret falls back to
+a development default and the database falls back to a local sqlite file. The
+table below is what changes when it is not local.
+
 ## Deploying
 
 Two variables, and one of them is a trap. Rationale in
@@ -83,7 +98,9 @@ bun run dev
   ```
 
   Payload uses a local sqlite file (`payload.db`, gitignored) by default; set
-  `DATABASE_URI` to point elsewhere.
+  `DATABASE_URI` in `.env` to point elsewhere. Copy `.env.example` first if you
+  have not — `bun run seed` needs `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` to create
+  the editor account the round-trip test signs in as.
 
 ## How it works
 

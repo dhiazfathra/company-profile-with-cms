@@ -87,6 +87,45 @@ remote URL, so `DATABASE_AUTH_TOKEN` is now plumbed through the generator —
 without it a remote URL cannot authenticate, and the local file would be the only
 thing that ever worked.
 
+### Amendment, same day: a committed template and a local `.env`
+
+The above says what a deployment needs and nothing about how a developer supplies
+it. There was no `.env`, no template, and no statement of which commands read the
+environment — so the only way to find the answer was to read `payload.config.ts`
+and the workflows.
+
+- [`apps/web/.env.example`](../../apps/web/.env.example) is committed. It carries
+  every variable's **name and reason and never a value**, including which one
+  fails loudly (`PAYLOAD_SECRET`) and which one fails silently (`DATABASE_URI`).
+- `apps/web/.env` is the developer's own copy and is gitignored.
+- Root `.gitignore` keeps `.env*` — unanchored, so it covers `apps/web/.env` at
+  any depth — and adds `!.env.example`. Without that negation the same pattern
+  swallows the one env file developers are supposed to read, which is a
+  quiet-failure mode of exactly the kind this ADR keeps objecting to.
+
+**One file covers every command, verified rather than assumed.** Bun loads
+`apps/web/.env` for `dev`, `gen:cms`, `seed` and the e2e suite; none of the
+scripts imports `dotenv`, and it was not obvious that the tsx scripts would see
+it. Checked in both directions:
+
+| Command                       | Before `.env` existed                             | After                               |
+| ----------------------------- | ------------------------------------------------- | ----------------------------------- |
+| `bun run build`               | fails: `PAYLOAD_SECRET must be set in production` | compiles                            |
+| `bun run --cwd apps/web seed` | needed the vars passed inline                     | `e2e user created: e2e@example.com` |
+
+And the ignore rules themselves, since a `.env` that is not really ignored is the
+one mistake here that cannot be taken back:
+
+```text
+$ git check-ignore -v apps/web/.env
+.gitignore:35:.env*     apps/web/.env
+
+$ git status --short --untracked-files=all apps/web | grep -i env
+?? apps/web/.env.example
+```
+
+The template is visible to git; the real file is not.
+
 ## Consequences
 
 - One place to rotate `PAYLOAD_SECRET` for CI; `gh secret set PAYLOAD_SECRET`.
