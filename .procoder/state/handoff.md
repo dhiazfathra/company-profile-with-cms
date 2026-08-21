@@ -2,10 +2,10 @@
 
 <!-- procoder:facts -->
 
-generated: 2026-08-21T11:47:58Z
-branch: figma-to-site-eval — 0 ahead, 0 behind main
-head: ac0c115
-dirty files: none (clean tree)
+generated: 2026-08-21T12:11:02Z
+branch: figma-to-site-eval — 2 ahead, 0 behind main
+head: 5cb0983
+dirty files: 1
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md
