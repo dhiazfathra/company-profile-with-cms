@@ -20,9 +20,9 @@
   --color-text-link: #000000;
   --color-text-on-accent-1: #ffffff;
 
-  --font-display: "Crimson Text", Georgia, serif;
-  --font-sans: "DM Sans", system-ui, sans-serif;
-  --font-mono: "Roboto Mono", ui-monospace, monospace;
+  --font-display: var(--font-crimson-text), "Crimson Text", Georgia, serif;
+  --font-sans: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
+  --font-mono: var(--font-roboto-mono), "Roboto Mono", ui-monospace, monospace;
 
   --text-display: 160px;
   --text-display--line-height: 0.9;

@@ -40,18 +40,30 @@ The Figma MCP Starter-plan tool-call limit was reached mid-extraction. These are
 referenced by **placeholder paths** in `content/` rather than invented binaries.
 Task 5 must not ship without them.
 
-| Asset | Figma node | Placeholder path in content |
-|---|---|---|
-| Header hero image | `1:122` | `/img/placeholder-header.png` |
-| Benefits section image | `1:166` | `/img/placeholder-benefits.png` |
-| Features carousel image | `1:187` | `/img/placeholder-features-carousel.png` |
-| Testimonial portrait | `1:224` | `/img/placeholder-testimonial.png` |
-| Showcase image | `1:252` | `/img/placeholder-showcase.png` |
-| Cable icon | `1:147` | `/icons/placeholder-cable.svg` |
-| Earth icon | `1:152` | `/icons/placeholder-earth.svg` |
-| Account icon | `1:157` | `/icons/placeholder-account.svg` |
-| Chart icon | `1:162` | `/icons/placeholder-chart.svg` |
-| Footer logo | `1:264` | `/img/placeholder-footer-logo.svg` |
+| Asset | Figma node | Path in content | Placeholder on disk |
+|---|---|---|---|
+| Header hero image | `1:122` | `/img/placeholder-header.svg` | yes |
+| Benefits section image | `1:166` | `/img/placeholder-benefits.svg` | yes |
+| Features carousel image | `1:187` | `/img/placeholder-features-carousel.svg` | yes |
+| Testimonial portrait | `1:224` | `/img/placeholder-testimonial.svg` | yes |
+| Showcase image | `1:252` | `/img/placeholder-showcase.svg` | yes |
+| Cable icon | `1:147` | `/icons/placeholder-cable.svg` | yes |
+| Earth icon | `1:152` | `/icons/placeholder-earth.svg` | yes |
+| Account icon | `1:157` | `/icons/placeholder-account.svg` | yes |
+| Chart icon | `1:162` | `/icons/placeholder-chart.svg` | yes |
+| Footer logo | `1:264` | `/img/placeholder-footer-logo.svg` | yes |
+
+**Task 5 update.** Every path above now resolves to a real file in `public/`:
+a grey (`#e9e9e9`) rectangle with a `#929292` hairline border and its own
+filename set in `#6f6f6f` — visibly a placeholder, never mistakable for the
+photograph it stands in for. Photographic placeholders are 1280x720; icon and
+logo placeholders are 160x96. Nothing 404s and the static export is honest about
+what is missing.
+
+The five photographic entries were `.png` in `content/` and are now `.svg`,
+because serving an SVG at a `.png` path would misrepresent the file's type.
+Replacing a placeholder therefore means one `download_assets` run on a paid
+Figma seat **plus** correcting that entry's extension back in `content/`.
 
 Downloaded successfully: `public/img/logo-1.png`–`logo-6.png`,
 `public/icons/check.svg`, `public/icons/close.svg`,
@@ -65,3 +77,14 @@ Same rate limit. `design/refs/` holds 9 of the 11 sections; missing:
 |---|---|
 | `CenteredCta` | `1:253` |
 | `Footer` | `1:257` |
+
+## Accessibility gaps in the manifest
+
+Two `image` fields have no sibling alt-text field, so Task 5's components render
+them as decorative (`alt=""`), which loses information a screen-reader user
+needs:
+
+| Field | Why it matters |
+|---|---|
+| `BenefitsItem.icon` | The icon restates the item title, so decorative is defensible. |
+| `SpecificationsCell.icon` | **Not decorative.** The check/cross mark is the only thing distinguishing "Fast browsing" as supported from "Basic AI insights" as unsupported. A screen reader currently hears the label alone. Needs a translatable `iconAlt` field before Phase 2 freezes the schema. |
