@@ -4,11 +4,15 @@ A pipeline that converts a Figma file into a live static site, then evolves it
 into an admin-editable, CMS-backed, multi-language site — with no copy rework
 between the two phases.
 
-**Status: Tasks 1-3 implemented.** The Next.js scaffold, the manifest schema
-(`schemas/manifest.ts`) and its validator (`scripts/validate-manifest.ts`), and
-the content seam (`lib/content.ts`) are built and tested. Tasks 4-6 (Figma
-extraction, section components, static export) are not started — blocked on
-Figma file access.
+**Status: Tasks 1-5 implemented.** The Next.js scaffold, the manifest schema
+(`schemas/manifest.ts`) and its validator (`scripts/validate-manifest.ts`), the
+content seam (`lib/content.ts`), the extracted `site.manifest.json` with its
+content seed, and the eleven section components in `components/sections/` are
+built and tested. Task 6 (static export and deploy) is not started.
+
+Ten images could not be exported from Figma before the MCP quota ran out; the
+site renders labelled placeholder SVGs in their place. See
+[`TOKEN-GAPS.md`](TOKEN-GAPS.md).
 
 ## How it works
 
@@ -39,7 +43,7 @@ flips `lib/content.ts` to read from Payload. No component changes.
 | `bun run e2e` | Run end-to-end tests (Playwright) — starts the dev server itself |
 | `bun run e2e:report` | Open the e2e HTML report with traces, videos, screenshots |
 | `bun run lint` | Run the linter |
-| `bun run validate:manifest` | Validate `site.manifest.json` against the schema — currently exits 1, since that file does not exist yet |
+| `bun run validate:manifest` | Validate `site.manifest.json` against the schema |
 | `bun run gen:cms` | Phase 2, not yet built — will generate `payload.config.ts` from `site.manifest.json` |
 | `bun run seed` | Phase 2, not yet built — will load `content/*.json` into Payload |
 
@@ -68,6 +72,11 @@ route gated behind `E2E=1`, which 404s on any normally-started server.
   a human before any generator runs; this is the pipeline's only gate.
 - **`lib/content.ts`** — the seam between phases. Both implementations return the
   same locale-resolved shape, so components never learn which backend is live.
+- **`components/sections/*.tsx`** — one async, propless component per `global`
+  section. Each fetches its own content through `lib/content.ts`; a `collection`
+  section is data, read by the component of the section it belongs to, and gets
+  no component of its own. `tests/sections.test.tsx` asserts that no copy is
+  inlined in any component source, which is what keeps Phase 2 a backend swap.
 - **`content/*.json`** — Phase 1 storage, and the initial bootstrap seed for
   Phase 2. After Phase 2 goes live, Payload's database is the sole authority
   for content and recovery is by database backup; these files stay in git only
