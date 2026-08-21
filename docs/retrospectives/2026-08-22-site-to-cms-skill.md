@@ -103,9 +103,15 @@ bypass and an unjustified one is entirely whether the cause was verified, and fr
 the outside the two look identical. That is why this one is disclosed in the PR
 body with the command that establishes it.
 
-**Standing decision needed from the user:** the procoder rule and the harness's
-mandated `Co-Authored-By` trailer are in direct conflict. Every commit either
-bypasses the gate or drops the trailer. Currently dropping the trailer.
+**Decided, after this was first written.** The trailer is never written, and
+`--no-verify` is never used; both are now absolute rules in the global agent
+config rather than a judgement call per commit. The causal chain is the reason the
+first rule is not merely cosmetic: a trailer in one commit does not stay in one
+commit — GitHub collects co-authors into the squash-merge commit it writes, that
+lands on the default branch, and a commit-message gate then blocks every later
+commit in the repository over a line nobody typed. One trailer becomes a
+permanently broken gate. Which is exactly what happened here, and `951717e` still
+carries it.
 
 ## The mistake that generated an eval case
 
