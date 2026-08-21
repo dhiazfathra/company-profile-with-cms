@@ -41,11 +41,21 @@ jobs:
       # The e2e suite's webServer runs `next dev` against a fresh sqlite db
       # (see apps/web/playwright.config.ts) — without this, every image field
       # is null and design-fidelity.spec.ts fails on "images failed to load".
+      #
+      # The credentials create the editor account cms-round-trip.spec.ts logs in
+      # as. They are not secrets: this database is built from scratch here and
+      # thrown away with the runner, and the account only ever exists inside it.
       - name: Seed CMS content
         run: bun run --cwd apps/web seed
+        env:
+          E2E_USER_EMAIL: e2e@example.com
+          E2E_USER_PASSWORD: e2e-ci-password
 
       - name: Run e2e suite
         run: bun run e2e
+        env:
+          E2E_USER_EMAIL: e2e@example.com
+          E2E_USER_PASSWORD: e2e-ci-password
 
       # apps/web/e2e-results/design holds one render per section from
       # apps/web/e2e/design-fidelity.spec.ts; on a failure the Playwright report also has

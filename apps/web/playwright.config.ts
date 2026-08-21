@@ -14,9 +14,14 @@ export default defineConfig({
   ],
   use: {
     baseURL: 'http://localhost:3100',
-    video: 'on',
-    screenshot: 'on',
-    trace: 'on',
+    // Only on failure. A video, a screenshot and a trace zip per passing test
+    // is a few hundred MB per run and answers a question nobody asks — the
+    // evidence pack's renders come from explicit captures in
+    // design-fidelity.spec.ts, not from these. Repeated local runs filled the
+    // disk; CI pays the same cost on every push.
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
     locale: 'en-US',
     timezoneId: 'UTC',
     viewport: { width: 1280, height: 800 },
@@ -32,6 +37,6 @@ export default defineConfig({
     url: 'http://localhost:3100',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: { E2E: '1' },
+    env: { E2E: '1', PAYLOAD_SECRET: process.env.PAYLOAD_SECRET ?? 'e2e-secret' },
   },
 })

@@ -9,40 +9,50 @@ const FieldSchema = z.object({
     .refine((n) => !LOCALE.test(n.split('_').pop() ?? ''), {
       message: 'field name must not include a locale suffix; set translatable instead',
     }),
-  type: z.enum(['text', 'richText', 'url', 'image', 'number']),
+  // No richText. The generator would happily emit a Lexical field, but
+  // lib/content.ts hands sections plain values and every section renders its
+  // fields as strings — a richText field would arrive as a Lexical document and
+  // render as "[object Object]" with nothing failing. Rejected here, at the
+  // pipeline's one human gate, rather than allowed through to a type that has
+  // no renderer. Add it back together with the renderer, not before.
+  type: z.enum(['text', 'url', 'image', 'number']),
   translatable: z.boolean(),
 })
 
-const SectionSchema = z.object({
-  name: z.string().regex(/^[A-Z][a-zA-Z0-9]*$/, 'section name must be PascalCase'),
-  kind: z.enum(['global', 'collection']),
-  fields: z.array(FieldSchema).min(1),
-}).superRefine((section, ctx) => {
-  const seen = new Set<string>()
-  for (const field of section.fields) {
-    if (seen.has(field.name)) {
-      ctx.addIssue({ code: 'custom', message: `duplicate field name: ${field.name}` })
+const SectionSchema = z
+  .object({
+    name: z.string().regex(/^[A-Z][a-zA-Z0-9]*$/, 'section name must be PascalCase'),
+    kind: z.enum(['global', 'collection']),
+    fields: z.array(FieldSchema).min(1),
+  })
+  .superRefine((section, ctx) => {
+    const seen = new Set<string>()
+    for (const field of section.fields) {
+      if (seen.has(field.name)) {
+        ctx.addIssue({ code: 'custom', message: `duplicate field name: ${field.name}` })
+      }
+      seen.add(field.name)
     }
-    seen.add(field.name)
-  }
-})
+  })
 
-export const ManifestSchema = z.object({
-  locales: z.array(z.string().regex(LOCALE)).min(1),
-  tokens: z.record(z.string(), z.unknown()),
-  sections: z.array(SectionSchema).min(1),
-}).superRefine((manifest, ctx) => {
-  if (manifest.locales[0] !== 'en') {
-    ctx.addIssue({ code: 'custom', message: 'locales[0] must be "en" (the default locale)' })
-  }
-  const seen = new Set<string>()
-  for (const section of manifest.sections) {
-    if (seen.has(section.name)) {
-      ctx.addIssue({ code: 'custom', message: `duplicate section name: ${section.name}` })
+export const ManifestSchema = z
+  .object({
+    locales: z.array(z.string().regex(LOCALE)).min(1),
+    tokens: z.record(z.string(), z.unknown()),
+    sections: z.array(SectionSchema).min(1),
+  })
+  .superRefine((manifest, ctx) => {
+    if (manifest.locales[0] !== 'en') {
+      ctx.addIssue({ code: 'custom', message: 'locales[0] must be "en" (the default locale)' })
     }
-    seen.add(section.name)
-  }
-})
+    const seen = new Set<string>()
+    for (const section of manifest.sections) {
+      if (seen.has(section.name)) {
+        ctx.addIssue({ code: 'custom', message: `duplicate section name: ${section.name}` })
+      }
+      seen.add(section.name)
+    }
+  })
 
 export type Manifest = z.infer<typeof ManifestSchema>
 export type Section = Manifest['sections'][number]

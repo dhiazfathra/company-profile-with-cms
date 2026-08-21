@@ -47,7 +47,7 @@ either place.
 | `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
 | `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
 | `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                        |
-| `bun run e2e:report`        | Open the e2e HTML report with traces, videos, screenshots                               |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                               |
 | `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                        |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless

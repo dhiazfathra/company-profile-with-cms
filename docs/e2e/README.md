@@ -11,13 +11,18 @@
 bun install
 bunx playwright install chromium --with-deps
 bun run e2e            # runs the suite (starts `bun run dev` itself)
-bun run e2e:report      # opens the HTML report with traces/videos/screenshots
+bun run e2e:report      # opens the HTML report (traces/videos for failures)
 ```
 
 `bun run e2e` runs `playwright test` against `playwright.config.ts`, which
 starts `bun run dev` on port 3100 via Playwright's `webServer`, so no manual
-setup is required. Every test captures a screenshot, a video, and a trace
-(`e2e-results/artifacts/`) plus an HTML report (`e2e-results/report/`) — none
+setup is required. A **failing** test captures a video and a trace
+(`e2e-results/artifacts/`, `retain-on-failure`); a green run leaves that
+directory empty, because recording all three for every passing test cost a few
+hundred megabytes a run and answered no question anyone asked. The section
+renders the fidelity spec compares against are captured explicitly into
+`e2e-results/design/`, so they are there on a pass. Every run writes an HTML
+report (`e2e-results/report/`) — none
 of that is committed to the repo (see `.gitignore`); in CI it is uploaded as a
 workflow artifact by `.github/workflows/e2e.yml`.
 

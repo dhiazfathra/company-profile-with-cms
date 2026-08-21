@@ -53,9 +53,6 @@ function fieldSource(field: Field): string {
     case 'text':
       lines.push(`type: 'text',`)
       break
-    case 'richText':
-      lines.push(`type: 'richText',`)
-      break
     case 'number':
       lines.push(`type: 'number',`)
       break
@@ -114,19 +111,19 @@ export function generateConfigSource(manifest: Manifest): string {
 // Source of truth: site.manifest.json. Regenerate with \`bun run gen:cms\`.
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildConfig } from 'payload'
+import { buildConfig, type CollectionConfig } from 'payload'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const Users = {
+const Users: CollectionConfig = {
   slug: 'users',
   auth: true,
   fields: [],
 }
 
-const Media = {
+const Media: CollectionConfig = {
   slug: 'media',
   upload: true,
   // Public marketing site: every section renders an <img> from this
@@ -135,7 +132,21 @@ const Media = {
   access: {
     read: () => true,
   },
-  fields: [],
+  fields: [
+    {
+      // The seed's identity for an asset, and the reason it is not the
+      // filename: /icons/logo.png and /img/logo.png share a basename, so a
+      // filename lookup would hand the second field the first file's image and
+      // nothing would report it. Unique, so the database refuses a collision
+      // rather than resolving it silently.
+      name: 'sourcePath',
+      type: 'text',
+      required: true,
+      unique: true,
+      index: true,
+      admin: { readOnly: true, description: 'public/-relative path this asset was seeded from' },
+    },
+  ],
 }
 
 export default buildConfig({

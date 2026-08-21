@@ -68,7 +68,7 @@ flips `lib/content.ts` to read from Payload. No component changes.
 | `bun run build`             | Production build                                                                                                                   |
 | `bun run test`              | Run unit tests (Vitest)                                                                                                            |
 | `bun run e2e`               | Run end-to-end tests (Playwright) — starts the dev server itself                                                                   |
-| `bun run e2e:report`        | Open the e2e HTML report with traces, videos, screenshots                                                                          |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                                                          |
 | `bun run lint`              | Run the linter                                                                                                                     |
 | `bun run validate:manifest` | Validate `site.manifest.json` against the schema                                                                                   |
 | `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                                                         |
@@ -87,8 +87,11 @@ bunx playwright install chromium --with-deps   # once
 bun run e2e
 ```
 
-Every e2e test records a screenshot, video, and trace into `e2e-results/`
-(gitignored); CI uploads that directory as a workflow artifact. Committed
+A failing e2e test records a video and a trace into `e2e-results/artifacts/`
+(gitignored, `retain-on-failure` — a green run leaves it empty); the design
+fidelity spec captures its section renders into `e2e-results/design/`
+unconditionally, since those are the evidence a passing run has to show. CI
+uploads the whole directory as a workflow artifact. Committed
 evidence and reproduction details live in [`docs/e2e/README.md`](../../docs/e2e/README.md).
 
 ### Design fidelity

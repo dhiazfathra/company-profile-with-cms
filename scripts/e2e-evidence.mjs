@@ -65,7 +65,7 @@ const stripAnsi = (text) => text.replace(/\u001B\[[0-9;]*[A-Za-z]/g, '')
  * its own business and it changes between versions; reading only one turns that
  * choice into a failure here.
  */
-function run(cmd, args, { cwd = ROOT, allowFailure = false } = {}) {
+function run(cmd, args, { cwd = ROOT, allowFailure = false, env = {} } = {}) {
   say(
     `\n$ ${[cmd, ...args].join(' ')}${cwd === ROOT ? '' : `   # in ${cwd.slice(ROOT.length + 1)}`}`,
   )
@@ -75,7 +75,7 @@ function run(cmd, args, { cwd = ROOT, allowFailure = false } = {}) {
     // Both streams, always: which one a runner writes its summary to is its own
     // business, and reading only stdout turns that choice into a failure here.
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+    env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1', ...env },
   })
   if (result.error) throw result.error
   const out = stripAnsi(`${result.stdout ?? ''}${result.stderr ?? ''}`)
@@ -144,7 +144,16 @@ const buildMode =
     ? 'static export (`apps/web/out/`)'
     : 'server build, no static export'
 
-run('bun', ['run', 'e2e'], { cwd: WEB })
+/**
+ * The account `e2e/cms-round-trip.spec.ts` logs in as, to change a value through
+ * the API the way an editor would. Not a secret: it exists only in the sqlite
+ * file this run seeds, and that test refuses to run rather than skip if it is
+ * missing — a round-trip proof that silently stops running is worse than none.
+ */
+const E2E_USER = { E2E_USER_EMAIL: 'e2e@example.com', E2E_USER_PASSWORD: 'e2e-evidence-password' }
+
+run('bun', ['run', 'seed'], { cwd: WEB, env: E2E_USER })
+run('bun', ['run', 'e2e'], { cwd: WEB, env: E2E_USER })
 // playwright.config.ts writes this alongside the list and html reporters, so the
 // figures below are the run's own record rather than a reading of its console.
 const e2eReport = JSON.parse(readFileSync(join(WEB, 'e2e-results/results.json'), 'utf8'))
@@ -158,6 +167,54 @@ if (!e2eCount || e2eReport.stats?.unexpected) {
 const sections = specs
   .filter((s) => s.ok && / matches the Figma design$/.test(s.title))
   .map((s) => s.title.replace(/ matches the Figma design$/, ''))
+
+/**
+ * The round trip is called out on its own because it is the only check that can
+ * tell a CMS-backed page from a page with the same words hardcoded in it — every
+ * other check passes either way. Located in the report rather than assumed: if
+ * the spec is renamed or deleted, this fails instead of quietly reporting a
+ * proof that no longer runs.
+ */
+const ROUND_TRIP = 'a value changed in the CMS appears on the landing page'
+const roundTrip = specs.find((s) => s.title === ROUND_TRIP)
+if (!roundTrip?.ok) {
+  throw new Error(`the CMS round-trip proof did not run or did not pass: "${ROUND_TRIP}"`)
+}
+
+/**
+ * And the same check in the failing direction: hardcode the headline back into
+ * the component, the way Phase 1 had it, and the round trip must fail.
+ *
+ * Passing proves the page agrees with the CMS. It does not prove the page *reads*
+ * the CMS — a component with the seed's own string baked in passes too, which is
+ * precisely the arrangement Phase 2 replaced. Only this failure distinguishes
+ * them, so it is produced here rather than asserted.
+ */
+const HEADER = join(WEB, 'components/sections/Header.tsx')
+const headerSource = readFileSync(HEADER, 'utf8')
+const LIVE = '{c.headline as string}'
+if (!headerSource.includes(LIVE)) {
+  throw new Error(`${HEADER} no longer renders ${LIVE}; this proof needs rewriting, not skipping`)
+}
+
+let roundTripNegative
+try {
+  writeFileSync(HEADER, headerSource.replace(LIVE, "{'Browse everything.'}"))
+  const broken = run('bunx', ['playwright', 'test', 'e2e/cms-round-trip.spec.ts', '--retries=0'], {
+    cwd: WEB,
+    allowFailure: true,
+    env: E2E_USER,
+  })
+  if (broken.ok) {
+    throw new Error(
+      'the round trip PASSED against a hardcoded headline. The test cannot tell a ' +
+        'CMS-backed page from a baked-in one, which is the only thing it exists to do.',
+    )
+  }
+  roundTripNegative = must(/(Received: +"[^"]*")/, broken.out, 'the hardcoded value it received')
+} finally {
+  writeFileSync(HEADER, headerSource)
+}
 
 // ------------------------------------------- the validator, in both directions
 
@@ -319,7 +376,32 @@ rather than writing a figure it did not observe.
 | Unit tests | **${unitCounts.reduce((a, b) => a + b, 0)} passed** (${unitCounts.join(' + ')}) |
 | Lint | \`eslint .\` clean |
 | Build | ${buildMode} |
+| CMS round trip | **passed** — a value written to Payload reaches the rendered page |
 | Eval validator | proven in both directions, see below |
+
+## The CMS is actually the source of the page
+
+Phase 2's whole claim is that an editor changes a value in the CMS and the public
+page shows it. Nothing else in this pack can tell that apart from a page with the
+same words hardcoded in it: the seed writes into Payload exactly the strings
+Phase 1 baked into the components, so every render check and every
+design-fidelity comparison passes either way.
+
+\`apps/web/e2e/cms-round-trip.spec.ts\` writes a value no fixture contains
+(\`CMS round trip <timestamp>\`) through the REST API as a logged-in editor,
+requires it on the page and in the server's HTML, then restores the original so
+the test is re-runnable and the design comparison is not left looking at a
+mutated headline.
+
+Passing proves the page agrees with the CMS, which a component with the seed's
+own string baked into it also does — that is the Phase 1 arrangement, and it is
+what this check has to be able to reject. So this run also put the hardcoded
+headline back into \`components/sections/Header.tsx\` and required the round trip
+to fail. It did, reporting the baked-in value:
+
+\`\`\`
+${roundTripNegative}
+\`\`\`
 
 ## Reproduce
 
@@ -328,15 +410,18 @@ ${REPRODUCE}
 \`\`\`
 
 The e2e run is self-contained: \`apps/web/playwright.config.ts\` starts the dev
-server itself and already sets \`video: 'on'\`, \`screenshot: 'on'\`, \`trace: 'on'\`,
-so a rerun produces the same artefacts with no extra flags. Nothing here touches
-Figma — capture is a separate, deliberately local-only command, because Figma's
-CDN returns 403 to headless Chromium.
+server itself, so a rerun needs no extra flags. Nothing here touches Figma —
+capture is a separate, deliberately local-only command, because Figma's CDN
+returns 403 to headless Chromium.
 
 The \`e2e\` workflow uploads \`apps/web/e2e-results/\` on every run:
 \`e2e-results/design/<Section>.render.png\` is the browser render each section was
-checked against, and \`e2e-results/artifacts/**\` holds a \`video.webm\`, screenshots
-and a Playwright trace per test (\`bunx playwright show-trace <trace.zip>\`).
+checked against — captured explicitly by the fidelity spec, so it is present on a
+pass. Video, screenshots and traces are \`retain-on-failure\`, so
+\`e2e-results/artifacts/**\` is empty on a green run and holds a \`video.webm\` plus a
+trace (\`bunx playwright show-trace <trace.zip>\`) for exactly the tests that
+failed. Recording all three for every passing test cost a few hundred MB a run
+and answered nothing.
 
 ## Design fidelity, per section
 
@@ -430,8 +515,8 @@ writeFileSync(
   <h2>Reproduce</h2>
 <pre><code>${esc(REPRODUCE)}</code></pre>
   <p class="note">Self-contained: <code>playwright.config.ts</code> starts the dev server itself and
-  already records video, screenshots and traces, so a rerun produces the same artefacts with no
-  extra flags. Nothing here touches Figma — capture is a separate local-only command, because
+  needs no extra flags. Video and traces are kept only for failing tests; the section renders
+  below are captured explicitly, so they are here on a pass. Nothing here touches Figma — capture is a separate local-only command, because
   Figma's CDN returns 403 to headless Chromium.</p>
 
   <h2>Design fidelity, section by section</h2>

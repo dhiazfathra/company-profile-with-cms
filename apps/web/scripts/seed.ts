@@ -13,39 +13,55 @@ const MIME_BY_EXT: Record<string, string> = {
   '.webp': 'image/webp',
 }
 
-/** Per-run cache so the same asset (e.g. reused across locales) uploads once. */
-const uploadedMediaIds = new Map<string, string | number>()
+/**
+ * Media ids already resolved during *this* seed run, so an asset reused across
+ * locales or sections uploads once.
+ *
+ * Built per run, not per module: `seedAll` is called again against a rebuilt
+ * database (every test file does exactly this), and a cache outliving the
+ * database it describes hands out ids for rows that no longer exist.
+ */
+type MediaCache = Map<string, string | number>
 
 /**
  * Uploads a `public/`-relative image path (the flat-JSON content format's
  * image value, e.g. "/img/showcase.png") into Payload's media collection and
- * returns its id, reusing an existing media doc with the same filename so
- * re-running seed doesn't pile up duplicates.
+ * returns its id, reusing the existing doc for that path so re-running seed
+ * doesn't pile up duplicates.
+ *
+ * Identity is the full public path, held in the media doc's `sourcePath`.
+ * Basenames are not unique — `/icons/logo.png` and `/img/logo.png` collide —
+ * and resolving that collision silently would point a section at the wrong
+ * image with nothing failing.
  */
-async function uploadImage(payload: BasePayload, publicPath: string): Promise<string | number> {
-  const cached = uploadedMediaIds.get(publicPath)
+async function uploadImage(
+  payload: BasePayload,
+  cache: MediaCache,
+  publicPath: string,
+): Promise<string | number> {
+  const cached = cache.get(publicPath)
   if (cached !== undefined) return cached
 
-  const filename = path.basename(publicPath)
   const existing = await payload.find({
     collection: 'media',
-    where: { filename: { equals: filename } },
+    where: { sourcePath: { equals: publicPath } },
     limit: 1,
   })
   if (existing.docs[0]?.id !== undefined) {
-    uploadedMediaIds.set(publicPath, existing.docs[0].id)
+    cache.set(publicPath, existing.docs[0].id)
     return existing.docs[0].id
   }
 
+  const filename = path.basename(publicPath)
   const absolutePath = path.join(process.cwd(), 'public', publicPath)
   const data = await readFile(absolutePath)
   const mimeType = MIME_BY_EXT[path.extname(filename).toLowerCase()] ?? 'application/octet-stream'
   const created = await payload.create({
     collection: 'media',
-    data: { alt: filename },
+    data: { sourcePath: publicPath },
     file: { data, mimetype: mimeType, name: filename, size: data.length },
   })
-  uploadedMediaIds.set(publicPath, created.id)
+  cache.set(publicPath, created.id)
   return created.id
 }
 
@@ -64,7 +80,12 @@ async function readContent<T>(dir: 'globals' | 'collections', name: string): Pro
   return JSON.parse(await readFile(file, 'utf8')) as T
 }
 
-async function seedGlobal(payload: BasePayload, section: Section, locales: string[]) {
+async function seedGlobal(
+  payload: BasePayload,
+  cache: MediaCache,
+  section: Section,
+  locales: string[],
+) {
   const raw = await readContent<Record<string, unknown>>('globals', section.name)
 
   for (const locale of locales) {
@@ -73,13 +94,18 @@ async function seedGlobal(payload: BasePayload, section: Section, locales: strin
       const value = localizedValue(raw, field.name, field.translatable, locale)
       if (value === undefined) continue
       data[field.name] =
-        field.type === 'image' ? await uploadImage(payload, value as string) : value
+        field.type === 'image' ? await uploadImage(payload, cache, value as string) : value
     }
     await payload.updateGlobal({ slug: section.name, locale, data })
   }
 }
 
-async function seedCollection(payload: BasePayload, section: Section, locales: string[]) {
+async function seedCollection(
+  payload: BasePayload,
+  cache: MediaCache,
+  section: Section,
+  locales: string[],
+) {
   const items = await readContent<Record<string, unknown>[]>('collections', section.name)
   const collection = section.name as Parameters<typeof payload.find>[0]['collection']
 
@@ -97,7 +123,7 @@ async function seedCollection(payload: BasePayload, section: Section, locales: s
         const value = localizedValue(raw, field.name, field.translatable, locale)
         if (value === undefined) continue
         data[field.name] =
-          field.type === 'image' ? await uploadImage(payload, value as string) : value
+          field.type === 'image' ? await uploadImage(payload, cache, value as string) : value
       }
 
       if (id === undefined) {
@@ -111,13 +137,44 @@ async function seedCollection(payload: BasePayload, section: Section, locales: s
 }
 
 export async function seedAll(payload: BasePayload, manifest: Manifest): Promise<void> {
+  const cache: MediaCache = new Map()
   for (const section of manifest.sections) {
     if (section.kind === 'global') {
-      await seedGlobal(payload, section, manifest.locales)
+      await seedGlobal(payload, cache, section, manifest.locales)
     } else {
-      await seedCollection(payload, section, manifest.locales)
+      await seedCollection(payload, cache, section, manifest.locales)
     }
   }
+}
+
+/**
+ * Creates the account `e2e/cms-round-trip.spec.ts` logs in as, so that test can
+ * change a value through the API the way an editor would.
+ *
+ * Opt-in through both env vars, and it only ever runs against a database the
+ * caller seeds — never a default, never a fallback password. Reads of globals
+ * require auth, so without this the round-trip test cannot make the edit whose
+ * arrival on the page is the whole point of Phase 2.
+ */
+export async function seedE2eUser(payload: BasePayload): Promise<'created' | 'reset' | 'skipped'> {
+  const email = process.env.E2E_USER_EMAIL
+  const password = process.env.E2E_USER_PASSWORD
+  if (!email || !password) return 'skipped'
+
+  const existing = await payload.find({
+    collection: 'users',
+    where: { email: { equals: email } },
+    limit: 1,
+  })
+  const id = existing.docs[0]?.id
+  if (id === undefined) {
+    await payload.create({ collection: 'users', data: { email, password } })
+    return 'created'
+  }
+  // Same email, unknown password (a database carried over from an earlier run).
+  // Reset rather than assume, or the login fails for a reason no message names.
+  await payload.update({ collection: 'users', id, data: { password } })
+  return 'reset'
 }
 
 async function main() {
@@ -127,6 +184,8 @@ async function main() {
   for (const section of manifest.sections) {
     console.log(`Seeded ${section.name}`)
   }
+  const user = await seedE2eUser(payload)
+  if (user !== 'skipped') console.log(`e2e user ${user}: ${process.env.E2E_USER_EMAIL}`)
   process.exit(0)
 }
 
