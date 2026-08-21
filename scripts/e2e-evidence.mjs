@@ -22,6 +22,7 @@
  */
 import { spawnSync } from 'node:child_process'
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -182,6 +183,46 @@ if (!roundTrip?.ok) {
 }
 
 /**
+ * The editor's journey, as that test walked it: the admin form holding the old
+ * value, holding the new one, and the page on either side of the save.
+ *
+ * Copied out now, before the failing-direction proof below re-runs the same spec
+ * and overwrites the first three of these with a failed run's screenshots. Left
+ * in place, the report would show a passing run's values beside a failing run's
+ * pictures and nothing would say so.
+ */
+const TRIP_SRC = join(WEB, 'e2e-results/round-trip')
+const TRIP = join(OUT, 'round-trip')
+rmSync(TRIP, { recursive: true, force: true })
+if (!existsSync(join(TRIP_SRC, 'values.json'))) {
+  throw new Error(
+    `the round trip passed but wrote no ${join(TRIP_SRC, 'values.json')}. The report's ` +
+      `before/after has to come from the run, so this is a failure, not a missing extra.`,
+  )
+}
+cpSync(TRIP_SRC, TRIP, { recursive: true })
+
+const tripValues = JSON.parse(readFileSync(join(TRIP, 'values.json'), 'utf8'))
+if (!tripValues.before || !tripValues.after || tripValues.before === tripValues.after) {
+  throw new Error(
+    `round-trip values prove nothing: before ${JSON.stringify(tripValues.before)}, ` +
+      `after ${JSON.stringify(tripValues.after)}`,
+  )
+}
+const TRIP_SHOTS = [
+  ['1-landing-before', 'The landing page, before any edit'],
+  ['2-admin-login', 'Signing in to /admin as the editor'],
+  ['3-admin-before', `${tripValues.adminUrl} — the ${tripValues.field} field as seeded`],
+  ['4-admin-after', 'The same field after the edit was saved, reloaded from the database'],
+  ['5-landing-after', 'The landing page again — no rebuild, no redeploy'],
+]
+for (const [name] of TRIP_SHOTS) {
+  if (!existsSync(join(TRIP, `${name}.png`))) {
+    throw new Error(`the round trip did not capture ${name}.png; the report would claim it did`)
+  }
+}
+
+/**
  * And the same check in the failing direction: hardcode the headline back into
  * the component, the way Phase 1 had it, and the round trip must fail.
  *
@@ -328,14 +369,23 @@ const manifest = JSON.parse(readFileSync(join(WEB, 'design/refs/refs.json'), 'ut
 const order = Object.keys(manifest.sections)
 const renderDir = join(WEB, 'e2e-results/design')
 
-const thumb = async (path) =>
+const thumb = async (path, width = THUMB_WIDTH) =>
   `data:image/webp;base64,${(
     await sharp(path)
       .flatten({ background: '#fff' })
-      .resize({ width: THUMB_WIDTH })
+      .resize({ width })
       .webp({ quality: 72 })
       .toBuffer()
   ).toString('base64')}`
+
+/**
+ * Wider than the design thumbnails: the point of these is that a reader can
+ * read the headline and the form field, not just see that a picture changed.
+ */
+const tripShots = []
+for (const [name, caption] of TRIP_SHOTS) {
+  tripShots.push({ name, caption, src: await thumb(join(TRIP, `${name}.png`), 880) })
+}
 
 const rows = []
 for (const name of readdirSync(renderDir)
@@ -387,11 +437,22 @@ same words hardcoded in it: the seed writes into Payload exactly the strings
 Phase 1 baked into the components, so every render check and every
 design-fidelity comparison passes either way.
 
-\`apps/web/e2e/cms-round-trip.spec.ts\` writes a value no fixture contains
-(\`CMS round trip <timestamp>\`) through the REST API as a logged-in editor,
-requires it on the page and in the server's HTML, then restores the original so
-the test is re-runnable and the design comparison is not left looking at a
-mutated headline.
+\`apps/web/e2e/cms-round-trip.spec.ts\` signs in to \`/admin\` as an editor, opens
+\`${tripValues.adminUrl}\`, and changes \`${tripValues.field}\` to a value no fixture
+contains — then requires it on the page and in the server's HTML, and restores
+the original so the test is re-runnable and the design comparison is not left
+looking at a mutated headline.
+
+| Field | Before | After |
+|---|---|---|
+| \`${tripValues.section}.${tripValues.field}\` | \`${tripValues.before}\` | \`${tripValues.after}\` |
+
+Both values were read out of the run — the before from the admin form itself, the
+after required on the page. \`e2e-evidence/report.html\` carries the five
+screenshots the test took along the way: the page before, the login, the field as
+seeded, the field after saving (reloaded from the database, so the form is not
+merely echoing what was typed), and the page after. No rebuild and no redeploy
+between those last two.
 
 Passing proves the page agrees with the CMS, which a component with the seed's
 own string baked into it also does — that is the Phase 1 arrangement, and it is
@@ -453,6 +514,10 @@ ${proofs.map((p) => `| ${p.what} | ${p.expected} | \`${p.observed}\` |`).join('\
   low block score whatever happens. That is weak evidence, not banked fidelity.
 - \`Footer\` renders the copyright as one field where the design splits it left and
   right — deliberate, per ADR-0005, and too fine for the block check to see.
+- The round trip edits one text field of one global in one locale. It proves the
+  seam is real; it does not exercise uploads, collections, or a second locale's
+  fallback, and it says nothing about editor permissions beyond the one account it
+  signs in as.
 - \`claude plugin eval\` itself is not run: it is early-access gated. What is proven
   is that the suite is well-formed and that the check proving it can fail.
 `,
@@ -519,6 +584,40 @@ writeFileSync(
   below are captured explicitly, so they are here on a pass. Nothing here touches Figma — capture is a separate local-only command, because
   Figma's CDN returns 403 to headless Chromium.</p>
 
+  <h2>An editor changes a value and the page follows</h2>
+  <p>Phase 2's whole claim, walked through the admin UI by
+  <code>apps/web/e2e/cms-round-trip.spec.ts</code> and captured as it went. Nothing else in this
+  pack can tell this apart from a page with the same words hardcoded in it: the seed writes into
+  Payload exactly the strings Phase 1 baked into the components, so every render check and every
+  comparison below passes either way.</p>
+  <div class="scroll"><table>
+    <tr><th>Field</th><th>Before</th><th>After</th></tr>
+    <tr>
+      <td><code>${esc(tripValues.section)}.${esc(tripValues.field)}</code><br>
+        <span class="meta">${esc(tripValues.adminUrl)}</span></td>
+      <td><code>${esc(tripValues.before)}</code></td>
+      <td><code>${esc(tripValues.after)}</code></td>
+    </tr>
+  </table></div>
+  <p class="note">The "after" value carries a timestamp and exists nowhere in the repository, so a
+  cached render cannot pass for a fresh one. Both values were read out of the run — the "before"
+  from the admin form itself, the "after" required on the page — and the test restores the original
+  afterwards, so it is re-runnable and the design comparison below is not left looking at a mutated
+  headline.</p>
+  ${tripShots
+    .map(
+      (s) => `<div class="sec">
+    <header><h3>${esc(s.caption)}</h3><span class="meta">${esc(s.name)}.png</span></header>
+    <img alt="${esc(s.caption)}" src="${s.src}">
+  </div>`,
+    )
+    .join('\n')}
+  <p class="note">Passing proves the page agrees with the CMS — which a component with the seed's
+  own string baked into it also does. That is the Phase 1 arrangement, and it is what this check has
+  to be able to reject, so this run also put the hardcoded headline back into
+  <code>components/sections/Header.tsx</code> and required the round trip to fail. It did, reporting
+  the baked-in value: <code>${esc(roundTripNegative)}</code></p>
+
   <h2>Design fidelity, section by section</h2>
   <p>Each section's live browser render beside the Figma reference it was checked against. Two
   axes: the render's aspect ratio against the design size in the trust manifest, and a coarse
@@ -570,6 +669,9 @@ writeFileSync(
       than an export, with vector icons arriving rasterised.</li>
     <li>Sections that are almost entirely background produce a low block score whatever happens.
       Weak evidence, not banked fidelity.</li>
+    <li>The round trip edits one text field of one global in one locale. It proves the seam is
+      real; it does not exercise uploads, collections, or a second locale's fallback, and it says
+      nothing about editor permissions beyond the one account it signs in as.</li>
     <li><code>claude plugin eval</code> itself is not run: it is early-access gated. What is proven
       is that the suite is well-formed and that the check proving it can fail.</li>
   </ul>
