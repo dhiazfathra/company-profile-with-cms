@@ -21,10 +21,10 @@ workflow artifact by `.github/workflows/e2e.yml`.
 | | |
 |---|---|
 | OS | macOS (Darwin 25.6.0, arm64) |
-| Node | v24.16.0 (repo requires `>=20.9.0`, pinned to `20.9.0` in `.nvmrc`; CI uses the `.nvmrc` version) |
+| Node | v24.16.0 (repo requires `>=20.9.0`, pinned to `22.12.0` in `.nvmrc`; CI uses the `.nvmrc` version) |
 | Bun | 1.3.11 |
 | Playwright | 1.62.1 (`@playwright/test`), Chromium only |
-| Commit | `62c3aad6400f813f2cff34c3155da748cd1b1c16` |
+| Commit | `13821dfaccaa05fdf3ca927e605d957537e1cb02` |
 
 ## Results
 
@@ -44,41 +44,48 @@ Running 12 tests using 4 workers
   ✓ e2e/content-seam.spec.ts › falls back to English when the requested locale has no translation
   ✓ e2e/content-seam.spec.ts › 404s when E2E is not set on the server
 
-  12 passed (5.9s)
+  12 passed (10.8s)
 ```
 
-Existing suites stayed green throughout: `bun run test` (19/19), `bun run
-lint` (clean), `bun run build` (succeeds).
+Existing suites stayed green throughout: `bun run validate:manifest` (18
+sections, locale en), `bun run lint` (clean), `bun run test` (26/26), `bun run
+build` (static export succeeds, `out/index.html` has real content).
+
+Also verified on GitHub Actions for this PR: the `CI` workflow's `verify` job
+(validate:manifest, lint, test, build) and the separate `e2e` workflow both
+passed against commit `13821df`.
 
 ## What this evidence does and does NOT prove
 
 **Does prove:**
-- The Next.js app boots, serves HTTP 200, and renders with no console or page
-  errors, in both light/dark colour schemes and at desktop/mobile viewports.
+- The real, Figma-extracted homepage (11 sections, manifest-driven) boots,
+  serves HTTP 200, and renders with no console or page errors, in both
+  light/dark colour schemes and at desktop/mobile viewports.
 - `lib/content.ts`'s seam (`getGlobal`) is exercised through a real HTTP
   request end to end: locale resolution and English fallback work against the
   actual fixture files, and — the assertion that matters for the Phase 2
   migration — no `_en`-suffixed key ever leaks into rendered HTML.
 - The test-only `/e2e-seam` route is gated: it 404s on any server started
-  without `E2E=1`, so it cannot ship reachable in a normal deploy.
+  without `E2E=1`, so it cannot ship reachable in a normal deploy. This was a
+  real regression risk fixed in this PR — `next.config.ts`'s
+  `output: 'export'` previously forced static-only rendering even under
+  `next dev`, which broke this route's dynamic `searchParams` read (500s in
+  CI); it's now scoped to production builds only.
 - `scripts/validate-manifest.ts` handles all four real CLI paths (missing
   file, malformed JSON, valid manifest, invalid/duplicate sections) with
   controlled exit codes and messages, not stack traces.
 
 **Does NOT prove:**
-- That the site looks or behaves like the intended company profile. The
-  homepage screenshots (`homepage-desktop-light.png`,
-  `homepage-desktop-dark.png`, `homepage-mobile.png`) show the **unmodified
-  Next.js starter page** — `app/page.tsx` has not been touched. Tasks 4-6
-  (Figma extraction, section components, static export) are not implemented;
-  they are blocked because the Figma MCP has no edit access to the case-study
-  file. There is no designed page to test yet.
+- That every section pixel-matches the Figma design — screenshots are a
+  regression baseline, not a design-diff tool.
 - Anything about Payload/Phase 2, since that phase doesn't exist yet.
 - Cross-browser behaviour: only Chromium is installed and tested.
+- That the live Vercel deployment renders correctly — deployment (Task 6
+  Step 4) is a manual step pending human action; see `README.md`.
 
 ## Screenshots
 
 | | |
 |---|---|
-| ![desktop light](homepage-desktop-light.png) Desktop, light scheme (Next.js starter) | ![desktop dark](homepage-desktop-dark.png) Desktop, dark scheme (Next.js starter) |
-| ![mobile](homepage-mobile.png) Mobile, 375×812 (Next.js starter) | ![seam](seam-page.png) `/e2e-seam` — real content resolved through `lib/content.ts` |
+| ![desktop light](homepage-desktop-light.png) Desktop, light scheme — real Figma-extracted content | ![desktop dark](homepage-desktop-dark.png) Desktop, dark scheme — real Figma-extracted content |
+| ![mobile](homepage-mobile.png) Mobile, 375×812 — real Figma-extracted content | ![seam](seam-page.png) `/e2e-seam` — real content resolved through `lib/content.ts` |
