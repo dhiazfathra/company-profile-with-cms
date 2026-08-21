@@ -155,6 +155,13 @@ describe('the eval suite', () => {
           () => new RegExp(g.fields.pattern),
           `pattern must compile: ${g.fields.pattern}`,
         ).not.toThrow()
+        // A pattern that matches an empty string grades a blank answer as a pass —
+        // the deterministic grader would assert nothing at all.
+        const re = new RegExp(g.fields.pattern)
+        expect(
+          re.test(''),
+          `pattern matches empty string, too permissive: ${g.fields.pattern}`,
+        ).toBe(false)
       }
       if (g.fields.type === 'tool_used') expect(typeof g.fields.tool).toBe('string')
       if (g.fields.type === 'llm') expect(String(g.fields.criteria).length).toBeGreaterThan(40)
