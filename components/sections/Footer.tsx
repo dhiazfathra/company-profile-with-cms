@@ -9,7 +9,7 @@ export default async function Footer() {
 
   return (
     <footer className="border-t border-divider-1 px-6 py-16 lg:px-12">
-      <nav>
+      <nav aria-label="Footer">
         <ul className="flex flex-wrap gap-6 lg:gap-10">
           {links.map((link) => (
             <li key={link.href as string}>

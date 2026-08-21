@@ -58,14 +58,10 @@ Downloaded successfully: `public/img/logo-1.png`–`logo-6.png`,
 `public/icons/check.svg`, `public/icons/close.svg`,
 `public/icons/arrow-linkout.svg`.
 
-## Reference screenshots not captured
+## Reference screenshots
 
-Same rate limit. `design/refs/` holds 9 of the 11 sections; missing:
-
-| Section | Figma node |
-|---|---|
-| `CenteredCta` | `1:253` |
-| `Footer` | `1:257` |
+`design/refs/` now holds all 11 sections, including `CenteredCta` (`1:253`)
+and `Footer` (`1:257`) captured after the original rate limit cleared.
 
 ## Accessibility gaps in the manifest
 

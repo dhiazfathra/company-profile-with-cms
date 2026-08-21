@@ -44,15 +44,25 @@ describe('sections', () => {
     expect(names.sort()).toEqual(globals.map((s) => s.name).sort())
   })
 
-  it('reads every collection section in exactly one component', async () => {
+  it('reads every collection section in exactly one component, which renders every row', async () => {
     const files = await readdir('components/sections')
-    const sources = await Promise.all(
-      files.map(async (f) => readFile(`components/sections/${f}`, 'utf8')),
-    )
+    const names = files.map((f) => f.replace(/\.tsx$/, ''))
+    const sources = await Promise.all(files.map((f) => readFile(`components/sections/${f}`, 'utf8')))
 
     for (const section of collections) {
-      const readers = sources.filter((s) => s.includes(`getCollection('${section.name}')`))
-      expect(readers, `${section.name} must be read by exactly one component`).toHaveLength(1)
+      const readerIndexes = sources
+        .map((s, i) => (s.includes(`getCollection('${section.name}')`) ? i : -1))
+        .filter((i) => i !== -1)
+      expect(readerIndexes, `${section.name} must be read by exactly one component`).toHaveLength(1)
+
+      const owner = names[readerIndexes[0]]
+      const mod = await import(`@/components/sections/${owner}`)
+      const { container } = render(await mod.default())
+      for (const value of await collectionCopyOf(section.name)) {
+        expect(container.innerHTML, `${owner} must render ${section.name} row content: ${value}`).toContain(
+          value.replace(/&/g, '&amp;').replace(/</g, '&lt;'),
+        )
+      }
     }
   })
 

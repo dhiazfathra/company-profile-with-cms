@@ -104,14 +104,28 @@ async function recrop({ name, w, h, out, zoomTo, resizeTo }) {
 const args = process.argv.slice(2)
 const cropOnly = args.includes('--crop-only')
 const wanted = args.filter((a) => !a.startsWith('--'))
+
+const unknown = wanted.filter((name) => !TARGETS.some((t) => t.name === name))
+if (unknown.length) {
+  console.error(`Unknown target(s): ${unknown.join(', ')}`)
+  console.error(`Known targets: ${TARGETS.map((t) => t.name).join(', ')}`)
+  process.exit(1)
+}
 const targets = wanted.length ? TARGETS.filter((t) => wanted.includes(t.name)) : TARGETS
 
 await mkdir(RAW, { recursive: true })
 await mkdir('design/refs', { recursive: true })
 
 if (cropOnly) {
-  for (const target of targets) await recrop(target)
-  process.exit(0)
+  for (const target of targets) {
+    try {
+      await recrop(target)
+    } catch (error) {
+      console.error(`${target.name}: ${error.message}`)
+      process.exitCode = 1
+    }
+  }
+  process.exit(process.exitCode ?? 0)
 }
 // Figma's CDN returns 403 to headless Chromium, so this drives a real Chrome
 // window. It is visible while it runs; that is the cost of not having a paid seat.
@@ -126,6 +140,7 @@ for (const target of targets) {
     await capture(page, target)
   } catch (error) {
     console.error(`${target.name}: ${error.message}`)
+    process.exitCode = 1
   }
 }
 
