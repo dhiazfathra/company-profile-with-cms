@@ -41,7 +41,8 @@ consumed by every downstream generator.
 
 Three artifacts derive from it, never hand-authored twice:
 
-1. React section components (props = fields)
+1. React section components — async, self-fetching, no props; each calls
+   `getGlobal`/`getCollection` itself for its fields
 2. `content/*.json` seed — Phase 1 storage, keys suffixed by locale
 3. `payload.config.ts` globals and collections — Phase 2
 
@@ -113,8 +114,8 @@ copy in `content/*.json` under `_en` keys.
 
 ```ts
 // Phase 1 — flat suffixed JSON, app-side locale resolution
-export const getGlobal = (name, loc = 'en') =>
-  strip(import(`@/content/globals/${name}.json`), loc)
+export const getGlobal = async (name, loc = 'en') =>
+  strip((await import(`@/content/globals/${name}.json`)).default, loc)
 
 // Phase 2 — identical signature; Payload resolves the locale and the fallback
 export const getGlobal = (name, loc = 'en') =>
@@ -169,7 +170,9 @@ serves `en` in the meantime. The admin locale switcher appears automatically.
 Three checks, deliberately no more:
 
 - `site.manifest.json` validates against its zod schema (catches generator drift)
-- one render snapshot per section
+- one render check per section, plus a source scan proving no copy is
+  hardcoded — this is the load-bearing check, since it protects the Phase 2
+  migration where components must never learn copy from anywhere but the seam
 - `strip()` unit test: missing locale falls back to `_en` and suffixes are
   dropped from the returned shape
 
