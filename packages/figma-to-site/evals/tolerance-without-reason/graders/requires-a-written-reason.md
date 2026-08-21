@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: 'blockToleranceReason|blockTolerance[^.]{0,60}reason|reason[^.]{0,60}blockTolerance|reason[^.]{0,40}(in|into) the manifest'
 match: contains
+matchExample: 'if you raise it, it needs a blockToleranceReason saying why'
 ---
 
 A tolerance without a reason is a tolerance that will keep growing. If the number

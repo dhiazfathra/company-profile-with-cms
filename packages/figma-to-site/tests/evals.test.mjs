@@ -170,6 +170,20 @@ describe('the eval suite', () => {
           re.test(''),
           `pattern matches empty string, too permissive: ${g.fields.pattern}`,
         ).toBe(false)
+        // And the opposite failure: `(?!)` compiles, matches no empty string, and
+        // matches nothing else either — a `contains` grader that can never pass.
+        // Neither direction is visible from the pattern alone, so every regex
+        // grader carries one fragment of a correct answer that it must match. The
+        // fixture doubles as documentation of what the pattern is looking for.
+        expect(
+          typeof g.fields.matchExample,
+          'a regex grader needs a matchExample: a fragment of a correct answer',
+        ).toBe('string')
+        expect(
+          re.test(g.fields.matchExample),
+          `pattern does not match its own matchExample — it may match nothing at all:\n` +
+            `  pattern: ${g.fields.pattern}\n  example: ${g.fields.matchExample}`,
+        ).toBe(true)
       }
       if (g.fields.type === 'tool_used') expect(typeof g.fields.tool).toBe('string')
       if (g.fields.type === 'llm') expect(String(g.fields.criteria).length).toBeGreaterThan(40)

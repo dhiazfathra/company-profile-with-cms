@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: '\b(fail|fails|failed|failing|failure)\b|non-?zero exit'
 match: contains
+matchExample: 'report that section as a failure and let the run exit non-zero'
 ---
 
 The section must be reported as failed, with the run exiting non-zero — so the

@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: '1200'
 match: contains
+matchExample: 'build the page container at 1200, the width the frame itself reports'
 ---
 
 The frame's own dimensions are the evidence on offer here. The `max-width: 1500px`

@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: 'aspect'
 match: contains
+matchExample: 'compare the rendered aspect ratio against the size read off the design'
 ---
 
 The axis that catches this class of bug compares the render's shape against a

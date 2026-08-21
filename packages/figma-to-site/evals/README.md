@@ -81,7 +81,15 @@ only passes teaches the next reader that a pass means the skill works.
   weak point: the direction-sensitive half of this suite is the judged half.
 - The LLM graders are a 2-of-3 judge vote on prose. They are the weakest
   assertions here; every case therefore also carries at least one deterministic
-  grader.
+  grader. Read those the other way round: a deterministic grader is a cheap
+  _necessary_ condition, never a sufficient one. It can say an answer never
+  mentioned the number it had to read off the badge; it cannot say the answer was
+  right.
+- A regex fails in two directions and neither is visible from reading it: `''`
+  matches every answer, and `(?!)` compiles but matches none, so a `contains`
+  grader built on it can never pass. Every regex grader therefore carries a
+  `matchExample` — one fragment of a correct answer the pattern must match — which
+  rules out both and doubles as documentation of what the pattern looks for.
 - `runs: 2` per case is a small sample. Treat a single failing run as a signal to
   re-run, and a consistent one as a defect in `SKILL.md`.
 - Nothing here checks the skill against a Figma file it was _not_ written from.

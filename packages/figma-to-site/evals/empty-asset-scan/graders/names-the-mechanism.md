@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: 'empty|no images?( files?)?|no files? to scan|nothing to scan|zero (images|files)|missing director'
 match: contains
+matchExample: 'it reported clean because the directory contains no image files'
 ---
 
 The mechanism has to be named to be fixed: the scan reported clean because it had

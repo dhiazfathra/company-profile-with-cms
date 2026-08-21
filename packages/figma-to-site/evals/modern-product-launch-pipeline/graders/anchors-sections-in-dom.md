@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: 'data-section'
 match: contains
+matchExample: 'give every section a stable data-section attribute to locate it by'
 ---
 
 Per-section checks need a stable DOM anchor with an exactly-one assertion behind

@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: 'v7ZzmwgTae9hxdKdNdAe7V'
 match: contains
+matchExample: 'the capture config needs the file key v7ZzmwgTae9hxdKdNdAe7V'
 ---
 
 The plan must be anchored to _this_ file, not to Figma in general. The file key

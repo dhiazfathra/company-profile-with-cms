@@ -134,11 +134,28 @@ Too short to be a rubric.
 type: regex
 pattern: ''
 match: contains
+matchExample: 'anything at all'
 ---
 
 A rubric long enough to clear the length assertion, so that the empty-pattern
 guard is the assertion that has to fire here. The first fixture cannot prove it:
 the length check runs first and would mask it.
+`,
+  },
+  {
+    what: 'Grader whose pattern can never match anything',
+    expect: 'does not match its own matchExample',
+    grader: `---
+type: regex
+pattern: '(?!)'
+match: contains
+matchExample: 'the badge reads 664'
+---
+
+The opposite failure to the empty pattern, and invisible from the pattern alone:
+this compiles, matches no empty string, and matches nothing else either, so a
+contains grader built on it can never pass. Only running it against a fragment of
+a correct answer catches that.
 `,
   },
 ]

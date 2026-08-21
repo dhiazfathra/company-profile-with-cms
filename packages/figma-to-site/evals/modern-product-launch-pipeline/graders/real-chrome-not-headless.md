@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: 'headless: false|headless=false|channel|real Chrome|non-headless|headed|visible (browser|Chrome)'
 match: contains
+matchExample: 'launch Playwright with channel chrome and headless: false'
 ---
 
 Figma's CDN returns 403 to headless Chromium, which is why capture is a local

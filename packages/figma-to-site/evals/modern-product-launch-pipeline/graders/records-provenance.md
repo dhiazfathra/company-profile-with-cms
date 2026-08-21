@@ -1,8 +1,9 @@
 ---
 type: regex
 target: last_message
-pattern: 'sizeFrom|(provenance|source|origin) of (each|every|the) (size|dimension|number)|where (each|every|the) (size|dimension|number) came from|record (the )?(provenance|source|origin)'
+pattern: 'sizeFrom|(provenance|source|origin) of (each|every|the) (size|dimension|number)|where (each|every|the) (size|dimension|number) came from|record (the )?(provenance|source|origin) of (each|every|the) (size|dimension|number)'
 match: contains
+matchExample: 'record the source of each size next to the number in the manifest'
 ---
 
 Every declared size is the most dangerous data in this pipeline, because a

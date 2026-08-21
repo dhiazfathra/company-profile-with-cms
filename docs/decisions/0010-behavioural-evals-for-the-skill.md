@@ -56,9 +56,16 @@ Two constraints on how the cases are written:
 And, because `claude plugin eval` is in early access and exits 1 on a machine
 without it: **validate the suite's structure in CI**, in
 `packages/figma-to-site/tests/evals.test.mjs`. Every prompt loads, every grader is
-well-formed and carries a rubric, every regex compiles and matches neither the
-empty string nor nothing at all, no case is judge-only, an empty suite fails, and
+well-formed and carries a rubric, no case is judge-only, an empty suite fails, and
 a case naming a Figma file must have a grader holding the answer to _that_ file.
+
+Regex graders get a specific treatment, because a pattern's two failure modes are
+both invisible from reading it. One matches everything (`''` — a blank answer
+passes); the other matches nothing (`(?!)` compiles, so a `contains` grader built
+on it can never pass). Neither is visible from the pattern alone, so every regex
+grader carries a `matchExample`: one fragment of a correct answer that the pattern
+must match. It rules out both failures and doubles as documentation of what the
+pattern is actually looking for.
 
 ## Alternatives considered
 

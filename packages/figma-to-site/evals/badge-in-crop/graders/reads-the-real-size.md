@@ -3,6 +3,7 @@ type: regex
 target: last_message
 pattern: '664'
 match: contains
+matchExample: 'the badge reads 1200 x 664.29, so the declared 704 is wrong'
 ---
 
 Figma printed the node's real size inside the badge. The single most useful action
