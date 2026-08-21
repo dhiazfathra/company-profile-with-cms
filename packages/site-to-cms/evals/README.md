@@ -12,7 +12,7 @@ decisions, not functions. No unit test can fail on them.
 
 ## Layout
 
-```
+```text
 evals/
   <case>/
     prompt.md          # frontmatter + the scenario put to the agent
@@ -26,19 +26,19 @@ generic CMS advice.
 
 ## Cases
 
-| Case                              | The judgement under test                                                                 | Its source                                                           |
-| --------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `seed-agreement-blindness`        | A green suite after a migration proves nothing, because the seed made both sources agree | the 154 passing tests that never checked the seam                    |
-| `round-trip-never-failed`         | A seam test that has only ever passed is not known to detect anything                    | the negative-direction proof in `scripts/e2e-evidence.mjs`           |
-| `shape-and-source-at-once`        | Reshape the content, then change the reader — not both in one move                       | ADR-0004                                                             |
-| `numbered-fields-on-a-global`     | Cardinality decides global versus collection, not how many sections there are            | the `BenefitsItem` collection                                        |
-| `localized-flip`                  | A `translatable` flip is a data migration; do not delete the guard                       | `checkTranslatableFlips`, ADR-0005                                   |
-| `richtext-without-renderer`       | A field type with no renderer ships `[object Object]` and nothing fails                  | the `richText` rejection in `schemas/manifest.ts`                    |
-| `nested-html-in-admin`            | Two apps on one origin need a root layout each, and the invariant needs asserting        | the hydration mismatch on `/admin`                                   |
-| `flaky-fidelity-after-round-trip` | Isolate the writer by ordering; retries hide it and one worker overcharges               | the round trip racing `design-fidelity.spec.ts`                      |
-| `production-secret-fallback`      | A secret must fail closed in production, and every build path then needs it              | `payload.config.ts`'s secret, and the evidence script that lacked it |
-| `evidence-says-static-export`     | An evidence pack must observe the build, not remember it                                 | the hardcoded "static export" row that outlived `output: 'export'`   |
-| `blaming-the-format-gate`         | Reproduce a tool's complaint before working around it                                    | four `--no-verify` commits on a diagnosis that was never tested      |
+| Case                              | The judgement under test                                                                   | Its source                                                           |
+| --------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `seed-agreement-blindness`        | A green suite after a migration proves nothing, because the seed made both sources agree   | the 154 passing tests that never checked the seam                    |
+| `round-trip-never-failed`         | A seam test that has only ever passed is not known to detect anything                      | the negative-direction proof in `scripts/e2e-evidence.mjs`           |
+| `shape-and-source-at-once`        | Reshape the content, then change the reader — not both in one move                         | ADR-0004                                                             |
+| `numbered-fields-on-a-global`     | Cardinality decides global versus collection, not how many sections there are              | the `BenefitsItem` collection                                        |
+| `localized-flip`                  | A `translatable` flip is a data migration; do not delete the guard                         | `checkTranslatableFlips`, ADR-0005                                   |
+| `richtext-without-renderer`       | A field type with no renderer cannot be rendered, and the build objects to neither symptom | the `richText` rejection in `schemas/manifest.ts`                    |
+| `nested-html-in-admin`            | Two apps on one origin need a root layout each, and the invariant needs asserting          | the hydration mismatch on `/admin`                                   |
+| `flaky-fidelity-after-round-trip` | Isolate the writer by ordering; retries hide it and one worker overcharges                 | the round trip racing `design-fidelity.spec.ts`                      |
+| `production-secret-fallback`      | A secret must fail closed in production, and every build path then needs it                | `payload.config.ts`'s secret, and the evidence script that lacked it |
+| `evidence-says-static-export`     | An evidence pack must observe the build, not remember it                                   | the hardcoded "static export" row that outlived `output: 'export'`   |
+| `blaming-the-format-gate`         | Reproduce a tool's complaint before working around it                                      | four `--no-verify` commits on a diagnosis that was never tested      |
 
 ## Running
 

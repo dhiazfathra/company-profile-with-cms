@@ -19,7 +19,7 @@ is unaffected.
 The only oddity is in the browser console on `/admin`, from the Next.js dev
 overlay:
 
-```
+```text
 In HTML, <html> cannot be a child of <body>.
 This will cause a hydration error.
 ```

@@ -149,7 +149,7 @@ workaround amounts to switching the check off.
 **`no-mistakes` did not complete.** Three consecutive runs failed at the review
 step with an identical upstream fault:
 
-```
+```text
 API Error: API returned an empty or malformed response (HTTP 200) — check for a
 proxy or gateway intercepting the request. ... content-type event-stream, body is
 an event stream (the non-streaming request was answered with a stream)

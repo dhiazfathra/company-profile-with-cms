@@ -21,9 +21,14 @@
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const EVALS = new URL('../evals/', import.meta.url).pathname
+// fileURLToPath, not `.pathname`: the latter keeps percent-encoding (a directory
+// with a space arrives as `%20`) and on Windows yields a leading-slash path that
+// `join` cannot use. Both failures are in the path handling rather than in
+// anything this file is testing, so they would read as a broken suite.
+const EVALS = fileURLToPath(new URL('../evals/', import.meta.url))
 
 /**
  * The consuming app's content manifest — the authority for what fields exist.
@@ -34,7 +39,7 @@ const EVALS = new URL('../evals/', import.meta.url).pathname
  * whose reality check quietly stops running is the exact shape of defect this
  * skill exists to prevent, so `names-a-real-field` asserts the file is there.
  */
-const MANIFEST = new URL('../../../apps/web/site.manifest.json', import.meta.url).pathname
+const MANIFEST = fileURLToPath(new URL('../../../apps/web/site.manifest.json', import.meta.url))
 
 /** `Section.field` references, as they appear in a case's prose. */
 const fieldRefs = (text) => [...text.matchAll(/\b([A-Z][A-Za-z0-9]*)\.([a-z][A-Za-z0-9]*)\b/g)]
@@ -233,11 +238,24 @@ describe('the eval suite', () => {
           typeof g.fields.matchExample,
           'a regex grader needs a matchExample: a fragment of a correct answer',
         ).toBe('string')
+        // `matchExample` means "a fragment of a CORRECT answer", so what the
+        // pattern must do with it depends on the grader's direction. Under
+        // `contains` a correct answer matches; under `not_contains` the grader
+        // passes when the pattern is absent, so a correct answer must NOT match —
+        // asserting `true` there would demand an example that fails the grader.
+        // Checked explicitly rather than assumed, because `match` defaults to
+        // `contains` and a `not_contains` grader would otherwise be validated
+        // backwards without anything saying so.
+        const isNegated = (g.fields.match ?? 'contains') === 'not_contains'
         expect(
           re.test(g.fields.matchExample),
-          `pattern does not match its own matchExample — it may match nothing at all:\n` +
-            `  pattern: ${g.fields.pattern}\n  example: ${g.fields.matchExample}`,
-        ).toBe(true)
+          isNegated
+            ? `not_contains pattern matches its own matchExample — the example is a ` +
+                `fragment of a correct answer, so the grader would reject it:\n` +
+                `  pattern: ${g.fields.pattern}\n  example: ${g.fields.matchExample}`
+            : `pattern does not match its own matchExample — it may match nothing at all:\n` +
+                `  pattern: ${g.fields.pattern}\n  example: ${g.fields.matchExample}`,
+        ).toBe(!isNegated)
       }
       if (g.fields.type === 'tool_used') expect(typeof g.fields.tool).toBe('string')
       if (g.fields.type === 'llm') expect(String(g.fields.criteria).length).toBeGreaterThan(40)

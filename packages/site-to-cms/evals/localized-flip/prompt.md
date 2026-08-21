@@ -15,7 +15,7 @@ field carries a `translatable` boolean that becomes Payload's `localized`.
 call-to-action to point at a different landing page per locale, so I changed it to
 `true` and re-ran the generator. It refused:
 
-```
+```text
 gen:cms refuses to change 'translatable' on existing field(s): Navigation.ctaHref.
 Toggling localization on an existing field can lose stored content (see ADR-0005)
 — write a manual migration instead.

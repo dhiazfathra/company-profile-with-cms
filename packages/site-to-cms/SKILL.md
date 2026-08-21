@@ -109,9 +109,12 @@ otherwise happily emit:
 
 - **A field type with no renderer.** `richText` is rejected. The generator would
   emit a valid Lexical field; `lib/content.ts` hands sections plain values and
-  every section renders its fields as strings, so a Lexical document arrives and
-  renders `[object Object]` with nothing failing. Add the type back _together
-  with_ its renderer, not before.
+  every section renders its fields as strings, so a Lexical node tree arrives
+  where a string is expected. As a JSX child React throws — "Objects are not
+  valid as a React child" — and in any string context (a template literal, an
+  `alt`, a `title`, a meta tag) it becomes `[object Object]` instead. Nothing in
+  the build objects either way, because at the boundary the value is `unknown`.
+  Add the type back _together with_ its renderer, not before.
 - **A locale suffix in a field name.** `headline_en` is a field whose name encodes
   what `translatable: true` is for. Two mechanisms for one fact, and the suffixed
   one leaks into rendered HTML (ADR-0005).
@@ -145,7 +148,7 @@ So keep a snapshot of every field's flag beside the generated config
 (`.payload-field-locales.json`), and make the generator **refuse** when a field
 that exists in the snapshot changes its value:
 
-```
+```text
 gen:cms refuses to change 'translatable' on existing field(s): Header.headline.
 Toggling localization on an existing field can lose stored content (see ADR-0005)
 — write a manual migration instead.
@@ -338,24 +341,24 @@ reference implementation:
 
 ## Red Flags and Rationalisations
 
-| Rationalisation                                          | Reality                                                                                                                                                               |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "The page shows the CMS content, so the CMS is wired"    | It shows the _same_ content. The seed made both sources agree; every equality check is blind. Write a value that exists nowhere.                                      |
-| "The suite is green after the migration"                 | 131 unit, 23 e2e and 11 fidelity checks were green while the migration had no check behind it at all. Green measured Phase 1, which still worked.                     |
-| "The content-seam test covers the loader"                | It covers the loader. It does not check that any component calls it.                                                                                                  |
-| "The round trip passes, so it works"                     | It has only seen a working seam. Hardcode the value back and confirm it fails, or you have tested nothing.                                                            |
-| "I'll edit the CMS config directly, it's faster"         | Then the manifest is documentation, and the loader, validator and seed all describe a schema that no longer exists. Regenerate and diff in CI.                        |
-| "The generator emits a valid field, so the type is fine" | Valid to the CMS, unrenderable by the site. `richText` arrives as a Lexical document and renders `[object Object]` with nothing failing.                              |
-| "`headline_en` is clearer than a translatable flag"      | Two mechanisms for one fact, and the suffix leaks into rendered HTML. Pick the CMS's own localization.                                                                |
-| "Three benefits is three fields"                         | The first "add a fourth" turns a click into a schema migration and a deploy. Cardinality decides global versus collection.                                            |
-| "Flipping `localized` is a one-character change"         | It is a data migration that can lose stored content. Snapshot the flags and refuse the flip.                                                                          |
-| "The admin panel works, the console warning is cosmetic" | Nested `<html>` is a hydration mismatch the browser repairs silently. Assert exactly one, or it comes back.                                                           |
-| "The API call proves the round trip"                     | It proves the seam, and nothing about the panel an editor uses. Drive the admin UI; a reviewer can check that.                                                        |
-| "The form shows the new value after saving"              | The form shows what you typed. Reload and read it back from the database.                                                                                             |
-| "Reload right after clicking save"                       | The save is in flight; a reload that lands first reads the old row and blames the seam. Await the response.                                                           |
-| "Skip the round trip when credentials are missing"       | A skip is a green tick and the pass count does not move. Fail loudly.                                                                                                 |
-| "One worker fixes the flake"                             | It also serialises every read-only test to protect one writer. Order the projects instead.                                                                            |
-| "The report says static export"                          | Does it? Read it off the filesystem. A hardcoded claim in an evidence pack is the defect the pack exists to prevent.                                                  |
-| "The secret has a fallback, so deploys are fine"         | Then production signs sessions with a value in your repository. Throw, and supply it from every production-build path.                                                |
-| "The formatter is broken on generated files"             | Reproduce that, with an exit code, from a directory you have confirmed. Ours was a command run from the wrong cwd, and the workaround was four `--no-verify` commits. |
-| "Everything passes, so the CMS drives the site"          | One field of one global in one locale drives the site. Say so, or the next reader will believe more than you proved.                                                  |
+| Rationalisation                                          | Reality                                                                                                                                                                                                         |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "The page shows the CMS content, so the CMS is wired"    | It shows the _same_ content. The seed made both sources agree; every equality check is blind. Write a value that exists nowhere.                                                                                |
+| "The suite is green after the migration"                 | 131 unit, 23 e2e and 11 fidelity checks were green while the migration had no check behind it at all. Green measured Phase 1, which still worked.                                                               |
+| "The content-seam test covers the loader"                | It covers the loader. It does not check that any component calls it.                                                                                                                                            |
+| "The round trip passes, so it works"                     | It has only seen a working seam. Hardcode the value back and confirm it fails, or you have tested nothing.                                                                                                      |
+| "I'll edit the CMS config directly, it's faster"         | Then the manifest is documentation, and the loader, validator and seed all describe a schema that no longer exists. Regenerate and diff in CI.                                                                  |
+| "The generator emits a valid field, so the type is fine" | Valid to the CMS, unrenderable by the site. `richText` arrives as a Lexical node tree: React throws on it as a JSX child, and any string context turns it into `[object Object]`. The build objects to neither. |
+| "`headline_en` is clearer than a translatable flag"      | Two mechanisms for one fact, and the suffix leaks into rendered HTML. Pick the CMS's own localization.                                                                                                          |
+| "Three benefits is three fields"                         | The first "add a fourth" turns a click into a schema migration and a deploy. Cardinality decides global versus collection.                                                                                      |
+| "Flipping `localized` is a one-character change"         | It is a data migration that can lose stored content. Snapshot the flags and refuse the flip.                                                                                                                    |
+| "The admin panel works, the console warning is cosmetic" | Nested `<html>` is a hydration mismatch the browser repairs silently. Assert exactly one, or it comes back.                                                                                                     |
+| "The API call proves the round trip"                     | It proves the seam, and nothing about the panel an editor uses. Drive the admin UI; a reviewer can check that.                                                                                                  |
+| "The form shows the new value after saving"              | The form shows what you typed. Reload and read it back from the database.                                                                                                                                       |
+| "Reload right after clicking save"                       | The save is in flight; a reload that lands first reads the old row and blames the seam. Await the response.                                                                                                     |
+| "Skip the round trip when credentials are missing"       | A skip is a green tick and the pass count does not move. Fail loudly.                                                                                                                                           |
+| "One worker fixes the flake"                             | It also serialises every read-only test to protect one writer. Order the projects instead.                                                                                                                      |
+| "The report says static export"                          | Does it? Read it off the filesystem. A hardcoded claim in an evidence pack is the defect the pack exists to prevent.                                                                                            |
+| "The secret has a fallback, so deploys are fine"         | Then production signs sessions with a value in your repository. Throw, and supply it from every production-build path.                                                                                          |
+| "The formatter is broken on generated files"             | Reproduce that, with an exit code, from a directory you have confirmed. Ours was a command run from the wrong cwd, and the workaround was four `--no-verify` commits.                                           |
+| "Everything passes, so the CMS drives the site"          | One field of one global in one locale drives the site. Say so, or the next reader will believe more than you proved.                                                                                            |
