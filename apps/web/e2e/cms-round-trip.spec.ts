@@ -91,7 +91,17 @@ test.describe('CMS round trip', () => {
     try {
       await page.goto(ADMIN_URL)
       await input.fill(edited)
-      await page.locator('#action-save').click()
+      // Reloading straight after the click would race the save: the request is
+      // in flight, and a reload that lands first reads the old row and shows the
+      // old value. Wait for the response the click causes, and assert it
+      // succeeded — a 4xx here is a clearer failure than a stale value later.
+      const [saved] = await Promise.all([
+        page.waitForResponse(
+          (r) => r.url().includes(`/api/globals/${SECTION}`) && r.request().method() === 'POST',
+        ),
+        page.locator('#action-save').click(),
+      ])
+      expect(saved.status(), await saved.text()).toBeLessThan(400)
       // Payload keeps the form mounted after a save, so the value in the input
       // proves nothing on its own — a reload is what shows it was persisted.
       await page.reload()

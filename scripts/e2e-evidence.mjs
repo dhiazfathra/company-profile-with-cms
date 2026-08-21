@@ -137,8 +137,17 @@ run('bun', ['run', 'lint'])
  * not. The mtime check is because an `out/` left behind by an earlier phase
  * would otherwise answer for this build.
  */
+/**
+ * payload.config.ts throws rather than fall back to its dev secret when
+ * NODE_ENV is production, which `next build` sets — so a production build
+ * cannot load the config without this. Deliberately not a secret: the same
+ * kind of throwaway value the e2e workflow's build step uses, against a sqlite
+ * file this run creates and nothing outside it reads.
+ */
+const SECRET = process.env.PAYLOAD_SECRET ?? 'evidence-secret'
+
 const buildStart = Date.now()
-run('bun', ['run', 'build'])
+run('bun', ['run', 'build'], { env: { PAYLOAD_SECRET: SECRET } })
 const exportIndex = join(WEB, 'out/index.html')
 const buildMode =
   existsSync(exportIndex) && statSync(exportIndex).mtimeMs >= buildStart
@@ -151,7 +160,11 @@ const buildMode =
  * file this run seeds, and that test refuses to run rather than skip if it is
  * missing — a round-trip proof that silently stops running is worse than none.
  */
-const E2E_USER = { E2E_USER_EMAIL: 'e2e@example.com', E2E_USER_PASSWORD: 'e2e-evidence-password' }
+const E2E_USER = {
+  E2E_USER_EMAIL: 'e2e@example.com',
+  E2E_USER_PASSWORD: 'e2e-evidence-password',
+  PAYLOAD_SECRET: SECRET,
+}
 
 run('bun', ['run', 'seed'], { cwd: WEB, env: E2E_USER })
 run('bun', ['run', 'e2e'], { cwd: WEB, env: E2E_USER })
@@ -241,7 +254,11 @@ if (!headerSource.includes(LIVE)) {
 let roundTripNegative
 try {
   writeFileSync(HEADER, headerSource.replace(LIVE, "{'Browse everything.'}"))
-  const broken = run('bunx', ['playwright', 'test', 'e2e/cms-round-trip.spec.ts', '--retries=0'], {
+  // --no-deps: the round-trip project declares `chromium` as a dependency so it
+  // runs last in a full run, but this proof only needs the one test, and the rest
+  // of the suite would fail here too against a deliberately broken component.
+  const args = ['playwright', 'test', '--project=round-trip', '--no-deps', '--retries=0']
+  const broken = run('bunx', args, {
     cwd: WEB,
     allowFailure: true,
     env: E2E_USER,

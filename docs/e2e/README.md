@@ -10,13 +10,25 @@
 ```bash
 bun install
 bunx playwright install chromium --with-deps
+
+# The suite reads seeded CMS content, and cms-round-trip.spec.ts signs in to
+# /admin as this account — it fails rather than skips if the credentials are
+# absent, because a round-trip proof that silently stops running is worse than
+# none. Not secrets: they exist only in the local sqlite file seeded here.
+export E2E_USER_EMAIL=e2e@example.com
+export E2E_USER_PASSWORD=e2e-local-password
+bun run --cwd apps/web seed
+
 bun run e2e            # runs the suite (starts `bun run dev` itself)
 bun run e2e:report      # opens the HTML report (traces/videos for failures)
 ```
 
 `bun run e2e` runs `playwright test` against `playwright.config.ts`, which
-starts `bun run dev` on port 3100 via Playwright's `webServer`, so no manual
-setup is required. A **failing** test captures a video and a trace
+starts `bun run dev` on port 3100 via Playwright's `webServer`, so the server
+needs no manual setup. Two projects run in order: `chromium` for the suite, then
+`round-trip` on its own — it is the one test that writes to the database the rest
+read, and running it alongside them would change `Header.headline` under the
+fidelity comparison. A **failing** test captures a video and a trace
 (`e2e-results/artifacts/`, `retain-on-failure`); a green run leaves that
 directory empty, because recording all three for every passing test cost a few
 hundred megabytes a run and answered no question anyone asked. The section
@@ -28,13 +40,13 @@ workflow artifact by `.github/workflows/e2e.yml`.
 
 ## Environment this run was performed in
 
-| | |
-|---|---|
-| OS | macOS (Darwin 25.6.0, arm64) |
-| Node | v24.16.0 (repo requires `>=20.9.0`, pinned to `22.12.0` in `.nvmrc`; CI uses the `.nvmrc` version) |
-| Bun | 1.3.11 |
-| Playwright | 1.62.1 (`@playwright/test`), Chromium only |
-| Commit | `91fa9917a044757f8ddf75ad6faaf4f2d21b5814` |
+|            |                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| OS         | macOS (Darwin 25.6.0, arm64)                                                                       |
+| Node       | v24.16.0 (repo requires `>=20.9.0`, pinned to `22.12.0` in `.nvmrc`; CI uses the `.nvmrc` version) |
+| Bun        | 1.3.11                                                                                             |
+| Playwright | 1.62.1 (`@playwright/test`), Chromium only                                                         |
+| Commit     | `91fa9917a044757f8ddf75ad6faaf4f2d21b5814`                                                         |
 
 ## Results
 
@@ -85,6 +97,7 @@ passed against commit `5cc0385`, the commit before this one. The run for
 ## What this evidence does and does NOT prove
 
 **Does prove:**
+
 - The real, Figma-extracted homepage (11 sections, manifest-driven) boots,
   serves HTTP 200, and renders with no console or page errors, in both
   light/dark colour schemes and at desktop/mobile viewports.
@@ -108,7 +121,8 @@ passed against commit `5cc0385`, the commit before this one. The run for
   dimension badge into `public/`.
 
 **Does NOT prove:**
-- That every section *pixel*-matches the Figma design. The gate compares aspect
+
+- That every section _pixel_-matches the Figma design. The gate compares aspect
   ratio against the design size and coarse block colour against the reference
   image; it is not a pixel diff, and it cannot see fine typographic or hairline
   differences. On a section that is mostly background a low block score is weak
@@ -120,7 +134,7 @@ passed against commit `5cc0385`, the commit before this one. The run for
 
 ## Screenshots
 
-| | |
-|---|---|
+|                                                                                                   |                                                                                                |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | ![desktop light](homepage-desktop-light.png) Desktop, light scheme — real Figma-extracted content | ![desktop dark](homepage-desktop-dark.png) Desktop, dark scheme — real Figma-extracted content |
-| ![mobile](homepage-mobile.png) Mobile, 375×812 — real Figma-extracted content | ![seam](seam-page.png) `/e2e-seam` — real content resolved through `lib/content.ts` |
+| ![mobile](homepage-mobile.png) Mobile, 375×812 — real Figma-extracted content                     | ![seam](seam-page.png) `/e2e-seam` — real content resolved through `lib/content.ts`            |

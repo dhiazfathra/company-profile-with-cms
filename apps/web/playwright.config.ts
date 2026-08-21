@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const ROUND_TRIP = '**/cms-round-trip.spec.ts'
+
 export default defineConfig({
   testDir: 'e2e',
   outputDir: 'e2e-results/artifacts',
@@ -30,6 +32,21 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      // The round trip is the one test that writes to the database every other
+      // test reads. With fullyParallel it could change Header.headline while
+      // design-fidelity.spec.ts is comparing that section's render against the
+      // Figma reference — a different string is a different layout, so the block
+      // comparison would fail for a reason that has nothing to do with fidelity.
+      testIgnore: ROUND_TRIP,
+    },
+    {
+      // Runs alone, after everything else has finished reading the seeded state.
+      // The evidence script's negative proof targets this project directly with
+      // --no-deps, so it does not drag the whole suite along.
+      name: 'round-trip',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ROUND_TRIP,
+      dependencies: ['chromium'],
     },
   ],
   webServer: {
