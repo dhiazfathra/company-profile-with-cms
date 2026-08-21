@@ -29,11 +29,12 @@ flips `lib/content.ts` to read from Payload. No component changes.
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start the development server |
-| `pnpm gen:cms` | Generate `payload.config.ts` from `site.manifest.json` |
-| `pnpm seed` | Load `content/*.json` into Payload |
-| `pnpm test` | Run tests |
-| `pnpm lint` | Run the linter |
+| `bun install` | Install dependencies |
+| `bun run dev` | Start the development server |
+| `bun run gen:cms` | Generate `payload.config.ts` from `site.manifest.json` |
+| `bun run seed` | Load `content/*.json` into Payload |
+| `bun run test` | Run tests |
+| `bun run lint` | Run the linter |
 
 ## Architecture
 
@@ -57,6 +58,6 @@ Full design: [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md
 
 ## Adding a language
 
-Append the locale to `locales` in `site.manifest.json`, run `pnpm gen:cms`. No
+Append the locale to `locales` in `site.manifest.json`, run `bun run gen:cms`. No
 migration, no new columns. Fields are empty until an editor fills them, and
 Payload's fallback serves English in the meantime.

@@ -133,9 +133,9 @@ does that work server-side.
 ## Phase 2 — migration
 
 ```bash
-pnpm gen:cms      # manifest → payload.config.ts (localized fields + locales array)
-pnpm seed         # content/*.json → Payload, suffix keys mapped to locales
-pnpm dev          # /admin live
+bun run gen:cms   # manifest → payload.config.ts (localized fields + locales array)
+bun run seed      # content/*.json → Payload, suffix keys mapped to locales
+bun run dev       # /admin live
 # flip lib/content.ts to the Payload impl; delete the JSON reader and strip()
 ```
 
@@ -146,7 +146,7 @@ git as the seed of record and the fallback if the CMS is lost.
 
 ### Adding a language later
 
-Append the locale to `locales` in the manifest and rerun `pnpm gen:cms`. Payload
+Append the locale to `locales` in the manifest and rerun `bun run gen:cms`. Payload
 gains the locale in its `localization.locales` array — no migration, no new
 columns. Fields are empty until an editor fills them; Payload's `fallback`
 serves `en` in the meantime. The admin locale switcher appears automatically.
