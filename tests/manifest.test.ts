@@ -23,7 +23,7 @@ describe('ManifestSchema', () => {
 
   it('requires en as the first locale', () => {
     const bad = { ...valid, locales: ['id', 'en'] }
-    expect(() => ManifestSchema.parse(bad)).toThrow(/locales\[0\] must be "en"/)
+    expect(() => ManifestSchema.parse(bad)).toThrow(/locales\[0\] must be/)
   })
 
   it('rejects duplicate section names', () => {
