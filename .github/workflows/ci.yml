@@ -25,6 +25,7 @@ jobs:
           node-version-file: .nvmrc
       - run: bun install --frozen-lockfile
       - run: bun run validate:manifest
+      - run: bun run --cwd apps/web check:cms-drift
       - run: bun run lint
       - run: bun run test
       - run: bun run build

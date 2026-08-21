@@ -8,17 +8,25 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx --yes serve@14 out",
+    "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
     "validate:manifest": "tsx scripts/validate-manifest.ts",
+    "gen:cms": "tsx scripts/gen-cms.ts",
+    "check:cms-drift": "tsx scripts/check-cms-drift.ts",
+    "seed": "bun scripts/seed.ts",
     "verify:design": "figma-verify-design",
     "capture:figma": "figma-capture",
     "e2e": "playwright test",
     "e2e:report": "playwright show-report e2e-results/report"
   },
   "dependencies": {
+    "@payloadcms/db-sqlite": "^3.88.0",
+    "@payloadcms/next": "^3.88.0",
+    "@payloadcms/richtext-lexical": "^3.88.0",
+    "graphql": "^17.0.2",
     "next": "16.3.1",
+    "payload": "^3.88.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^3.22"

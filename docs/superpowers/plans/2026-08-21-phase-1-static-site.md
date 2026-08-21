@@ -26,19 +26,19 @@
 
 ## File Structure
 
-| Path | Responsibility |
-|---|---|
-| `site.manifest.json` | Source of truth: locales, tokens, sections, fields |
-| `schemas/manifest.ts` | Zod schema + inferred types for the manifest |
-| `scripts/validate-manifest.ts` | CLI that validates the manifest; used by CI |
-| `lib/content.ts` | The phase seam: locale resolution + suffix stripping + content reads |
-| `content/globals/*.json` | Singleton section content, suffixed keys |
-| `content/collections/*.json` | Repeating item content, suffixed keys |
-| `components/sections/*.tsx` | One semantic component per Figma section |
-| `app/page.tsx` | Composes sections in order |
-| `app/layout.tsx` | Root layout, fonts, global styles |
-| `design/refs/*.png` | Per-section reference screenshots from Figma |
-| `TOKEN-GAPS.md` | Figma values that were not variables |
+| Path                           | Responsibility                                                       |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `site.manifest.json`           | Source of truth: locales, tokens, sections, fields                   |
+| `schemas/manifest.ts`          | Zod schema + inferred types for the manifest                         |
+| `scripts/validate-manifest.ts` | CLI that validates the manifest; used by CI                          |
+| `lib/content.ts`               | The phase seam: locale resolution + suffix stripping + content reads |
+| `content/globals/*.json`       | Singleton section content, suffixed keys                             |
+| `content/collections/*.json`   | Repeating item content, suffixed keys                                |
+| `components/sections/*.tsx`    | One semantic component per Figma section                             |
+| `app/page.tsx`                 | Composes sections in order                                           |
+| `app/layout.tsx`               | Root layout, fonts, global styles                                    |
+| `design/refs/*.png`            | Per-section reference screenshots from Figma                         |
+| `TOKEN-GAPS.md`                | Figma values that were not variables                                 |
 
 Deliberately absent: a component generator and a seed generator. Components are written once by agents from the manifest plus a screenshot; the seed is written once during extraction. A code generator earns its keep in Phase 2 (`gen:cms`), where the same manifest must stay in sync with a live schema across many runs. Writing one now would be scaffolding for a single use.
 
@@ -47,10 +47,12 @@ Deliberately absent: a component generator and a seed generator. Components are 
 ### Task 1: Project scaffold
 
 **Files:**
+
 - Create: `package.json`, `tsconfig.json`, `next.config.ts`, `postcss.config.mjs`, `app/layout.tsx`, `app/page.tsx`, `app/globals.css`, `vitest.config.ts`, `.gitignore`, `.nvmrc`
 - Test: `tests/scaffold.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces: a working `bun run dev`, `bun run test`, `bun run lint`, `bun run build`; path alias `@/*` resolving to the repo root
 
@@ -175,10 +177,12 @@ git commit -m "chore: scaffold Next.js app with bun, vitest, and tailwind
 ### Task 2: Manifest schema and validator
 
 **Files:**
+
 - Create: `schemas/manifest.ts`, `scripts/validate-manifest.ts`
 - Test: `tests/manifest.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces:
   - `ManifestSchema: ZodType<Manifest>`
@@ -228,10 +232,12 @@ describe('ManifestSchema', () => {
   it('rejects duplicate field names within a section', () => {
     const bad = {
       ...valid,
-      sections: [{
-        ...valid.sections[0],
-        fields: [valid.sections[0].fields[0], valid.sections[0].fields[0]],
-      }],
+      sections: [
+        {
+          ...valid.sections[0],
+          fields: [valid.sections[0].fields[0], valid.sections[0].fields[0]],
+        },
+      ],
     }
     expect(() => ManifestSchema.parse(bad)).toThrow(/duplicate field name/i)
   })
@@ -239,10 +245,12 @@ describe('ManifestSchema', () => {
   it('rejects a field name that already carries a locale suffix', () => {
     const bad = {
       ...valid,
-      sections: [{
-        ...valid.sections[0],
-        fields: [{ name: 'headline_en', type: 'text', translatable: true }],
-      }],
+      sections: [
+        {
+          ...valid.sections[0],
+          fields: [{ name: 'headline_en', type: 'text', translatable: true }],
+        },
+      ],
     }
     expect(() => ManifestSchema.parse(bad)).toThrow(/must not include a locale suffix/i)
   })
@@ -281,36 +289,40 @@ const FieldSchema = z.object({
   translatable: z.boolean(),
 })
 
-const SectionSchema = z.object({
-  name: z.string().regex(/^[A-Z][a-zA-Z0-9]*$/, 'section name must be PascalCase'),
-  kind: z.enum(['global', 'collection']),
-  fields: z.array(FieldSchema).min(1),
-}).superRefine((section, ctx) => {
-  const seen = new Set<string>()
-  for (const field of section.fields) {
-    if (seen.has(field.name)) {
-      ctx.addIssue({ code: 'custom', message: `duplicate field name: ${field.name}` })
+const SectionSchema = z
+  .object({
+    name: z.string().regex(/^[A-Z][a-zA-Z0-9]*$/, 'section name must be PascalCase'),
+    kind: z.enum(['global', 'collection']),
+    fields: z.array(FieldSchema).min(1),
+  })
+  .superRefine((section, ctx) => {
+    const seen = new Set<string>()
+    for (const field of section.fields) {
+      if (seen.has(field.name)) {
+        ctx.addIssue({ code: 'custom', message: `duplicate field name: ${field.name}` })
+      }
+      seen.add(field.name)
     }
-    seen.add(field.name)
-  }
-})
+  })
 
-export const ManifestSchema = z.object({
-  locales: z.array(z.string().regex(LOCALE)).min(1),
-  tokens: z.record(z.string(), z.unknown()),
-  sections: z.array(SectionSchema).min(1),
-}).superRefine((manifest, ctx) => {
-  if (manifest.locales[0] !== 'en') {
-    ctx.addIssue({ code: 'custom', message: 'locales[0] must be "en" (the default locale)' })
-  }
-  const seen = new Set<string>()
-  for (const section of manifest.sections) {
-    if (seen.has(section.name)) {
-      ctx.addIssue({ code: 'custom', message: `duplicate section name: ${section.name}` })
+export const ManifestSchema = z
+  .object({
+    locales: z.array(z.string().regex(LOCALE)).min(1),
+    tokens: z.record(z.string(), z.unknown()),
+    sections: z.array(SectionSchema).min(1),
+  })
+  .superRefine((manifest, ctx) => {
+    if (manifest.locales[0] !== 'en') {
+      ctx.addIssue({ code: 'custom', message: 'locales[0] must be "en" (the default locale)' })
     }
-    seen.add(section.name)
-  }
-})
+    const seen = new Set<string>()
+    for (const section of manifest.sections) {
+      if (seen.has(section.name)) {
+        ctx.addIssue({ code: 'custom', message: `duplicate section name: ${section.name}` })
+      }
+      seen.add(section.name)
+    }
+  })
 
 export type Manifest = z.infer<typeof ManifestSchema>
 export type Section = Manifest['sections'][number]
@@ -342,7 +354,9 @@ if (!result.success) {
   process.exit(1)
 }
 
-console.log(`site.manifest.json valid — ${result.data.sections.length} sections, locales: ${result.data.locales.join(', ')}`)
+console.log(
+  `site.manifest.json valid — ${result.data.sections.length} sections, locales: ${result.data.locales.join(', ')}`,
+)
 ```
 
 - [ ] **Step 6: Verify the CLI rejects a missing manifest**
@@ -365,10 +379,12 @@ git commit -m "feat: add manifest zod schema and validator CLI
 ### Task 3: The content seam
 
 **Files:**
+
 - Create: `lib/content.ts`
 - Test: `tests/content.test.ts`, `tests/fixtures/content/globals/Sample.json`
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces:
   - `DEFAULT_LOCALE = 'en'`
@@ -395,13 +411,16 @@ describe('strip', () => {
   })
 
   it('leaves untranslatable keys untouched', () => {
-    expect(strip({ headline_en: 'Launch', ctaHref: '/signup' }))
-      .toEqual({ headline: 'Launch', ctaHref: '/signup' })
+    expect(strip({ headline_en: 'Launch', ctaHref: '/signup' })).toEqual({
+      headline: 'Launch',
+      ctaHref: '/signup',
+    })
   })
 
   it('returns the requested locale when present', () => {
-    expect(strip({ headline_en: 'Launch', headline_id: 'Peluncuran' }, 'id'))
-      .toEqual({ headline: 'Peluncuran' })
+    expect(strip({ headline_en: 'Launch', headline_id: 'Peluncuran' }, 'id')).toEqual({
+      headline: 'Peluncuran',
+    })
   })
 
   it('falls back to en when the requested locale is missing', () => {
@@ -409,15 +428,18 @@ describe('strip', () => {
   })
 
   it('prefers the requested locale regardless of key order', () => {
-    expect(strip({ headline_id: 'Peluncuran', headline_en: 'Launch' }, 'id'))
-      .toEqual({ headline: 'Peluncuran' })
-    expect(strip({ headline_en: 'Launch', headline_id: 'Peluncuran' }, 'id'))
-      .toEqual({ headline: 'Peluncuran' })
+    expect(strip({ headline_id: 'Peluncuran', headline_en: 'Launch' }, 'id')).toEqual({
+      headline: 'Peluncuran',
+    })
+    expect(strip({ headline_en: 'Launch', headline_id: 'Peluncuran' }, 'id')).toEqual({
+      headline: 'Peluncuran',
+    })
   })
 
   it('ignores locales that are neither requested nor the default', () => {
-    expect(strip({ headline_en: 'Launch', headline_de: 'Start' }, 'id'))
-      .toEqual({ headline: 'Launch' })
+    expect(strip({ headline_en: 'Launch', headline_de: 'Start' }, 'id')).toEqual({
+      headline: 'Launch',
+    })
   })
 
   it('defaults to en', () => {
@@ -456,10 +478,7 @@ Create `tests/fixtures/content/globals/Sample.json`:
 Create `tests/fixtures/content/collections/Samples.json`:
 
 ```json
-[
-  { "title_en": "First" },
-  { "title_en": "Second" }
-]
+[{ "title_en": "First" }, { "title_en": "Second" }]
 ```
 
 - [ ] **Step 3: Run the tests to verify they fail**
@@ -554,10 +573,12 @@ git commit -m "feat: add the phase seam in lib/content.ts
 ### Task 4: Figma extraction and manifest review
 
 **Files:**
+
 - Create: `site.manifest.json`, `content/globals/*.json`, `content/collections/*.json`, `design/refs/*.png`, `TOKEN-GAPS.md`, `public/` assets
 - Modify: `app/globals.css` (Tailwind theme from Figma variables)
 
 **Interfaces:**
+
 - Consumes: `ManifestSchema` from Task 2 (via `bun run validate:manifest`)
 - Produces: a validated `site.manifest.json` and matching content files. Task 5 reads the manifest's `sections` array and the screenshots.
 
@@ -576,11 +597,11 @@ Output a plain list to the conversation, e.g. `Hero, FeatureGrid, Community, Pri
 Call `get_variable_defs` on the file root. Map the result into the Tailwind v4 theme block in `app/globals.css`:
 
 ```css
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --color-brand: #5B4DF5;      /* replace with real variable values */
-  --font-display: "Inter", sans-serif;
+  --color-brand: #5b4df5; /* replace with real variable values */
+  --font-display: 'Inter', sans-serif;
   --spacing-section: 6rem;
 }
 ```
@@ -593,9 +614,9 @@ Every design value that came back as a literal rather than a named variable gets
 Values present in the Figma file that are not bound to a Figma variable. Each is
 a literal in the code and will drift if the design changes.
 
-| Value | Where it appears | Suggested variable |
-|---|---|---|
-| `#0B0B14` | Hero background | `--color-surface-inverse` |
+| Value     | Where it appears | Suggested variable        |
+| --------- | ---------------- | ------------------------- |
+| `#0B0B14` | Hero background  | `--color-surface-inverse` |
 ```
 
 Create the file even if it is empty — an empty gaps file is a claim that nothing drifted, and a missing one is silence.
@@ -603,6 +624,7 @@ Create the file even if it is empty — an empty gaps file is a claim that nothi
 - [ ] **Step 3: Extract copy, structure, and assets**
 
 For each section from Step 1:
+
 - `get_design_context` on the frame — read the text content and layout structure.
 - `get_screenshot` on the frame — save to `design/refs/<SectionName>.png`.
 - `download_assets` for any image or icon the section needs — save under `public/`.
@@ -644,6 +666,7 @@ Write `site.manifest.json`. Every section from Step 1 becomes an entry. For each
 ```
 
 Rules for the judgement calls:
+
 - A section that appears once is `kind: "global"`. A section rendering a repeating card, item, or row is `kind: "collection"`, and its fields describe **one item**, not the list.
 - `translatable: true` for anything a human reads as prose. `false` for URLs, image references, icon names, and numbers that are not written out as words.
 - `translatable` is fixed at review time. Changing it after Phase 2 exists risks content loss (ADR-0005), so decide it now.
@@ -675,11 +698,12 @@ If it fails on a suffixed field name, the fix is in the manifest (drop the suffi
 - [ ] **Step 7: STOP for human review**
 
 Present to the human:
+
 - the section list and each one's `kind`
 - every field name with its `translatable` flag
 - `TOKEN-GAPS.md`
 
-Ask explicitly: *"Approve this manifest? Field names and translatable flags are expensive to change after Phase 2."*
+Ask explicitly: _"Approve this manifest? Field names and translatable flags are expensive to change after Phase 2."_
 
 Do not proceed to Task 5 without approval. This is the pipeline's only gate, and it exists because a wrong field name here propagates into components, content, and the CMS schema simultaneously (ADR-0002).
 
@@ -699,11 +723,13 @@ git commit -m "feat: extract Figma design into manifest, tokens, and seed conten
 ### Task 5: Section components and page composition
 
 **Files:**
+
 - Create: `components/sections/<Name>.tsx` (one per manifest section)
 - Modify: `app/page.tsx`
 - Test: `tests/sections.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `getGlobal`, `getCollection` from Task 3; `site.manifest.json` and `design/refs/*.png` from Task 4
 - Produces: one default-exported async React component per section, named for the section, taking no props
 
@@ -796,6 +822,7 @@ export default async function FeatureGrid() {
 ```
 
 Constraints every subagent must hold:
+
 - No literal user-facing string in the JSX. Every visible word comes from the content object.
 - Use Tailwind classes bound to the theme from Task 4. No arbitrary hex values.
 - Match the screenshot's structure and hierarchy, not its exact pixels (ADR-0003).
@@ -843,10 +870,12 @@ git commit -m "feat: add section components reading from the content seam
 ### Task 6: Static export and deploy
 
 **Files:**
+
 - Modify: `next.config.ts`, `README.md`
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Consumes: everything above
 - Produces: a live URL
 
@@ -951,3 +980,26 @@ Recorded here so the boundary stays visible while implementing:
 - New: `payload.config.ts` (generated), `scripts/gen-cms.ts`, `scripts/seed.ts`
 
 Unchanged: every section component, `app/page.tsx`, `schemas/manifest.ts`, `site.manifest.json`, and `content/*.json`, which becomes the seed of record.
+
+## Phase 2 — done
+
+Implemented as predicted above, plus what the prediction didn't foresee:
+
+- `lib/content.ts` — `getGlobal`/`getCollection` now read through Payload's
+  local API (`fallbackLocale: 'en'`); `strip()` and the JSON reader are
+  deleted. Both functions are built by `createContentApi(getPayload)`, a
+  small seam that lets tests point them at a throwaway Payload instance.
+- `next.config.ts` — `output: 'export'` removed; wrapped in `withPayload`.
+  `app/page.tsx` is now `export const dynamic = 'force-dynamic'`: content
+  comes from a live Payload instance, so it can no longer be prerendered at
+  build time.
+- New: `payload.config.ts` (generated, do not hand-edit), `scripts/gen-cms.ts`
+  (generator + the `translatable`-flip guard), `scripts/check-cms-drift.ts`,
+  `scripts/seed.ts`, `lib/payload.ts`, `.payload-field-locales.json`
+  (the flip-guard's snapshot), and the `app/(payload)/` route group
+  (`/admin`, REST, GraphQL).
+- Removed: `app/e2e-seam/` and `e2e/content-seam.spec.ts` — Phase 1
+  scaffolding built to exercise `strip()` over HTTP. Its job (proving the
+  locale fallback) is now covered directly in `tests/content.test.ts`
+  against a real in-memory Payload instance, per the design spec's testing
+  section.

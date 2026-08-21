@@ -1,9 +1,9 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-21T13:08:29Z
-branch: figma-to-site-eval — 8 ahead, 0 behind main
-head: 2314062
+generated: 2026-08-21T15:08:44Z
+branch: worktree-figma-to-cms-phase2 — 0 ahead, 0 behind main
+head: 5bad518
 dirty files: none (clean tree)
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none

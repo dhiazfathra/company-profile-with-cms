@@ -1,60 +1,53 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
+import type { BasePayload } from 'payload'
+import { getPayload } from './payload'
 
 export const DEFAULT_LOCALE = 'en'
 
-const SUFFIXED = /^(.+)_([a-z]{2}(?:-[A-Z]{2})?)$/
+type PayloadClient = () => Promise<BasePayload>
 
 /**
- * Resolves locale-suffixed keys down to plain ones for a single locale.
- *
- * Phase 1 only. Phase 2 deletes this: Payload resolves the locale and the
- * fallback server-side, and returns the same unsuffixed shape. Components
- * therefore never observe which phase they are running in — that is the whole
- * point of this module. See ADR-0004 and ADR-0005.
+ * Builds the `getGlobal`/`getCollection` pair over any Payload client — a
+ * seam of its own, so tests can point it at a throwaway config instead of
+ * the app's real one. `createContentApi(getPayload)` below is what every
+ * component actually imports.
  */
-export function strip(
-  raw: Record<string, unknown>,
-  locale: string = DEFAULT_LOCALE,
-): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  const exact = new Set<string>()
-
-  for (const [key, value] of Object.entries(raw)) {
-    const match = SUFFIXED.exec(key)
-    if (!match) {
-      out[key] = value
-      continue
-    }
-    const [, field, keyLocale] = match
-    if (keyLocale === locale) {
-      out[field] = value
-      exact.add(field)
-    } else if (keyLocale === DEFAULT_LOCALE && !exact.has(field)) {
-      // Fallback, but never over an exact match — regardless of key order.
-      out[field] = value
-    }
+export function createContentApi(getClient: PayloadClient) {
+  /**
+   * Phase 2 — backed by Payload. Same signature as the Phase 1 flat-JSON
+   * reader it replaced: components never learn which backend is live.
+   * Payload resolves the locale and falls back to `en` server-side. See
+   * ADR-0004 and ADR-0005.
+   */
+  async function getGlobal(
+    name: string,
+    locale: string = DEFAULT_LOCALE,
+  ): Promise<Record<string, unknown>> {
+    const payload = await getClient()
+    const result = await payload.findGlobal({
+      slug: name,
+      locale,
+      fallbackLocale: DEFAULT_LOCALE,
+    })
+    return result as unknown as Record<string, unknown>
   }
 
-  return out
+  async function getCollection(
+    name: string,
+    locale: string = DEFAULT_LOCALE,
+  ): Promise<Record<string, unknown>[]> {
+    const payload = await getClient()
+    const result = await payload.find({
+      collection: name as Parameters<typeof payload.find>[0]['collection'],
+      locale,
+      fallbackLocale: DEFAULT_LOCALE,
+      limit: 0,
+    })
+    return result.docs as unknown as Record<string, unknown>[]
+  }
+
+  return { getGlobal, getCollection }
 }
 
-const read = async (dir: string, kind: string, name: string) =>
-  JSON.parse(await readFile(path.join(process.cwd(), dir, kind, `${name}.json`), 'utf8'))
-
-export async function getGlobal(
-  name: string,
-  locale: string = DEFAULT_LOCALE,
-  dir = 'content',
-): Promise<Record<string, unknown>> {
-  return strip(await read(dir, 'globals', name), locale)
-}
-
-export async function getCollection(
-  name: string,
-  locale: string = DEFAULT_LOCALE,
-  dir = 'content',
-): Promise<Record<string, unknown>[]> {
-  const items: Record<string, unknown>[] = await read(dir, 'collections', name)
-  return items.map((item) => strip(item, locale))
-}
+const defaultApi = createContentApi(getPayload)
+export const getGlobal = defaultApi.getGlobal
+export const getCollection = defaultApi.getCollection
