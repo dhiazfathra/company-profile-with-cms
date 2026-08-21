@@ -50,3 +50,11 @@ e2e-results/
 test-results/
 design/verify/
 design/captures/
+
+# claude plugin eval run output (scores, HTML report). Leading ** because a
+# pattern with a slash in it is anchored to this file, and the suite lives in
+# packages/figma-to-site — the unanchored rule matched nothing for six commits.
+**/evals/results/
+
+# bun run evidence output (report, PR section, run log)
+e2e-evidence/

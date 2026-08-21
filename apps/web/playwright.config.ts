@@ -8,6 +8,9 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { outputFolder: 'e2e-results/report', open: 'never' }],
+    // Machine-readable, for scripts/e2e-evidence.mjs: an evidence pack must read
+    // the run's own record, never its console formatting.
+    ['json', { outputFile: 'e2e-results/results.json' }],
   ],
   use: {
     baseURL: 'http://localhost:3100',

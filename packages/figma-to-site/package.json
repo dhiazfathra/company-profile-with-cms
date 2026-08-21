@@ -22,7 +22,8 @@
     "SKILL.md",
     "README.md",
     "bin",
-    "src"
+    "src",
+    "evals"
   ],
   "scripts": {
     "test": "vitest run"
