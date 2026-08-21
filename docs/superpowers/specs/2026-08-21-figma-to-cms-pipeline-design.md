@@ -42,7 +42,7 @@ consumed by every downstream generator.
 Three artifacts derive from it, never hand-authored twice:
 
 1. React section components (props = fields)
-2. `content/*.json` seed — Phase 1 storage, keys already suffixed
+2. `content/*.json` seed — Phase 1 storage, keys suffixed by locale
 3. `payload.config.ts` globals and collections — Phase 2
 
 `kind: "global"` → Payload Global (singleton section). `kind: "collection"` →
@@ -50,13 +50,33 @@ Payload Collection (repeating items).
 
 ### Language convention
 
-`translatable: true` makes the emitter write `<field>_<locale>` for every entry
-in `locales`. Default `["en"]` → `headline_en`. Adding a locale means appending
-to `locales` and rerunning the generator; existing content is untouched.
+`translatable: true` is the single flag driving language handling. It means two
+different things in the two phases, deliberately:
 
-**Tradeoff (accepted):** this bypasses Payload's native localization API. Cost —
-no built-in admin locale switcher; fields render side by side. Benefit — flat,
-portable JSON matching the required convention, independent of any one CMS.
+- **Phase 1 (no CMS):** the seed emitter writes `<field>_<locale>` keys —
+  `headline_en`. Flat JSON, no infrastructure required.
+- **Phase 2 (Payload):** the config emitter writes `localized: true` on the
+  field. Payload owns locale storage, and `localization.locales` in the config
+  is generated from the manifest's `locales` array.
+
+The `_en` suffix therefore survives as the project's **interchange format** —
+seed files, exports, and the manifest itself — rather than as a storage layout.
+
+**Why not suffix all the way into the database.** Suffixed columns would keep
+one convention end to end, but on Postgres each new language adds a column per
+translatable field (ten fields × one language = ten `ALTER TABLE`s), the admin
+panel renders every language of every field simultaneously with no locale
+switcher, and fallback has to be hand-written in application code. Native
+localization adds a locale with a single config array entry and no migration,
+ships the switcher and server-side fallback for free, and still exposes flat
+per-locale documents through the API. The stated requirement — every
+translatable field addressable by language code, `en`-only by default, more
+languages later without schema changes — is met more completely this way.
+
+**Accepted cost:** content portability now runs through Payload's
+`locale=all`, which returns `{ headline: { en, id } }` — nested, not flat. If
+an external consumer ever needs the flat suffixed form, add a ~20-line export
+script that flattens `locale=all`. Not built until something actually needs it.
 
 ## Phase 1 — extraction and static site
 
@@ -92,46 +112,57 @@ copy in `content/*.json` under `_en` keys.
 ## The seam: `lib/content.ts`
 
 ```ts
-const locales = ['en'] as const           // generated from manifest
+// Phase 1 — flat suffixed JSON, app-side locale resolution
+export const getGlobal = (name, loc = 'en') =>
+  strip(import(`@/content/globals/${name}.json`), loc)
 
-export const t = (obj, field, loc = 'en') =>
-  obj[`${field}_${loc}`] ?? obj[`${field}_en`]
-
-// Phase 1
-export const getGlobal = (name) => import(`@/content/globals/${name}.json`)
-
-// Phase 2 — identical signature
-export const getGlobal = (name) => payload.findGlobal({ slug: name })
+// Phase 2 — identical signature; Payload resolves the locale and the fallback
+export const getGlobal = (name, loc = 'en') =>
+  payload.findGlobal({ slug: name, locale: loc, fallbackLocale: 'en' })
 ```
 
-Components receive plain objects and call `t()`. They never learn which backend
-is live. Swapping this file is the migration; nothing else is a refactor.
+Both implementations return the **same shape**: a plain object with unsuffixed
+keys for the requested locale (`{ headline: "..." }`). `strip()` is the Phase 1
+half — it selects `<field>_<loc>`, falls back to `<field>_en`, and drops the
+suffix. Components receive resolved objects and never learn which backend is
+live, nor that suffixes ever existed.
+
+`strip()` and its fallback logic are Phase 1 only. Phase 2 deletes them; Payload
+does that work server-side.
 
 ## Phase 2 — migration
 
 ```bash
-pnpm gen:cms      # manifest → payload.config.ts
-pnpm seed         # content/*.json → Payload, verbatim keys
+pnpm gen:cms      # manifest → payload.config.ts (localized fields + locales array)
+pnpm seed         # content/*.json → Payload, suffix keys mapped to locales
 pnpm dev          # /admin live
-# flip lib/content.ts to the Payload impl; delete the JSON reader
+# flip lib/content.ts to the Payload impl; delete the JSON reader and strip()
 ```
 
-No component is touched. No copy is retyped. `content/*.json` remains in git as
-the seed of record and the fallback if the CMS is lost.
+The seed script is the only place the two representations meet: it reads
+`headline_en` from the JSON and writes it to the `headline` field under locale
+`en`. No component is touched. No copy is retyped. `content/*.json` remains in
+git as the seed of record and the fallback if the CMS is lost.
 
 ### Adding a language later
 
-Append the locale to `locales`, run `pnpm gen:cms`. Payload gains `headline_id`
-beside `headline_en`, empty. `t()` falls back to `_en` until an editor fills it.
-No content migration, no downtime.
+Append the locale to `locales` in the manifest and rerun `pnpm gen:cms`. Payload
+gains the locale in its `localization.locales` array — no migration, no new
+columns. Fields are empty until an editor fills them; Payload's `fallback`
+serves `en` in the meantime. The admin locale switcher appears automatically.
 
 ## Error handling
 
 - Missing Figma variable → literal value plus a `TOKEN-GAPS.md` entry.
 - Manifest/CMS drift after hand edits → `gen:cms` is idempotent; a zod check
   fails CI when config and manifest disagree.
-- Missing translation → `t()` falls back to `_en`; never an empty render.
+- Missing translation → Payload's `fallbackLocale` serves `en` (Phase 2);
+  `strip()` does the same (Phase 1). Never an empty render.
 - Re-running the seed → upsert by slug, never append.
+- **Never toggle `localized` on an existing field** — Payload warns this changes
+  the stored data structure and can lose content. `translatable` is fixed at
+  manifest-review time; changing it later requires a written migration, and
+  `gen:cms` refuses the change with an explicit error rather than emitting it.
 
 ## Testing
 
@@ -139,7 +170,8 @@ Three checks, deliberately no more:
 
 - `site.manifest.json` validates against its zod schema (catches generator drift)
 - one render snapshot per section
-- `t()` unit test: missing locale falls back to `_en`
+- `strip()` unit test: missing locale falls back to `_en` and suffixes are
+  dropped from the returned shape
 
 Not built: visual regression, e2e. Add when traffic justifies them.
 
@@ -156,6 +188,7 @@ plus manifest.
 
 ## Explicitly not built
 
-No extractor/builder/schema/migrator subagent fleet. The pipeline is serial with
-a single parallel step. A skill plus code generators does the same work with less
-to maintain and clearer failure attribution.
+- No extractor/builder/schema/migrator subagent fleet. The pipeline is serial
+  with a single parallel step. A skill plus code generators does the same work
+  with less to maintain and clearer failure attribution.
+- No flat-suffix export from Payload until an external consumer needs one.
