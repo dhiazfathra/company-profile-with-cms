@@ -35,7 +35,10 @@ backend is live.
 
 ## Consequences
 - Phase 2 migration is: generate the config, run the seed, flip one file.
-- `content/*.json` stays in git after Phase 2 as the seed of record and the
-  recovery path if the CMS database is lost.
+- `content/*.json` is the initial bootstrap seed only. After Phase 2 goes live,
+  Payload's database is the sole authority for content, and recovery is by
+  database backup. The JSON files remain in git as the record of what was
+  originally extracted from Figma — useful for re-seeding a fresh environment,
+  never for restoring a live one.
 - The seed script is the single point where the suffixed JSON representation and
   Payload's locale representation meet (see ADR-0005).

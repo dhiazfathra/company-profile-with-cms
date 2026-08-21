@@ -373,8 +373,11 @@ git commit -m "feat: add manifest zod schema and validator CLI
 - Produces:
   - `DEFAULT_LOCALE = 'en'`
   - `strip(raw: Record<string, unknown>, locale?: string): Record<string, unknown>`
-  - `getGlobal(name: string, locale?: string): Promise<Record<string, unknown>>`
-  - `getCollection(name: string, locale?: string): Promise<Record<string, unknown>[]>`
+  - `getGlobal(name: string, locale?: string, dir?: string): Promise<Record<string, unknown>>`
+  - `getCollection(name: string, locale?: string, dir?: string): Promise<Record<string, unknown>[]>`
+
+  `dir` exists so tests can point at fixtures; it defaults to `'content'` and
+  is not part of the Phase 2 contract, which will drop it.
 
 Every section component in Task 5 calls `getGlobal` or `getCollection`. Phase 2 replaces the bodies of those two functions and deletes `strip`; the signatures do not change.
 

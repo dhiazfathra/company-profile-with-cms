@@ -4,8 +4,11 @@ A pipeline that converts a Figma file into a live static site, then evolves it
 into an admin-editable, CMS-backed, multi-language site — with no copy rework
 between the two phases.
 
-**Status: design stage.** The design and its decision records are written; no
-application code exists yet. The commands below are specified, not yet built.
+**Status: Tasks 1-3 implemented.** The Next.js scaffold, the manifest schema
+(`schemas/manifest.ts`) and its validator (`scripts/validate-manifest.ts`), and
+the content seam (`lib/content.ts`) are built and tested. Tasks 4-6 (Figma
+extraction, section components, static export) are not started — blocked on
+Figma file access.
 
 ## How it works
 
@@ -31,10 +34,11 @@ flips `lib/content.ts` to read from Payload. No component changes.
 |---------|-------------|
 | `bun install` | Install dependencies |
 | `bun run dev` | Start the development server |
-| `bun run gen:cms` | Generate `payload.config.ts` from `site.manifest.json` |
-| `bun run seed` | Load `content/*.json` into Payload |
 | `bun run test` | Run tests |
 | `bun run lint` | Run the linter |
+| `bun run validate:manifest` | Validate `site.manifest.json` against the schema — currently exits 1, since that file does not exist yet |
+| `bun run gen:cms` | Phase 2, not yet built — will generate `payload.config.ts` from `site.manifest.json` |
+| `bun run seed` | Phase 2, not yet built — will load `content/*.json` into Payload |
 
 ## Architecture
 
@@ -42,7 +46,11 @@ flips `lib/content.ts` to read from Payload. No component changes.
   a human before any generator runs; this is the pipeline's only gate.
 - **`lib/content.ts`** — the seam between phases. Both implementations return the
   same locale-resolved shape, so components never learn which backend is live.
-- **`content/*.json`** — Phase 1 storage, and the seed of record thereafter.
+- **`content/*.json`** — Phase 1 storage, and the initial bootstrap seed for
+  Phase 2. After Phase 2 goes live, Payload's database is the sole authority
+  for content and recovery is by database backup; these files stay in git only
+  as the record of what was originally extracted from Figma, useful for
+  re-seeding a fresh environment, never for restoring a live one.
 
 Full design: [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md)
 

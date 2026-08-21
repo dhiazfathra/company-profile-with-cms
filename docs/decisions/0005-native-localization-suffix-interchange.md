@@ -22,9 +22,11 @@ Use Payload's native localization: the manifest's `translatable: true` emits
 generates `localization.locales`.
 
 The `_en` suffix is retained as the project's **interchange format** — the Phase 1
-seed files, the manifest, and any future export — rather than as a storage layout.
-`translatable: true` therefore emits suffixed keys in Phase 1 and `localized: true`
-in Phase 2, from the same flag.
+seed files and any future export — rather than as a storage layout. Manifest
+field names themselves stay unsuffixed (`schemas/manifest.ts` rejects a field
+name carrying a locale suffix); `translatable: true` is what causes suffixes to
+be emitted into Phase 1 seed content. `translatable: true` therefore emits
+suffixed keys in Phase 1 and `localized: true` in Phase 2, from the same flag.
 
 ## Alternatives Considered
 
