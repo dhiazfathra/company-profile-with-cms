@@ -10,10 +10,11 @@ see [ADR-0009](../../docs/decisions/0009-monorepo-with-figma-to-site-package.md)
 for why they are separate. Commands below work from this directory; the repository
 root delegates the same names.
 
-**Status: Phase 1 complete; deploy pending.** The static site is built and
-ready to deploy; content lives in `content/*.json`. Phase 2 (Payload CMS) is
-specified but not built — the `bun run gen:cms` and `bun run seed` commands
-do not exist yet.
+**Status: Phase 2 complete; deploy pending.** Payload CMS is wired in: `bun run
+gen:cms` generates `payload.config.ts` from `site.manifest.json`, `bun run
+seed` loads `content/*.json` into it, and `/admin` is live under `bun run dev`.
+The site is no longer a static export — content is read from Payload at
+request time (see "Adding a language" below for why).
 
 Deployed URL: TBD — Vercel import pending
 
@@ -28,9 +29,17 @@ bun run dev
 ```
 
 - **Landing page:** http://localhost:3000
-- **CMS admin:** not available yet. Phase 2 (Payload) is specced but not
-  built — there is no `/admin` route, no `gen:cms`/`seed` command, and no
-  database in this repo. Content for now lives directly in `content/*.json`.
+- **CMS admin:** http://localhost:3000/admin — sign up the first user on
+  first visit. First-time setup:
+
+  ```bash
+  bun run gen:cms   # payload.config.ts from site.manifest.json
+  bun run seed      # content/*.json -> Payload (upserts, safe to re-run)
+  bun run dev       # /admin live
+  ```
+
+  Payload uses a local sqlite file (`payload.db`, gitignored) by default; set
+  `DATABASE_URI` to point elsewhere.
 
 ## How it works
 
@@ -52,20 +61,21 @@ flips `lib/content.ts` to read from Payload. No component changes.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `bun install` | Install dependencies |
-| `bun run dev` | Start the development server |
-| `bun run build` | Production build |
-| `bun run test` | Run unit tests (Vitest) |
-| `bun run e2e` | Run end-to-end tests (Playwright) — starts the dev server itself |
-| `bun run e2e:report` | Open the e2e HTML report with traces, videos, screenshots |
-| `bun run lint` | Run the linter |
-| `bun run validate:manifest` | Validate `site.manifest.json` against the schema |
-| `bun run verify:design` | Compare the running page against the Figma references (needs a dev server) |
-| `bun run capture:figma` | Re-capture assets and references from Figma, per `design/figma.targets.json` — opens a real Chrome window |
-| `bun run gen:cms` | Phase 2, not yet built — will generate `payload.config.ts` from `site.manifest.json` |
-| `bun run seed` | Phase 2, not yet built — will load `content/*.json` into Payload |
+| Command                     | Description                                                                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `bun install`               | Install dependencies                                                                                                               |
+| `bun run dev`               | Start the development server                                                                                                       |
+| `bun run build`             | Production build                                                                                                                   |
+| `bun run test`              | Run unit tests (Vitest)                                                                                                            |
+| `bun run e2e`               | Run end-to-end tests (Playwright) — starts the dev server itself                                                                   |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                                                          |
+| `bun run lint`              | Run the linter                                                                                                                     |
+| `bun run validate:manifest` | Validate `site.manifest.json` against the schema                                                                                   |
+| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                                                         |
+| `bun run capture:figma`     | Re-capture assets and references from Figma, per `design/figma.targets.json` — opens a real Chrome window                          |
+| `bun run gen:cms`           | Generate `payload.config.ts` from `site.manifest.json`; refuses to run if a field's `translatable` flag changed since the last run |
+| `bun run check:cms-drift`   | Fail (non-zero exit) if `payload.config.ts` is out of sync with `site.manifest.json` — run `gen:cms` and commit the result         |
+| `bun run seed`              | Load `content/*.json` into Payload; upserts by position, safe to re-run                                                            |
 
 ## Testing
 
@@ -77,8 +87,11 @@ bunx playwright install chromium --with-deps   # once
 bun run e2e
 ```
 
-Every e2e test records a screenshot, video, and trace into `e2e-results/`
-(gitignored); CI uploads that directory as a workflow artifact. Committed
+A failing e2e test records a video and a trace into `e2e-results/artifacts/`
+(gitignored, `retain-on-failure` — a green run leaves it empty); the design
+fidelity spec captures its section renders into `e2e-results/design/`
+unconditionally, since those are the evidence a passing run has to show. CI
+uploads the whole directory as a workflow artifact. Committed
 evidence and reproduction details live in [`docs/e2e/README.md`](../../docs/e2e/README.md).
 
 ### Design fidelity
@@ -109,10 +122,12 @@ inside a green band while every other gate was green. The manifest validated,
 the unit tests passed, the build succeeded, and this very e2e suite screenshotted
 the page at three viewports — and compared those screenshots to nothing.
 
-`e2e/content-seam.spec.ts` is the one to preserve: it asserts that no
-locale-suffixed key ever reaches rendered HTML, which is what keeps the Phase 2
-migration a backend swap rather than a refactor. It renders through a test-only
-route gated behind `E2E=1`, which 404s on any normally-started server.
+`tests/sections.test.tsx`'s "never reads a locale-suffixed key" check is the
+one to preserve: it asserts no component source contains a suffixed key,
+which is what keeps the Phase 2 migration a backend swap rather than a
+refactor. Locale-fallback behaviour itself — Payload's `fallbackLocale`
+replacing Phase 1's `strip()` — is covered directly in
+`tests/content.test.ts`, against a real (in-memory) Payload instance.
 
 ## Architecture
 
@@ -130,27 +145,37 @@ route gated behind `E2E=1`, which 404s on any normally-started server.
   and whether its PNG is trustworthy enough to compare content against. A
   reference has to be vouched for there before it can pass or fail a section: a
   corrupt reference is worse than a missing one, since it can do neither.
-- **`content/*.json`** — Phase 1 storage, and the initial bootstrap seed for
-  Phase 2. After Phase 2 goes live, Payload's database is the sole authority
-  for content and recovery is by database backup; these files stay in git only
-  as the record of what was originally extracted from Figma, useful for
-  re-seeding a fresh environment, never for restoring a live one.
+- **`content/*.json`** — the initial bootstrap seed for Payload (`bun run
+seed`). Payload's database is now the sole authority for content and
+  recovery is by database backup; these files stay in git only as the record
+  of what was originally extracted from Figma, useful for re-seeding a fresh
+  environment, never for restoring a live one.
+- **`app/(frontend)/` and `app/(payload)/`** — two root layouts, and there must
+  be no `app/layout.tsx` above them. Payload's admin renders its own `<html>`
+  and `<body>`; a shared root layout wraps that in a second pair, and the panel
+  then hydrates with nested `<html>` inside `<body>` while still _looking_
+  correct. `e2e/admin.spec.ts` fails on exactly that, and was checked against
+  the broken arrangement as well as the fixed one.
+- **`payload.config.ts`** — generated by `bun run gen:cms` from
+  `site.manifest.json`; never hand-edited (`bun run check:cms-drift` catches
+  drift). `.payload-field-locales.json` is the generator's own snapshot of
+  each field's `translatable` flag, used to refuse a silent flip.
 
 Full design: [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](../../docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md)
 
 ## Decisions
 
-| ADR | Decision |
-|-----|----------|
-| [0001](../../docs/decisions/0001-nextjs-payload-single-repo.md) | Next.js + Payload in a single repository |
-| [0002](../../docs/decisions/0002-manifest-driven-generation.md) | Generate components, content, and schema from one manifest |
-| [0003](../../docs/decisions/0003-token-and-section-rebuild.md) | Rebuild Figma as semantic sections, not pixel-faithful codegen |
-| [0004](../../docs/decisions/0004-content-json-in-cms-shape.md) | Phase 1 content stored in the CMS's shape |
-| [0005](../../docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format |
-| [0006](../../docs/decisions/0006-bun-as-package-manager.md) | Bun as package manager and script runner; Node.js as the runtime |
-| [0007](../../docs/decisions/0007-figma-capture-by-screenshot.md) | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
-| [0008](../../docs/decisions/0008-automated-design-fidelity-gate.md) | Automated two-axis design-fidelity gate instead of pixel-diff snapshots |
-| [0009](../../docs/decisions/0009-monorepo-with-figma-to-site-package.md) | Monorepo, with the Figma pipeline as a reusable package |
+| ADR                                                                         | Decision                                                                 |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [0001](../../docs/decisions/0001-nextjs-payload-single-repo.md)             | Next.js + Payload in a single repository                                 |
+| [0002](../../docs/decisions/0002-manifest-driven-generation.md)             | Generate components, content, and schema from one manifest               |
+| [0003](../../docs/decisions/0003-token-and-section-rebuild.md)              | Rebuild Figma as semantic sections, not pixel-faithful codegen           |
+| [0004](../../docs/decisions/0004-content-json-in-cms-shape.md)              | Phase 1 content stored in the CMS's shape                                |
+| [0005](../../docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format          |
+| [0006](../../docs/decisions/0006-bun-as-package-manager.md)                 | Bun as package manager and script runner; Node.js as the runtime         |
+| [0007](../../docs/decisions/0007-figma-capture-by-screenshot.md)            | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
+| [0008](../../docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots  |
+| [0009](../../docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                  |
 
 ## Adding a language
 

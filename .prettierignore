@@ -2,3 +2,10 @@
 # Formatting it only means the next commit un-formats it, and the gate then
 # blocks on a file nobody edited. Left to its generator.
 .procoder/state/handoff.md
+
+# Same story, different generator: Payload rewrites this on every `next build`
+# and `next dev`, with double quotes and no trailing comma — which this repo's
+# prettier config rejects. Formatting it makes the very next build un-format it,
+# so the gate ends up blocking every commit in the repo over a file nobody
+# touched. It is generated output; its generator owns its style.
+apps/web/app/(payload)/admin/importMap.js

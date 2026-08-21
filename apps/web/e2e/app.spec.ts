@@ -1,24 +1,15 @@
 import { test, expect } from '@playwright/test'
+import { watchForConsoleErrors } from './console-errors'
 
 test.describe('homepage', () => {
   test('responds 200 and renders without console/page errors', async ({ page }, testInfo) => {
-    const consoleMessages: string[] = []
-    const pageErrors: string[] = []
-    page.on('console', (msg) => consoleMessages.push(`[${msg.type()}] ${msg.text()}`))
-    page.on('pageerror', (err) => pageErrors.push(String(err)))
+    const assertClean = watchForConsoleErrors(page)
 
     const response = await page.goto('/')
     expect(response?.status()).toBe(200)
     await expect(page.locator('body')).toBeVisible()
 
-    await testInfo.attach('console-output.txt', {
-      body: consoleMessages.join('\n') || '(no console output)',
-      contentType: 'text/plain',
-    })
-
-    const errorMessages = consoleMessages.filter((m) => m.startsWith('[error]'))
-    expect(errorMessages, `console errors:\n${errorMessages.join('\n')}`).toHaveLength(0)
-    expect(pageErrors, `page errors:\n${pageErrors.join('\n')}`).toHaveLength(0)
+    await assertClean(testInfo)
   })
 
   test('desktop light screenshot', async ({ page }) => {

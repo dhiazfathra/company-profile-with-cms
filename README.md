@@ -4,10 +4,10 @@
 
 A monorepo with two outputs from one piece of work:
 
-| Workspace                                          | What it is                                                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [`apps/web`](apps/web)                             | A Figma design built as a manifest-driven static Next.js site, on a path to a Payload CMS without copy rework      |
-| [`packages/figma-to-site`](packages/figma-to-site) | The reusable method: capture a Figma file by screenshot with no paid seat, and prove the render matches the design |
+| Workspace                                          | What it is                                                                                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`apps/web`](apps/web)                             | A Figma design built as a manifest-driven Next.js site, now backed by Payload CMS, with no copy rework between phases |
+| [`packages/figma-to-site`](packages/figma-to-site) | The reusable method: capture a Figma file by screenshot with no paid seat, and prove the render matches the design    |
 
 The site is the instance. The package is the transferable part — and it exists
 because the first attempt at the site shipped a hero section rendering a green band
@@ -24,9 +24,11 @@ bun run dev          # the site at http://localhost:3000
 bun run test         # both suites: the site's and the package's
 ```
 
-There is no CMS admin route yet. Phase 2 (Payload) is specified but not built —
-content currently lives in `apps/web/content/*.json`. See
-[`apps/web/README.md`](apps/web/README.md) for the site's own detail.
+The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
+`bun run --cwd apps/web gen:cms` generates its config from
+`apps/web/site.manifest.json`; `bun run --cwd apps/web seed` loads
+`apps/web/content/*.json` into it. See [`apps/web/README.md`](apps/web/README.md)
+for the site's own detail.
 
 ## Commands
 
@@ -37,15 +39,15 @@ either place.
 | --------------------------- | --------------------------------------------------------------------------------------- |
 | `bun install`               | Install and link all workspaces                                                         |
 | `bun run dev`               | Start the site's development server                                                     |
-| `bun run build`             | Production build (static export)                                                        |
-| `bun run start`             | Serve the static export from `out/`                                                     |
+| `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)  |
+| `bun run start`             | Serve the production build (`next start`)                                               |
 | `bun run test`              | Unit tests for both the site and the package, plus the eval suite's structure           |
 | `bun run lint`              | Lint the site                                                                           |
 | `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                        |
 | `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
 | `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
 | `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                        |
-| `bun run e2e:report`        | Open the e2e HTML report with traces, videos, screenshots                               |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                               |
 | `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                        |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
