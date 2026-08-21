@@ -1,10 +1,12 @@
 # company-profile-with-cms
 
+**v0.1.0**
+
 A monorepo with two outputs from one piece of work:
 
-| Workspace | What it is |
-|---|---|
-| [`apps/web`](apps/web) | A Figma design built as a manifest-driven static Next.js site, on a path to a Payload CMS without copy rework |
+| Workspace                                          | What it is                                                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`apps/web`](apps/web)                             | A Figma design built as a manifest-driven static Next.js site, on a path to a Payload CMS without copy rework      |
 | [`packages/figma-to-site`](packages/figma-to-site) | The reusable method: capture a Figma file by screenshot with no paid seat, and prove the render matches the design |
 
 The site is the instance. The package is the transferable part — and it exists
@@ -31,22 +33,22 @@ content currently lives in `apps/web/content/*.json`. See
 Each root command delegates to the workspace that owns it, so the names work from
 either place.
 
-| Command | Description |
-|---------|-------------|
-| `bun install` | Install and link all workspaces |
-| `bun run dev` | Start the site's development server |
-| `bun run build` | Production build (static export) |
-| `bun run start` | Serve the static export from `out/` |
-| `bun run test` | Unit tests for both the site and the package |
-| `bun run lint` | Lint the site |
-| `bun run validate:manifest` | Validate `site.manifest.json` against its schema |
-| `bun run verify:design` | Compare the running page against the Figma references (needs a dev server) |
-| `bun run capture:figma` | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
-| `bun run e2e` | End-to-end tests, including one design-fidelity test per section |
-| `bun run e2e:report` | Open the e2e HTML report with traces, videos, screenshots |
+| Command                     | Description                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `bun install`               | Install and link all workspaces                                                         |
+| `bun run dev`               | Start the site's development server                                                     |
+| `bun run build`             | Production build (static export)                                                        |
+| `bun run start`             | Serve the static export from `out/`                                                     |
+| `bun run test`              | Unit tests for both the site and the package                                            |
+| `bun run lint`              | Lint the site                                                                           |
+| `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                        |
+| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
+| `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
+| `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                        |
+| `bun run e2e:report`        | Open the e2e HTML report with traces, videos, screenshots                               |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
-Chromium, so capture needs a visible browser. What CI runs is the *verification* —
+Chromium, so capture needs a visible browser. What CI runs is the _verification_ —
 the design-fidelity suite and the committed-asset scan — neither of which touches
 Figma.
 
@@ -69,17 +71,17 @@ design.
 
 ## Decisions
 
-| ADR | Decision |
-|-----|----------|
-| [0001](docs/decisions/0001-nextjs-payload-single-repo.md) | Next.js + Payload in a single repository |
-| [0002](docs/decisions/0002-manifest-driven-generation.md) | Generate components, content, and schema from one manifest |
-| [0003](docs/decisions/0003-token-and-section-rebuild.md) | Rebuild Figma as semantic sections, not pixel-faithful codegen |
-| [0004](docs/decisions/0004-content-json-in-cms-shape.md) | Phase 1 content stored in the CMS's shape |
-| [0005](docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format |
-| [0006](docs/decisions/0006-bun-as-package-manager.md) | Bun as package manager and script runner; Node.js as the runtime |
-| [0007](docs/decisions/0007-figma-capture-by-screenshot.md) | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
-| [0008](docs/decisions/0008-automated-design-fidelity-gate.md) | Automated two-axis design-fidelity gate instead of pixel-diff snapshots |
-| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md) | Monorepo, with the Figma pipeline as a reusable package |
+| ADR                                                                   | Decision                                                                 |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)             | Next.js + Payload in a single repository                                 |
+| [0002](docs/decisions/0002-manifest-driven-generation.md)             | Generate components, content, and schema from one manifest               |
+| [0003](docs/decisions/0003-token-and-section-rebuild.md)              | Rebuild Figma as semantic sections, not pixel-faithful codegen           |
+| [0004](docs/decisions/0004-content-json-in-cms-shape.md)              | Phase 1 content stored in the CMS's shape                                |
+| [0005](docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format          |
+| [0006](docs/decisions/0006-bun-as-package-manager.md)                 | Bun as package manager and script runner; Node.js as the runtime         |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)            | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots  |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                  |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).

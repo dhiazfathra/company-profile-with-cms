@@ -1,10 +1,11 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-21T10:54:05Z
-branch: worktree-monorepo-figma-to-site — 2 ahead, 0 behind main
-head: a4dfa8a
-dirty files: 2
+
+generated: 2026-08-21T11:47:58Z
+branch: figma-to-site-eval — 0 ahead, 0 behind main
+head: ac0c115
+dirty files: none (clean tree)
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md
