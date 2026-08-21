@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "export",
+  images: { unoptimized: true },
   // Lets a second, throwaway `next dev` (e2e/content-seam.spec.ts's E2E-gate
   // test) build into its own directory instead of lock-contending with the
   // main dev server's .next/.

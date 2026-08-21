@@ -4,11 +4,11 @@ A pipeline that converts a Figma file into a live static site, then evolves it
 into an admin-editable, CMS-backed, multi-language site — with no copy rework
 between the two phases.
 
-**Status: Tasks 1-5 implemented.** The Next.js scaffold, the manifest schema
-(`schemas/manifest.ts`) and its validator (`scripts/validate-manifest.ts`), the
-content seam (`lib/content.ts`), the extracted `site.manifest.json` with its
-content seed, and the eleven section components in `components/sections/` are
-built and tested. Task 6 (static export and deploy) is not started.
+**Status: Phase 1 live.** The static site is deployed; content lives in
+`content/*.json`. Phase 2 (Payload CMS) is specified but not built — the
+`bun run gen:cms` and `bun run seed` commands do not exist yet.
+
+Deployed URL: TBD — Vercel import pending
 
 Ten images could not be exported from Figma before the MCP quota ran out; the
 site renders labelled placeholder SVGs in their place. See
