@@ -1,5 +1,7 @@
 {
-  "locales": ["en"],
+  "locales": [
+    "en"
+  ],
   "tokens": {
     "color": {
       "accent1": "#485C11",
@@ -24,14 +26,62 @@
       "mono": "Roboto Mono"
     },
     "type": {
-      "display": { "family": "Crimson Text", "size": "160px", "weight": 400, "lineHeight": 0.9, "letterSpacing": "-4.25px" },
-      "heading1": { "family": "Crimson Text", "size": "60px", "weight": 400, "lineHeight": 0.9, "letterSpacing": "-3px" },
-      "heading2": { "family": "Crimson Text", "size": "40px", "weight": 400, "lineHeight": 1, "letterSpacing": "-4px" },
-      "heading3": { "family": "Crimson Text", "size": "18px", "weight": 400, "lineHeight": 1, "letterSpacing": "-3px" },
-      "displayStatistics": { "family": "DM Sans", "size": "80px", "weight": 400, "lineHeight": 1, "letterSpacing": "-4px" },
-      "paragraph": { "family": "DM Sans", "size": "15px", "weight": 400, "lineHeight": 1.4, "letterSpacing": "-0.5px" },
-      "link": { "family": "DM Sans", "size": "14px", "weight": 700, "lineHeight": 1.4, "letterSpacing": "-2.5px" },
-      "captions": { "family": "Roboto Mono", "size": "12px", "weight": 400, "lineHeight": 1.4, "letterSpacing": "-1px" }
+      "display": {
+        "family": "Crimson Text",
+        "size": "160px",
+        "weight": 400,
+        "lineHeight": 0.9,
+        "letterSpacing": "-4.25px"
+      },
+      "heading1": {
+        "family": "Crimson Text",
+        "size": "60px",
+        "weight": 400,
+        "lineHeight": 0.9,
+        "letterSpacing": "-3px"
+      },
+      "heading2": {
+        "family": "Crimson Text",
+        "size": "40px",
+        "weight": 400,
+        "lineHeight": 1,
+        "letterSpacing": "-4px"
+      },
+      "heading3": {
+        "family": "Crimson Text",
+        "size": "18px",
+        "weight": 400,
+        "lineHeight": 1,
+        "letterSpacing": "-3px"
+      },
+      "displayStatistics": {
+        "family": "DM Sans",
+        "size": "80px",
+        "weight": 400,
+        "lineHeight": 1,
+        "letterSpacing": "-4px"
+      },
+      "paragraph": {
+        "family": "DM Sans",
+        "size": "15px",
+        "weight": 400,
+        "lineHeight": 1.4,
+        "letterSpacing": "-0.5px"
+      },
+      "link": {
+        "family": "DM Sans",
+        "size": "14px",
+        "weight": 700,
+        "lineHeight": 1.4,
+        "letterSpacing": "-2.5px"
+      },
+      "captions": {
+        "family": "Roboto Mono",
+        "size": "12px",
+        "weight": 400,
+        "lineHeight": 1.4,
+        "letterSpacing": "-1px"
+      }
     }
   },
   "sections": [
@@ -39,166 +89,388 @@
       "name": "Navigation",
       "kind": "global",
       "fields": [
-        { "name": "logoText", "type": "text", "translatable": true },
-        { "name": "ctaLabel", "type": "text", "translatable": true },
-        { "name": "ctaHref", "type": "url", "translatable": false }
+        {
+          "name": "logoText",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaLabel",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaHref",
+          "type": "url",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "NavigationItem",
       "kind": "collection",
       "fields": [
-        { "name": "label", "type": "text", "translatable": true },
-        { "name": "href", "type": "url", "translatable": false }
+        {
+          "name": "label",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "href",
+          "type": "url",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "Header",
       "kind": "global",
       "fields": [
-        { "name": "headline", "type": "text", "translatable": true },
-        { "name": "image", "type": "image", "translatable": false },
-        { "name": "imageAlt", "type": "text", "translatable": true }
+        {
+          "name": "headline",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "image",
+          "type": "image",
+          "translatable": false
+        },
+        {
+          "name": "imageAlt",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "LogoCloud",
       "kind": "global",
       "fields": [
-        { "name": "heading", "type": "text", "translatable": true }
+        {
+          "name": "heading",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "LogoCloudLogo",
       "kind": "collection",
       "fields": [
-        { "name": "name", "type": "text", "translatable": true },
-        { "name": "logo", "type": "image", "translatable": false }
+        {
+          "name": "name",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "logo",
+          "type": "image",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "Benefits",
       "kind": "global",
       "fields": [
-        { "name": "eyebrow", "type": "text", "translatable": true },
-        { "name": "headline", "type": "text", "translatable": true },
-        { "name": "subhead", "type": "text", "translatable": true },
-        { "name": "image", "type": "image", "translatable": false },
-        { "name": "imageAlt", "type": "text", "translatable": true }
+        {
+          "name": "eyebrow",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "headline",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "subhead",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "image",
+          "type": "image",
+          "translatable": false
+        },
+        {
+          "name": "imageAlt",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "BenefitsItem",
       "kind": "collection",
       "fields": [
-        { "name": "title", "type": "text", "translatable": true },
-        { "name": "body", "type": "text", "translatable": true },
-        { "name": "icon", "type": "image", "translatable": false }
+        {
+          "name": "title",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "icon",
+          "type": "image",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "FeaturesCarousel",
       "kind": "global",
       "fields": [
-        { "name": "headline", "type": "text", "translatable": true },
-        { "name": "subhead", "type": "text", "translatable": true },
-        { "name": "ctaLabel", "type": "text", "translatable": true },
-        { "name": "ctaHref", "type": "url", "translatable": false },
-        { "name": "image", "type": "image", "translatable": false },
-        { "name": "imageAlt", "type": "text", "translatable": true }
+        {
+          "name": "headline",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "subhead",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaLabel",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaHref",
+          "type": "url",
+          "translatable": false
+        },
+        {
+          "name": "image",
+          "type": "image",
+          "translatable": false
+        },
+        {
+          "name": "imageAlt",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "FeaturesCarouselItem",
       "kind": "collection",
       "fields": [
-        { "name": "label", "type": "text", "translatable": true }
+        {
+          "name": "label",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "Specifications",
       "kind": "global",
       "fields": [
-        { "name": "eyebrow", "type": "text", "translatable": true },
-        { "name": "headline", "type": "text", "translatable": true },
-        { "name": "body", "type": "text", "translatable": true },
-        { "name": "ctaLabel", "type": "text", "translatable": true },
-        { "name": "ctaHref", "type": "url", "translatable": false }
+        {
+          "name": "eyebrow",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "headline",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaLabel",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaHref",
+          "type": "url",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "SpecificationsCell",
       "kind": "collection",
       "fields": [
-        { "name": "column", "type": "text", "translatable": false },
-        { "name": "row", "type": "number", "translatable": false },
-        { "name": "label", "type": "text", "translatable": true },
-        { "name": "icon", "type": "image", "translatable": false }
+        {
+          "name": "column",
+          "type": "text",
+          "translatable": false
+        },
+        {
+          "name": "row",
+          "type": "number",
+          "translatable": false
+        },
+        {
+          "name": "label",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "icon",
+          "type": "image",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "Testimonial",
       "kind": "global",
       "fields": [
-        { "name": "quote", "type": "text", "translatable": true },
-        { "name": "authorName", "type": "text", "translatable": true },
-        { "name": "authorRole", "type": "text", "translatable": true },
-        { "name": "image", "type": "image", "translatable": false },
-        { "name": "imageAlt", "type": "text", "translatable": true }
+        {
+          "name": "quote",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "authorName",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "authorRole",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "image",
+          "type": "image",
+          "translatable": false
+        },
+        {
+          "name": "imageAlt",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "HowItWorks",
       "kind": "global",
       "fields": [
-        { "name": "headline", "type": "text", "translatable": true },
-        { "name": "ctaLabel", "type": "text", "translatable": true },
-        { "name": "ctaHref", "type": "url", "translatable": false }
+        {
+          "name": "headline",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaLabel",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaHref",
+          "type": "url",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "HowItWorksStep",
       "kind": "collection",
       "fields": [
-        { "name": "title", "type": "text", "translatable": true },
-        { "name": "body", "type": "text", "translatable": true }
+        {
+          "name": "title",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "ShowcaseImage",
       "kind": "global",
       "fields": [
-        { "name": "image", "type": "image", "translatable": false },
-        { "name": "imageAlt", "type": "text", "translatable": true }
+        {
+          "name": "image",
+          "type": "image",
+          "translatable": false
+        },
+        {
+          "name": "imageAlt",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "CenteredCta",
       "kind": "global",
       "fields": [
-        { "name": "headline", "type": "text", "translatable": true },
-        { "name": "body", "type": "text", "translatable": true },
-        { "name": "ctaLabel", "type": "text", "translatable": true },
-        { "name": "ctaHref", "type": "url", "translatable": false }
+        {
+          "name": "headline",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaLabel",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "ctaHref",
+          "type": "url",
+          "translatable": false
+        }
       ]
     },
     {
       "name": "Footer",
       "kind": "global",
       "fields": [
-        { "name": "logo", "type": "image", "translatable": false },
-        { "name": "logoAlt", "type": "text", "translatable": true },
-        { "name": "copyright", "type": "text", "translatable": true },
-        { "name": "year", "type": "number", "translatable": false },
-        { "name": "rights", "type": "text", "translatable": true }
+        {
+          "name": "logo",
+          "type": "image",
+          "translatable": false
+        },
+        {
+          "name": "logoAlt",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "copyright",
+          "type": "text",
+          "translatable": true
+        }
       ]
     },
     {
       "name": "FooterLink",
       "kind": "collection",
       "fields": [
-        { "name": "label", "type": "text", "translatable": true },
-        { "name": "href", "type": "url", "translatable": false }
+        {
+          "name": "label",
+          "type": "text",
+          "translatable": true
+        },
+        {
+          "name": "href",
+          "type": "url",
+          "translatable": false
+        }
       ]
     }
   ]
