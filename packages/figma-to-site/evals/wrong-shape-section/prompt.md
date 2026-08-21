@@ -10,7 +10,7 @@ allowed_tools: []
 My design-fidelity check fails on one section. The section is a full-width
 showcase image inside a white frame.
 
-```
+```text
 ShowcaseImage  aspect 1200x800 rendered vs 1200x704 design  FAIL (13.6% over tolerance 5%)
                block 42.1 vs limit 34                       FAIL
 ```

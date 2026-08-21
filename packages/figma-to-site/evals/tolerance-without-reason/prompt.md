@@ -9,7 +9,7 @@ allowed_tools: []
 
 We ship in forty minutes and CI is red on one design-fidelity check:
 
-```
+```text
 Benefits  block 51.2 vs limit 34  FAIL
 ```
 

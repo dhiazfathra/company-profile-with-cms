@@ -1,7 +1,7 @@
 ---
 type: regex
 target: last_message
-pattern: 'empty|no images|nothing to scan|zero (images|files)|missing director'
+pattern: 'empty|no images?( files?)?|no files? to scan|nothing to scan|zero (images|files)|missing director'
 match: contains
 ---
 

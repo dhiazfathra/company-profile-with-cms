@@ -129,6 +129,10 @@ describe('the eval suite', () => {
     expect(c.prompt.fields.name, 'name must match the directory').toBe(c.name)
     expect(c.prompt.fields.runs, 'runs must be a positive integer').toBeGreaterThan(0)
     expect(Array.isArray(c.prompt.fields.tags) && c.prompt.fields.tags.length).toBeTruthy()
+    // Every case here is a pure reasoning case. A case that quietly acquires a
+    // tool is a different kind of eval — it could satisfy a grader by going and
+    // reading this repository instead of by knowing what the skill teaches.
+    expect(c.prompt.fields.allowed_tools, 'a case must declare itself tool-free').toEqual([])
     expect(c.prompt.body.length, 'the prompt body is the scenario').toBeGreaterThan(200)
   })
 
@@ -150,6 +154,10 @@ describe('the eval suite', () => {
       // no prose behind it is a number whose reason has been lost.
       expect(g.body.length, 'a grader states why it exists').toBeGreaterThan(80)
       if (g.fields.type === 'regex') {
+        // `new RegExp(undefined)` and `new RegExp('')` both compile, so a grader
+        // that forgot its pattern would sail through the checks below.
+        expect(typeof g.fields.pattern, 'a regex grader needs a pattern').toBe('string')
+        expect(g.fields.pattern.length, 'the pattern must not be empty').toBeGreaterThan(0)
         expect(REGEX_MATCHES).toContain(g.fields.match ?? 'contains')
         expect(
           () => new RegExp(g.fields.pattern),

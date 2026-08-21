@@ -46,8 +46,12 @@ generic design-system advice.
 
 ```bash
 cd packages/figma-to-site
-claude plugin eval . --threshold 0.8 --report ../../eval-report.html
+claude plugin eval . --threshold 0.8
 ```
+
+Scores and the HTML report land in `evals/results/<timestamp>/`, which is
+ignored. Prefer that default over `--report <path>`: a path outside the results
+directory is a new artefact for `.gitignore` to chase.
 
 `.` resolves this directory as a skills-dir plugin (`SKILL.md` at its root) and
 `evals/` is the default eval directory. The run adds a no-plugin baseline arm, so
@@ -67,6 +71,14 @@ only passes teaches the next reader that a pass means the skill works.
 
 - They grade **text**, not a shipped site. An agent can describe the right
   pipeline and still implement it wrong.
+- A keyword grader cannot read polarity. `contains: headless` is satisfied by
+  "use headless Chromium" and by "avoid headless Chromium" alike, and
+  `not_contains` on a phrase fails the answer that quotes the phrase in order to
+  reject it. So every deterministic grader here asserts _positive evidence of the
+  right decision_, and every requirement that turns on direction — don't retouch
+  the badge, don't move the declared size, fail rather than skip — is carried by
+  the case's LLM grader instead. That split is deliberate, and it is also the
+  weak point: the direction-sensitive half of this suite is the judged half.
 - The LLM graders are a 2-of-3 judge vote on prose. They are the weakest
   assertions here; every case therefore also carries at least one deterministic
   grader.
