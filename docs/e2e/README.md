@@ -24,7 +24,7 @@ workflow artifact by `.github/workflows/e2e.yml`.
 | Node | v24.16.0 (repo requires `>=20.9.0`, pinned to `22.12.0` in `.nvmrc`; CI uses the `.nvmrc` version) |
 | Bun | 1.3.11 |
 | Playwright | 1.62.1 (`@playwright/test`), Chromium only |
-| Commit | `328a37ac44ed172ab15d6c4041ed510c04ecbe6a` |
+| Commit | `91fa9917a044757f8ddf75ad6faaf4f2d21b5814` |
 
 ## Results
 
@@ -67,9 +67,10 @@ sections, locale en), `bun run lint` (clean), `bun run test` (29/29 — the thre
 added tests scan every committed image for Figma interface, see below), `bun run
 build` (static export succeeds, `out/index.html` has real content).
 
-Also verified on GitHub Actions for this PR: the `CI` workflow's `verify` job
+On GitHub Actions for this PR, the `CI` workflow's `verify` job
 (validate:manifest, lint, test, build) and the separate `e2e` workflow both
-passed against commit `328a37a`.
+passed against commit `5cc0385`, the commit before this one. The run for
+`91fa991` is the authority for the transcript above; see the PR's checks.
 
 ## What this evidence does and does NOT prove
 
@@ -90,7 +91,6 @@ passed against commit `328a37a`.
 - `scripts/validate-manifest.ts` handles all four real CLI paths (missing
   file, malformed JSON, valid manifest, invalid/duplicate sections) with
   controlled exit codes and messages, not stack traces.
-
 - Every section's geometry and rough composition match the Figma design, and
   every committed image is design rather than a screenshot of Figma's own
   interface. Both of these had already failed in this branch and shipped: three
