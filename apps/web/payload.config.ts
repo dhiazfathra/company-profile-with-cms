@@ -45,9 +45,17 @@ export default buildConfig({
     user: Users.slug,
   },
   editor: lexicalEditor(),
+  // A bundled sqlite file works locally and cannot work on a serverless host:
+  // the deployment filesystem is read-only apart from a per-invocation /tmp, so
+  // an editor's save either fails or disappears with the invocation. A hosted
+  // libSQL database (Turso and similar) is the same adapter with a remote URL,
+  // which is why DATABASE_AUTH_TOKEN is plumbed through — without it a remote
+  // url cannot authenticate and the default file: path is the only thing that
+  // works. Deploying with the default is the failure mode to avoid.
   db: sqliteAdapter({
     client: {
       url: process.env.DATABASE_URI || 'file:./payload.db',
+      ...(process.env.DATABASE_AUTH_TOKEN ? { authToken: process.env.DATABASE_AUTH_TOKEN } : {}),
     },
   }),
   secret: (() => {

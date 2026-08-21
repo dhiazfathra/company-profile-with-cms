@@ -34,6 +34,12 @@ jobs:
       - run: bun run --cwd apps/web check:cms-drift
       - run: bun run lint
       - run: bun run test
+      # payload.config.ts throws rather than fall back to its dev secret when
+      # NODE_ENV is production, which `next build` sets — so a build cannot load
+      # the config without this. The `||` fallback is not laziness: a pull
+      # request from a fork gets no secrets, and a build that fails there for
+      # want of a value that is not a real credential teaches contributors to
+      # ignore red checks. The repository secret is what CI uses when it has one.
       - run: bun run build
         env:
-          PAYLOAD_SECRET: ci-build-secret
+          PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET || 'ci-build-secret' }}

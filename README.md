@@ -100,20 +100,21 @@ the component and it must go red.
 
 ## Decisions
 
-| ADR                                                                   | Decision                                                                 |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)             | Next.js + Payload in a single repository                                 |
-| [0002](docs/decisions/0002-manifest-driven-generation.md)             | Generate components, content, and schema from one manifest               |
-| [0003](docs/decisions/0003-token-and-section-rebuild.md)              | Rebuild Figma as semantic sections, not pixel-faithful codegen           |
-| [0004](docs/decisions/0004-content-json-in-cms-shape.md)              | Phase 1 content stored in the CMS's shape                                |
-| [0005](docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format          |
-| [0006](docs/decisions/0006-bun-as-package-manager.md)                 | Bun as package manager and script runner; Node.js as the runtime         |
-| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)            | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
-| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots  |
-| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                  |
-| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)        | Evaluate the skill's judgement behaviourally; validate the suite in CI   |
-| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)              | Every pull request carries a generated evidence pack                     |
-| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)             | The CMS step is a second skill, evals only, with no extracted code       |
+| ADR                                                                   | Decision                                                                    |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)             | Next.js + Payload in a single repository                                    |
+| [0002](docs/decisions/0002-manifest-driven-generation.md)             | Generate components, content, and schema from one manifest                  |
+| [0003](docs/decisions/0003-token-and-section-rebuild.md)              | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
+| [0004](docs/decisions/0004-content-json-in-cms-shape.md)              | Phase 1 content stored in the CMS's shape                                   |
+| [0005](docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format             |
+| [0006](docs/decisions/0006-bun-as-package-manager.md)                 | Bun as package manager and script runner; Node.js as the runtime            |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)            | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                     |
+| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)        | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
+| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)              | Every pull request carries a generated evidence pack                        |
+| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)             | The CMS step is a second skill, evals only, with no extracted code          |
+| [0013](docs/decisions/0013-deployment-configuration.md)               | Deployment config in repository secrets/variables; sqlite is not serverless |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).

@@ -21,6 +21,50 @@ Deployed URL: TBD — Vercel import pending
 See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a
 Figma variable.
 
+## Deploying
+
+Two variables, and one of them is a trap. Rationale in
+[ADR-0013](../../docs/decisions/0013-deployment-configuration.md).
+
+| Variable              | Required            | What happens without it                                          |
+| --------------------- | ------------------- | ---------------------------------------------------------------- |
+| `PAYLOAD_SECRET`      | **yes**             | The build fails: `PAYLOAD_SECRET must be set in production`      |
+| `DATABASE_URI`        | **yes in practice** | The build **succeeds** and every editor save is lost — see below |
+| `DATABASE_AUTH_TOKEN` | with a hosted DB    | A remote libSQL URL cannot authenticate                          |
+
+`PAYLOAD_SECRET` failing the build is deliberate, not a bug to work around:
+`payload.config.ts` throws rather than fall back to its development secret when
+`NODE_ENV` is production, so a deploy can never sign sessions with the value
+committed in this public repository. Generate one per environment:
+
+```bash
+openssl rand -base64 32
+```
+
+**`DATABASE_URI` is the dangerous one.** It defaults to `file:./payload.db`,
+which is right locally and cannot work on a serverless host: the filesystem is
+read-only apart from a per-invocation `/tmp`, so a save either fails or vanishes
+with the invocation. Nothing catches this — no build, test, lint or
+design-fidelity check ever writes to the database, so a deployment on the default
+looks entirely healthy while losing every edit.
+
+Point it at a hosted libSQL database (Turso or equivalent — the same
+`@payloadcms/db-sqlite` adapter, a remote URL) and set `DATABASE_AUTH_TOKEN`
+alongside it:
+
+```bash
+DATABASE_URI=libsql://<your-db>.turso.io
+DATABASE_AUTH_TOKEN=<token>
+```
+
+Then run `bun run seed` against it once, with `E2E_USER_EMAIL` /
+`E2E_USER_PASSWORD` set, to create the schema and the first editor.
+
+Setting these in GitHub does **not** configure the hosting provider — Actions and
+Vercel read from separate stores. The repository's Actions secrets and variables
+(`PAYLOAD_SECRET`, `E2E_USER_EMAIL`, `E2E_USER_PASSWORD`) exist for CI only, and
+CI's secret is deliberately a different value from production's.
+
 ## Running locally
 
 ```bash
