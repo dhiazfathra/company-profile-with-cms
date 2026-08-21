@@ -25,19 +25,19 @@ test.describe('homepage', () => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
-    await page.screenshot({ path: 'docs/e2e/homepage-desktop-light.png', fullPage: true })
+    await page.screenshot({ path: '../../docs/e2e/homepage-desktop-light.png', fullPage: true })
   })
 
   test('desktop dark screenshot', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
-    await page.screenshot({ path: 'docs/e2e/homepage-desktop-dark.png', fullPage: true })
+    await page.screenshot({ path: '../../docs/e2e/homepage-desktop-dark.png', fullPage: true })
   })
 
   test('mobile screenshot', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.goto('/')
-    await page.screenshot({ path: 'docs/e2e/homepage-mobile.png', fullPage: true })
+    await page.screenshot({ path: '../../docs/e2e/homepage-mobile.png', fullPage: true })
   })
 })

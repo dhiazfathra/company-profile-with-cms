@@ -3,7 +3,7 @@
     "Provenance and trust level of every design reference.",
     "",
     "`size` is the section's size in Figma design px and is the authority for the",
-    "aspect-ratio check in scripts/verify-design.mjs. Where `sizeFrom` is",
+    "aspect-ratio check in figma-verify-design. Where `sizeFrom` is",
     "\"reference\", it is the reference PNG's own aspect scaled to `designWidth` —",
     "i.e. the screenshot is trusted for shape. Where `sizeFrom` is \"figma-badge\",",
     "it is the size Figma itself printed next to the selected node in a capture,",

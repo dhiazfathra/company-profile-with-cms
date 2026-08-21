@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -11,15 +11,15 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage/
 
 # next.js
-/.next/
-/.next-e2e-throwaway/
-/out/
+.next/
+.next-e2e-throwaway/
+out/
 
 # production
-/build
+build/
 
 # misc
 .DS_Store
@@ -46,7 +46,7 @@ next-env.d.ts
 .superpowers/
 
 # playwright e2e
-/e2e-results/
-/test-results/
+e2e-results/
+test-results/
 design/verify/
 design/captures/

@@ -1,29 +1,45 @@
+#!/usr/bin/env node
 /**
- * Check the rendered site against the Figma design references, from the CLI.
+ * Check a rendered site against its Figma design references, from the CLI.
  *
- * The comparison itself lives in `scripts/design-check.mjs`, shared with
- * `e2e/design-fidelity.spec.ts` — see that file for what is compared and why.
- * This wrapper is for iterating locally: it drives its own browser against an
- * already-running dev server and prints one line per section.
+ * The comparison itself lives in `src/design-check.mjs` — see that file for what
+ * is compared and why. This wrapper is for iterating locally: it drives its own
+ * browser against an already-running dev server and prints one line per section.
+ * The same comparison runs in CI through a project's Playwright spec, so a local
+ * pass and a CI pass mean the same thing.
  *
- * Usage: node scripts/verify-design.mjs [Section ...]
+ * Usage: figma-verify-design [Section ...]
  *   BASE_URL         server to check (default http://localhost:3000)
- *   VIEWPORT_WIDTH   browser width (default 1500; the page caps itself at 1200)
+ *   VIEWPORT_WIDTH   browser width (default 1500; a page may cap itself narrower)
+ *   REFS_DIR         references and refs.json (default design/refs)
  *   VERIFY_OUT       where renders and report.json go (default design/verify)
  */
 import { chromium } from '@playwright/test'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { awaitImages, checkSection, loadManifest, screenshotSection } from './design-check.mjs'
+import {
+  DEFAULT_REFS_DIR,
+  awaitImages,
+  checkSection,
+  loadManifest,
+  screenshotSection,
+} from '../src/design-check.mjs'
 
 const BASE_URL = process.env.BASE_URL ?? 'http://localhost:3000'
+const REFS_DIR = process.env.REFS_DIR ?? DEFAULT_REFS_DIR
 const OUT = process.env.VERIFY_OUT ?? 'design/verify'
 
-const manifest = loadManifest()
+let manifest
+try {
+  manifest = loadManifest(REFS_DIR)
+} catch (error) {
+  console.error(error.message)
+  process.exit(1)
+}
 const known = Object.keys(manifest.sections)
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const unknown = args.filter((s) => !known.includes(s))
 if (unknown.length) {
-  console.error(`Not in design/refs/refs.json: ${unknown.join(', ')}`)
+  console.error(`Not in ${REFS_DIR}/refs.json: ${unknown.join(', ')}`)
   console.error(`Known: ${known.join(', ')}`)
   process.exit(1)
 }
@@ -54,7 +70,7 @@ for (const section of targets) {
     results.push({ section, failures: [error.message] })
     continue
   }
-  const result = await checkSection(section, spec, renderPath)
+  const result = await checkSection(section, spec, renderPath, REFS_DIR)
   if (!spec.blockCheck) {
     // Recorded, not silent: an untrusted reference is a gap in coverage, and the
     // run should say so rather than quietly checking one axis.

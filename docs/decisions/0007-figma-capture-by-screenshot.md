@@ -22,10 +22,9 @@ is reachable with a browser and no seat.
 
 ## Decision
 Capture assets by driving the public Figma web viewer with Playwright and
-cropping the result. `scripts/capture-figma.mjs` loads
-`figma.com/design/<key>/...?node-id=<node>` for each entry in its `TARGETS`
-table; the viewer selects that node and strokes a 1–2px outline exactly on its
-bounds. `scripts/figma-crop.mjs` finds that outline by connected components over
+cropping the result. `packages/figma-to-site/src/capture.mjs` loads
+`figma.com/design/<key>/...?node-id=<node>` for each entry in its capture config; the viewer selects that node and strokes a 1–2px outline exactly on its
+bounds. `packages/figma-to-site/src/figma-crop.mjs` finds that outline by connected components over
 selection-coloured pixels — ancestor frames get a *dashed* outline in the same
 colour, which falls apart into many small blobs while the selection outline stays
 one blob — and crops inside it.
@@ -42,7 +41,7 @@ Two extra capabilities exist because the plain crop is not always enough:
 
 Figma's CDN returns 403 to headless Chromium, so the script launches a real
 Chrome channel with `headless: false`. Raw canvas captures are kept in
-`design/captures/` so `--crop-only` can re-crop without touching the network.
+`apps/web/design/captures/` so `--crop-only` can re-crop without touching the network.
 
 ## Alternatives Considered
 
@@ -75,7 +74,7 @@ The pipeline is reproducible and free, and it is the reason ADR-0008 exists.
 
 The crop has to be *told* each node's size, and that is its sharp edge.
 `findSelection` scores candidate outline blobs by how close they are to the width
-and height the caller declares in `TARGETS`, then takes the best match. It cannot
+and height the caller declares in the capture config, then takes the best match. It cannot
 distinguish "this node is 1200x362" from "some node near here is 1200x362", and
 it never fails — a wrong declared size returns a confident, plausible, wrong
 rectangle. Two targets named the wrong pixels and both shipped:
@@ -90,7 +89,7 @@ rectangle. Two targets named the wrong pixels and both shipped:
   matched, so the matcher settled on a nearby blob and wrote out a strip
   containing Figma's own selection size badge (legibly reading
   "1200 Fill x 250 Hug"), the dark canvas behind the frame, and a cookie banner —
-  shipped as `design/refs/Footer.png`, a *design reference*. A corrupt reference
+  shipped as `apps/web/design/refs/Footer.png`, a *design reference*. A corrupt reference
   is worse than a missing one: it cannot fail a bad build and it cannot pass a
   good one.
 - `Showcase` (node `1-252`) was *wrongly believed* to be a third bad capture.
@@ -99,18 +98,18 @@ rectangle. Two targets named the wrong pixels and both shipped:
   component. Acting on the wrong theory — that the 1200x704 section reference
   *was* this node, because at thumbnail size the image appears to fill that frame
   corner to corner — widened the declared height to 704. The crop then reached
-  past the node and shipped Figma's dimension badge into `public/img/showcase.png`,
+  past the node and shipped Figma's dimension badge into `apps/web/public/img/showcase.png`,
   where it legibly read "1200 Fill x 664.29 Fill" and disproved the theory that
   had produced it. Corrected back to 664.29, with the padding fixed instead.
 
-So the declared size in `TARGETS` is load-bearing and must be verified against
+So the declared size in the capture config is load-bearing and must be verified against
 something other than the crop's own success. That is precisely what ADR-0008
 adds. The corrected `Header` target, using `cropRelative` plus `healOutlines`,
 now reproduces the hand-made asset byte for byte.
 
 Everything captured this way is a canvas render at one zoom level, not an asset
 export: softer than a real export, and vector icons arrive rasterised. That
-limitation is recorded per reference in `design/refs/refs.json` rather than
+limitation is recorded per reference in `apps/web/design/refs/refs.json` rather than
 assumed away.
 
 The capture run is visible on screen while it works, because it needs a real

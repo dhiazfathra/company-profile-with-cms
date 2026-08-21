@@ -1,0 +1,40 @@
+{
+  "name": "figma-to-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capture a Figma design by screenshot and prove the rendered site matches it.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./figma-crop": "./src/figma-crop.mjs",
+    "./design-check": "./src/design-check.mjs",
+    "./capture": "./src/capture.mjs"
+  },
+  "bin": {
+    "figma-capture": "./bin/capture-figma.mjs",
+    "figma-verify-design": "./bin/verify-design.mjs",
+    "figma-check-assets": "./bin/check-assets.mjs"
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "sharp": "^0.35.3"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.55"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "vitest": "^4.1.11"
+  }
+}

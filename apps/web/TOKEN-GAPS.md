@@ -52,7 +52,7 @@ tolerates it because it changes advance width rather than section geometry.
 ## Assets — resolved
 
 The Figma MCP Starter-plan tool-call limit was reached mid-extraction, and the
-ten assets below shipped as placeholder SVGs. `scripts/capture-figma.mjs`
+ten assets below shipped as placeholder SVGs. `figma-to-site`'s capture module
 has since captured the real PNGs for all of them; `content/` now points at
 the real files and the placeholder SVGs are unused (left on disk, harmless).
 

@@ -1,127 +1,71 @@
 # company-profile-with-cms
 
-A pipeline that converts a Figma file into a live static site, then evolves it
-into an admin-editable, CMS-backed, multi-language site — with no copy rework
-between the two phases.
+A monorepo with two outputs from one piece of work:
 
-**Status: Phase 1 complete; deploy pending.** The static site is built and
-ready to deploy; content lives in `content/*.json`. Phase 2 (Payload CMS) is
-specified but not built — the `bun run gen:cms` and `bun run seed` commands
-do not exist yet.
+| Workspace | What it is |
+|---|---|
+| [`apps/web`](apps/web) | A Figma design built as a manifest-driven static Next.js site, on a path to a Payload CMS without copy rework |
+| [`packages/figma-to-site`](packages/figma-to-site) | The reusable method: capture a Figma file by screenshot with no paid seat, and prove the render matches the design |
 
-Deployed URL: TBD — Vercel import pending
+The site is the instance. The package is the transferable part — and it exists
+because the first attempt at the site shipped a hero section rendering a green band
+nested inside another green band, while every automated check was green. Its
+[SKILL.md](packages/figma-to-site/SKILL.md) is the workflow, the reasoning, and the
+failure history; [ADR-0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)
+records why the two are separated.
 
-See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a
-Figma variable.
-
-## Running locally
+## Quick start
 
 ```bash
-bun install
-bun run dev
+bun install          # links both workspaces
+bun run dev          # the site at http://localhost:3000
+bun run test         # both suites: the site's and the package's
 ```
 
-- **Landing page:** http://localhost:3000
-- **CMS admin:** not available yet. Phase 2 (Payload) is specced but not
-  built — there is no `/admin` route, no `gen:cms`/`seed` command, and no
-  database in this repo. Content for now lives directly in `content/*.json`.
-
-## How it works
-
-A single reviewed artifact, `site.manifest.json`, describes every section and
-field of the site. Three generators consume it — React section components, the
-Phase 1 content seed, and the Phase 2 Payload config — so the content model is
-never authored twice.
-
-```
-Figma ──extract──> site.manifest.json ──generate──> components
-                    (human reviews)   ──generate──> content/*.json   (Phase 1)
-                                      ──generate──> payload.config.ts (Phase 2)
-```
-
-**Phase 1** ships a static Next.js site with copy in `content/*.json`, keyed as
-the CMS will key it (`headline_en`).
-**Phase 2** generates the Payload schema, seeds it from those same files, and
-flips `lib/content.ts` to read from Payload. No component changes.
+There is no CMS admin route yet. Phase 2 (Payload) is specified but not built —
+content currently lives in `apps/web/content/*.json`. See
+[`apps/web/README.md`](apps/web/README.md) for the site's own detail.
 
 ## Commands
 
+Each root command delegates to the workspace that owns it, so the names work from
+either place.
+
 | Command | Description |
 |---------|-------------|
-| `bun install` | Install dependencies |
-| `bun run dev` | Start the development server |
-| `bun run build` | Production build |
-| `bun run test` | Run unit tests (Vitest) |
-| `bun run e2e` | Run end-to-end tests (Playwright) — starts the dev server itself |
-| `bun run e2e:report` | Open the e2e HTML report with traces, videos, screenshots |
-| `bun run lint` | Run the linter |
-| `bun run validate:manifest` | Validate `site.manifest.json` against the schema |
+| `bun install` | Install and link all workspaces |
+| `bun run dev` | Start the site's development server |
+| `bun run build` | Production build (static export) |
+| `bun run start` | Serve the static export from `out/` |
+| `bun run test` | Unit tests for both the site and the package |
+| `bun run lint` | Lint the site |
+| `bun run validate:manifest` | Validate `site.manifest.json` against its schema |
 | `bun run verify:design` | Compare the running page against the Figma references (needs a dev server) |
-| `bun run gen:cms` | Phase 2, not yet built — will generate `payload.config.ts` from `site.manifest.json` |
-| `bun run seed` | Phase 2, not yet built — will load `content/*.json` into Payload |
+| `bun run capture:figma` | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
+| `bun run e2e` | End-to-end tests, including one design-fidelity test per section |
+| `bun run e2e:report` | Open the e2e HTML report with traces, videos, screenshots |
 
-## Testing
-
-Unit tests cover the manifest schema and the content seam. End-to-end tests cover
-the running app, the seam over real HTTP, and the validator CLI as a subprocess:
-
-```bash
-bunx playwright install chromium --with-deps   # once
-bun run e2e
-```
-
-Every e2e test records a screenshot, video, and trace into `e2e-results/`
-(gitignored); CI uploads that directory as a workflow artifact. Committed
-evidence and reproduction details live in [`docs/e2e/README.md`](docs/e2e/README.md).
-
-### Design fidelity
-
-`e2e/design-fidelity.spec.ts` compares what the browser paints against
-`design/refs/<Section>.png` — one test per section, so a failure names the
-section and attaches the render next to the reference. `bun run verify:design`
-runs the same comparison from the CLI against an already-running dev server,
-which is the faster loop while changing a section.
-
-It checks two things: the section's aspect ratio against the design size in
-`design/refs/refs.json`, and a coarse block-colour comparison against the
-reference image. It is deliberately not a pixel-diff — between a live browser
-and a Figma raster, a pixel-diff is noise at any threshold that would still
-catch a real defect. See [`docs/decisions/0008`](docs/decisions/) for the
-reasoning and the known limits.
-
-This check exists because Phase 1 shipped a hero section rendering a green band
-inside a green band while every other gate was green. The manifest validated,
-the unit tests passed, the build succeeded, and this very e2e suite screenshotted
-the page at three viewports — and compared those screenshots to nothing.
-
-`e2e/content-seam.spec.ts` is the one to preserve: it asserts that no
-locale-suffixed key ever reaches rendered HTML, which is what keeps the Phase 2
-migration a backend swap rather than a refactor. It renders through a test-only
-route gated behind `E2E=1`, which 404s on any normally-started server.
+`capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
+Chromium, so capture needs a visible browser. What CI runs is the *verification* —
+the design-fidelity suite and the committed-asset scan — neither of which touches
+Figma.
 
 ## Architecture
 
-- **`site.manifest.json`** — source of truth for sections and fields. Reviewed by
-  a human before any generator runs; this is the pipeline's only gate.
-- **`lib/content.ts`** — the seam between phases. Both implementations return the
-  same locale-resolved shape, so components never learn which backend is live.
-- **`components/sections/*.tsx`** — one async, propless component per `global`
-  section. Each fetches its own content through `lib/content.ts`; a `collection`
-  section is data, read by the component of the section it belongs to, and gets
-  no component of its own. `tests/sections.test.tsx` asserts that no copy is
-  inlined in any component source, which is what keeps Phase 2 a backend swap.
-- **`design/refs/`** — the design, as Figma renders it, one PNG per section plus
-  `refs.json` recording each section's design size, where that number came from,
-  and whether its PNG is trustworthy enough to compare content against. A
-  reference has to be vouched for there before it can pass or fail a section: a
-  corrupt reference is worse than a missing one, since it can do neither.
-- **`content/*.json`** — Phase 1 storage, and the initial bootstrap seed for
-  Phase 2. After Phase 2 goes live, Payload's database is the sole authority
-  for content and recovery is by database backup; these files stay in git only
-  as the record of what was originally extracted from Figma, useful for
-  re-seeding a fresh environment, never for restoring a live one.
+```text
+Figma ──capture (screenshot)──> apps/web/design/refs/*.png + apps/web/public/img/*.png
+      ──extract──────────────> site.manifest.json ──> content/*.json ──> components
+                                (human reviews)
+                                                          │
+browser render ──────two-axis check────────────────────────┘
+                (aspect vs a number off the design;
+                 coarse block colour vs a vouched-for reference)
+```
 
-Full design: [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md)
+The load-bearing idea, from `SKILL.md`: **verify the render, not the diff.** A
+green test suite proves the code does what the code does. Nothing is verified until
+something compares a browser render against a number or an image taken from the
+design.
 
 ## Decisions
 
@@ -133,9 +77,11 @@ Full design: [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md
 | [0004](docs/decisions/0004-content-json-in-cms-shape.md) | Phase 1 content stored in the CMS's shape |
 | [0005](docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format |
 | [0006](docs/decisions/0006-bun-as-package-manager.md) | Bun as package manager and script runner; Node.js as the runtime |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md) | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md) | Automated two-axis design-fidelity gate instead of pixel-diff snapshots |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md) | Monorepo, with the Figma pipeline as a reusable package |
 
-## Adding a language
-
-Append the locale to `locales` in `site.manifest.json`, run `bun run gen:cms`. No
-migration, no new columns. Fields are empty until an editor fills them, and
-Payload's fallback serves English in the meantime.
+Full design spec:
+[`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
+Design-token literals not bound to a Figma variable, and the gaps the fidelity
+check cannot see: [`apps/web/TOKEN-GAPS.md`](apps/web/TOKEN-GAPS.md).

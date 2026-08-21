@@ -1,5 +1,10 @@
 # End-to-end test evidence
 
+> Recorded before the monorepo split (ADR-0009). Unqualified paths below —
+> `e2e/`, `lib/`, `scripts/`, `design/refs/`, `next.config.ts` — are now under
+> `apps/web/`; the capture and design-check scripts moved to
+> `packages/figma-to-site/`. The commands still work from the repository root.
+
 ## Reproduction
 
 ```bash

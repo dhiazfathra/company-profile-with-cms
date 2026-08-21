@@ -1,13 +1,14 @@
 /**
  * Compare a rendered section against its Figma design reference.
  *
- * Shared by two callers so the rule lives in one place: `scripts/verify-design.mjs`
- * (a CLI for iterating locally) and `e2e/design-fidelity.spec.ts` (one Playwright
- * test per section, so CI names the section that drifted).
+ * Shared by two callers so the rule lives in one place: the `figma-verify-design`
+ * CLI (for iterating locally) and a project's own Playwright spec generating one
+ * test per section, so CI names the section that drifted.
  *
  * Two axes, because they fail on different things:
  *
- *   1. Aspect ratio, against the size recorded in `design/refs/refs.json`.
+ *   1. Aspect ratio, against the size recorded in the trust manifest
+ *      (`<refsDir>/refs.json`).
  *      Geometry errors — doubled padding, a duplicated background, an image at
  *      the wrong crop, a container at the wrong max-width — change a section's
  *      shape long before they change its average colour. This compares against a
@@ -26,7 +27,11 @@
 import { existsSync, readFileSync } from 'node:fs'
 import sharp from 'sharp'
 
-export const REFS = 'design/refs'
+/**
+ * Where a project keeps its reference PNGs and `refs.json`. Every entry point
+ * takes `refsDir` explicitly; this is only the conventional default.
+ */
+export const DEFAULT_REFS_DIR = 'design/refs'
 
 /** Coarse grid width in cells. 48 keeps layout, discards glyph detail. */
 const GRID = 48
@@ -39,12 +44,41 @@ export const ASPECT_TOLERANCE = 0.05
 export const BLOCK_TOLERANCE = 34
 
 /**
- * Synchronous on purpose: `e2e/design-fidelity.spec.ts` generates one test per
- * section at collection time, and Playwright compiles specs without top-level
- * await.
+ * Load a project's trust manifest.
+ *
+ * Synchronous on purpose: a Playwright spec generates one test per section at
+ * collection time, and Playwright compiles specs without top-level await. An
+ * async loader here forces every consumer into a barrel of workarounds.
+ *
+ * The returned object carries the `refsDir` it was called with — not one read from
+ * the file — so `checkSection` resolves reference PNGs from the same directory the
+ * caller loaded the manifest from.
  */
-export function loadManifest() {
-  return JSON.parse(readFileSync(`${REFS}/refs.json`, 'utf8'))
+export function loadManifest(refsDir = DEFAULT_REFS_DIR) {
+  const manifest = JSON.parse(readFileSync(`${refsDir}/refs.json`, 'utf8'))
+  const sections = manifest.sections
+  if (!sections || typeof sections !== 'object' || Array.isArray(sections)) {
+    throw new Error(`${refsDir}/refs.json has no "sections" object`)
+  }
+  // A manifest with zero sections generates zero checks, and a suite of zero
+  // checks passes. That is the failure this whole package exists to prevent.
+  if (!Object.keys(sections).length) {
+    throw new Error(`${refsDir}/refs.json has an empty "sections" object — nothing would be checked`)
+  }
+  for (const [name, spec] of Object.entries(manifest.sections)) {
+    if (!Array.isArray(spec.size) || spec.size.length !== 2 || !spec.size.every((n) => n > 0)) {
+      throw new Error(`${refsDir}/refs.json: ${name}.size must be [width, height] in design px`)
+    }
+    if (!spec.sizeFrom) {
+      throw new Error(
+        `${refsDir}/refs.json: ${name} needs sizeFrom — where its size came from is what makes ` +
+          `it trustworthy (see the trust-manifest rules in SKILL.md)`,
+      )
+    }
+  }
+  // `refsDir` last: the caller's path is authoritative, so a stray `refsDir` field
+  // in refs.json cannot point one entry point at a different reference directory.
+  return { ...manifest, refsDir }
 }
 
 const rowsFor = (aspect) => Math.max(1, Math.round(GRID / aspect))
@@ -62,7 +96,7 @@ function grid(file, rows) {
  * Check one section's render. `spec` is its entry from refs.json.
  * Returns `{ failures, ... }`; `failures` empty means it matches.
  */
-export async function checkSection(section, spec, renderPath) {
+export async function checkSection(section, spec, renderPath, refsDir = DEFAULT_REFS_DIR) {
   const meta = await sharp(renderPath).metadata()
   const renderAspect = meta.width / meta.height
   const designAspect = spec.size[0] / spec.size[1]
@@ -78,7 +112,7 @@ export async function checkSection(section, spec, renderPath) {
     )
   }
 
-  const refPath = `${REFS}/${section}.png`
+  const refPath = `${refsDir}/${section}.png`
   let block = null
   if (spec.blockCheck) {
     if (!existsSync(refPath)) {

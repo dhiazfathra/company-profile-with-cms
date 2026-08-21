@@ -1,0 +1,109 @@
+{
+  "$comment": [
+    "What to capture out of the Figma file, for `bun run capture:figma`.",
+    "",
+    "`w`/`h` are the size of the node that `node` selects, in design px. They are",
+    "load-bearing: the crop scores candidate selection outlines by how close they",
+    "are to these numbers and takes the best one, so a wrong size here does not",
+    "fail — it returns a different region of canvas and ships it. Two entries in",
+    "this table once carried a size that was not their node's, and both shipped.",
+    "See docs/decisions/0007 and the SKILL.md in packages/figma-to-site.",
+    "",
+    "Read these numbers off a Figma size badge or a frame's own dimensions. Never",
+    "infer one from how a downscaled reference PNG looks.",
+    "",
+    "`note` is prose for humans and agents; the tooling ignores it. Every number",
+    "that has a story keeps it here, next to the number."
+  ],
+  "fileKey": "v7ZzmwgTae9hxdKdNdAe7V",
+  "fileName": "Modern-Product-Launch",
+  "rawDir": "design/captures",
+  "targets": [
+    {
+      "name": "Header",
+      "node": "1-122",
+      "w": 1200,
+      "h": 362,
+      "crop": { "dx": 149, "dy": -139, "w": 904, "h": 501 },
+      "out": "public/img/header.png",
+      "note": "1-122 is the green band, not the hero image: it is 1200x362 and the laptop sits on top of it, overhanging 139px above its top edge and clipped where the band ends. The band is a flat colour reproduced in CSS by components/sections/Header.tsx, so what this exports is the laptop alone, measured off design/refs/Header.png. Declaring 1200x362 and taking the selection itself is what shipped the band as the hero asset."
+    },
+    { "name": "Benefits", "node": "1-166", "w": 1200, "h": 620, "out": "public/img/benefits.png" },
+    {
+      "name": "FeaturesCarousel",
+      "node": "1-187",
+      "w": 590,
+      "h": 711,
+      "out": "public/img/features-carousel.png"
+    },
+    { "name": "Testimonial", "node": "1-224", "w": 590, "h": 669, "out": "public/img/testimonial.png" },
+    {
+      "name": "Showcase",
+      "node": "1-252",
+      "w": 1200,
+      "h": 664.29,
+      "out": "public/img/showcase.png",
+      "note": "1200x664.29, per the size badge Figma printed beside this selection. It was briefly changed to 704 on the theory that the section reference (design/refs/ShowcaseImage.png, 1200x704) *was* this node, because at thumbnail size the image looks like it fills that frame corner to corner. It does not: there is 20px of white above and below it. The 704 crop reached past the node, caught the selection outline and the badge, and shipped them — which is how the true size became legible. The block check did not notice, because a 237x34 badge barely moves a 48-cell grid; assertNoViewerChrome is the check that does."
+    },
+    {
+      "name": "FooterLogo",
+      "node": "1-264",
+      "w": 32,
+      "h": 70,
+      "out": "public/img/footer-logo.png",
+      "zoomTo": 700
+    },
+    {
+      "name": "IconCable",
+      "node": "1-147",
+      "w": 24,
+      "h": 24,
+      "out": "public/icons/cable.png",
+      "zoomTo": 700,
+      "resizeTo": 128
+    },
+    {
+      "name": "IconEarth",
+      "node": "1-152",
+      "w": 24,
+      "h": 24,
+      "out": "public/icons/earth.png",
+      "zoomTo": 700,
+      "resizeTo": 128
+    },
+    {
+      "name": "IconAccount",
+      "node": "1-157",
+      "w": 24,
+      "h": 24,
+      "out": "public/icons/account.png",
+      "zoomTo": 700,
+      "resizeTo": 128
+    },
+    {
+      "name": "IconChart",
+      "node": "1-162",
+      "w": 24,
+      "h": 24,
+      "out": "public/icons/chart.png",
+      "zoomTo": 700,
+      "resizeTo": 128
+    },
+    {
+      "name": "CenteredCta",
+      "node": "1-253",
+      "w": 1200,
+      "h": 462,
+      "out": "design/refs/CenteredCta.png",
+      "note": "462, not the 464 originally declared: the selection outline the capture actually matched measures 1197x461 at 2x. Two px is inside every tolerance here, but a declared size that disagrees with the outline is the exact discrepancy that shipped wrong assets, so it is not left standing."
+    },
+    {
+      "name": "Footer",
+      "node": "1-257",
+      "w": 1200,
+      "h": 250,
+      "out": "design/refs/Footer.png",
+      "note": "1200x250, per the size badge Figma printed beside the selection in the original capture — which declared 519, matched nothing, and cropped a strip of Figma's own UI into design/refs/Footer.png as a design *reference*."
+    }
+  ]
+}
