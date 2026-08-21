@@ -26,20 +26,20 @@ green while it shipped, and each of those gates was checking something real:
   green band is a perfectly valid 200 with no console errors.
 - The development process reviewed diffs and reports. It never reviewed a render.
 
-ADR-0003 accepted that visual review against `design/refs/` would be human
+ADR-0003 accepted that visual review against `apps/web/design/refs/` would be human
 judgement rather than an automated diff. That was the assumption this failure
 falsified: the human judgement step existed in principle and did not run.
 
 ## Decision
 Compare each rendered section against its Figma reference on two axes, and fail
 the build when either drifts. The comparison lives once in
-`scripts/design-check.mjs` and is driven from two places: `bun run verify:design`
-(`scripts/verify-design.mjs`, for local iteration against a running dev server)
-and `e2e/design-fidelity.spec.ts`, which generates **one Playwright test per
+`packages/figma-to-site/src/design-check.mjs` and is driven from two places: `bun run verify:design`
+(`figma-verify-design`, for local iteration against a running dev server)
+and `apps/web/e2e/design-fidelity.spec.ts`, which generates **one Playwright test per
 section** so CI names the section that drifted and attaches the render beside the
 reference.
 
-**Axis 1 — aspect ratio**, against the size recorded in `design/refs/refs.json`,
+**Axis 1 — aspect ratio**, against the size recorded in `apps/web/design/refs/refs.json`,
 5% default tolerance. Geometry errors — doubled padding, a duplicated background,
 an image at the wrong crop, a container at the wrong max-width — change a
 section's shape long before they change its average colour. Crucially this
@@ -56,7 +56,7 @@ section carried 96px of vertical padding where the design has 20px: score 42.1,
 then 23.8 once the padding was corrected.
 
 **Axis 3 — no viewer chrome**, over every committed image rather than per section:
-`tests/assets.test.ts` scans `public/img`, `public/icons` and `design/refs` for
+`apps/web/tests/assets.test.ts` scans `public/img`, `public/icons` and `design/refs` for
 selection-coloured blobs thicker than an outline stroke. This exists because axis 2
 provably cannot see the thing it catches. A 237x34 Figma dimension badge shipped
 along the bottom edge of `public/img/showcase.png` and the section still scored 1.7
@@ -67,7 +67,7 @@ size inside it, so its presence means the crop reached past its target and the
 declared size is wrong. In that instance the badge read "1200 Fill x 664.29 Fill"
 and disproved the change that had produced it.
 
-`design/refs/refs.json` carries the provenance that makes this honest: each
+`apps/web/design/refs/refs.json` carries the provenance that makes this honest: each
 section's design size, where that size came from (`reference` = trust the
 screenshot's shape; `figma-badge` = Figma printed the number itself, which
 outranks the screenshot), and whether the reference PNG is trustworthy enough to

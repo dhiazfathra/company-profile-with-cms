@@ -9,7 +9,7 @@ export default async function ShowcaseImage() {
     // above and below and no horizontal padding. At thumbnail size the image
     // looks like it fills the frame corner to corner, which is what led to this
     // section briefly having no padding and a 40px-too-tall image — see the
-    // Showcase entry in scripts/capture-figma.mjs.
+    // Showcase entry in design/figma.targets.json.
     <section data-section="ShowcaseImage" className="py-5">
       <img src={c.image as string} alt={c.imageAlt as string} className="w-full rounded-2xl" />
     </section>

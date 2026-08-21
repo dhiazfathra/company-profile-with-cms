@@ -5,7 +5,7 @@ import {
   checkSection,
   loadManifest,
   screenshotSection,
-} from '../scripts/design-check.mjs'
+} from 'figma-to-site/design-check'
 
 /**
  * One test per section, comparing the running page against the Figma design.
@@ -18,7 +18,7 @@ import {
  * validated, the unit tests passed, the build succeeded, and the rest of this
  * e2e suite went green on a page that rendered a green band inside a green band.
  *
- * The comparison lives in `scripts/design-check.mjs`; `design/refs/refs.json`
+ * The comparison lives in `figma-to-site`'s `design-check` module; `design/refs/refs.json`
  * holds each section's design size and says whether its reference PNG is
  * trustworthy enough to compare content against.
  */
@@ -39,7 +39,7 @@ test.describe('design fidelity', () => {
 
       const renderPath = `${OUT}/${section}.render.png`
       await screenshotSection(page, section, renderPath)
-      const result = await checkSection(section, spec, renderPath)
+      const result = await checkSection(section, spec, renderPath, manifest.refsDir)
 
       // Report the whole picture on failure: the render is attached to the
       // Playwright report next to the reference, so the diff is inspectable
@@ -47,7 +47,7 @@ test.describe('design fidelity', () => {
       if (result.failures.length) {
         await test.info().attach(`${section} render`, { path: renderPath, contentType: 'image/png' })
         await test.info().attach(`${section} reference`, {
-          path: `design/refs/${section}.png`,
+          path: `${manifest.refsDir}/${section}.png`,
           contentType: 'image/png',
         })
       }

@@ -96,9 +96,16 @@ export async function findSelection(file, { w, h, scale }) {
  * Interpolating those away leaves a smear that still is not the design, so they
  * have to fail the capture instead of being repaired.
  *
- * The distinction is size. A selection stroke is 1-2 device px wide however long
- * it runs; a badge is tens of px in both directions. So: any blob whose smaller
+ * The distinction is size, measured on the blob's *bounding box*: a stroke
+ * crossing a crop is 1-2 device px in one direction however long it runs, so its
+ * box is thin; a badge is tens of px in both. Any blob whose smaller box
  * dimension exceeds `maxStrokeWidth` is viewer chrome.
+ *
+ * Note what that means for a *closed* outline caught whole inside a crop — all
+ * four sides are one connected blob, and its box is the node's whole bounds, so it
+ * is reported as chrome rather than repaired. That is the wanted answer: a crop
+ * containing a complete selection rectangle has reached past the node it was
+ * aiming at, and no amount of interpolation makes those pixels design.
  */
 export async function findViewerChrome(file, { maxStrokeWidth = 8 } = {}) {
   const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
@@ -117,11 +124,12 @@ export async function findViewerChrome(file, { maxStrokeWidth = 8 } = {}) {
 /**
  * Throw if `file` contains Figma's own interface.
  *
- * Three assets shipped from this pipeline carrying viewer chrome: a reference
- * that was mostly Figma UI, and a crop whose bottom edge caught the selection
- * outline and the dimension badge. In both cases the crop *succeeded* and the
- * fidelity check passed, because a small badge barely moves a coarse block
- * score. Nothing but looking at the file caught it. This is that look, automated.
+ * Two assets shipped from this pipeline carrying viewer chrome: a reference that
+ * was mostly Figma UI, and a crop whose bottom edge caught the selection outline
+ * and the dimension badge. In both cases the crop *succeeded* and the fidelity
+ * check passed, because a small badge barely moves a coarse block score — a
+ * 237x34 badge on a 2394x1400 image scored 1.7 against a limit of 34. Nothing but
+ * looking at the file caught it. This is that look, automated.
  */
 export async function assertNoViewerChrome(file, options) {
   const blobs = await findViewerChrome(file, options)

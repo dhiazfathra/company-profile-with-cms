@@ -28,7 +28,7 @@ test.describe('content seam (lib/content.ts via a real HTTP request)', () => {
     const response = await page.goto('/e2e-seam?locale=fr')
     expect(response?.status()).toBe(200)
     await expect(page.getByTestId('headline')).toHaveText(EN_HEADLINE)
-    await page.screenshot({ path: 'docs/e2e/seam-page.png', fullPage: true })
+    await page.screenshot({ path: '../../docs/e2e/seam-page.png', fullPage: true })
   })
 
   test('never renders a suffixed key in the HTML', async ({ page }) => {
