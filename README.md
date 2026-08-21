@@ -11,9 +11,8 @@ do not exist yet.
 
 Deployed URL: TBD — Vercel import pending
 
-Ten images could not be exported from Figma before the MCP quota ran out; the
-site renders labelled placeholder SVGs in their place. See
-[`TOKEN-GAPS.md`](TOKEN-GAPS.md).
+See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a
+Figma variable.
 
 ## How it works
 
