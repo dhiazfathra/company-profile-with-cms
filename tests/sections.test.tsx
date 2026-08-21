@@ -17,6 +17,19 @@ async function copyOf(name: string): Promise<string[]> {
     .map(([, value]) => String(value))
 }
 
+/** Every `_en` value across all rows of a collection's content file. */
+async function collectionCopyOf(name: string): Promise<string[]> {
+  const rows = JSON.parse(await readFile(`content/collections/${name}.json`, 'utf8')) as Record<
+    string,
+    unknown
+  >[]
+  return rows.flatMap((row) =>
+    Object.entries(row)
+      .filter(([key]) => key.endsWith('_en'))
+      .map(([, value]) => String(value)),
+  )
+}
+
 describe('sections', () => {
   it('default-exports a component for every global section in the manifest', async () => {
     for (const section of globals) {
@@ -65,6 +78,18 @@ describe('sections', () => {
       const source = (await sourceOf(section.name)).replaceAll(section.name, '')
       for (const value of await copyOf(section.name)) {
         expect(source, `${section.name}.tsx must not inline ${value}`).not.toContain(value)
+      }
+
+      // Same check for every collection this component reads via getCollection.
+      for (const collection of collections) {
+        const rawSource = await sourceOf(section.name)
+        if (!rawSource.includes(`getCollection('${collection.name}')`)) continue
+        const scrubbed = rawSource.replaceAll(collection.name, '')
+        for (const value of await collectionCopyOf(collection.name)) {
+          expect(scrubbed, `${section.name}.tsx must not inline ${collection.name} copy: ${value}`).not.toContain(
+            value,
+          )
+        }
       }
     }
   })

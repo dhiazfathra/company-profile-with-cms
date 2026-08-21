@@ -2,21 +2,21 @@
   {
     "title_en": "Amplify Insights",
     "body_en": "Unlock data-driven decisions with comprehensive analytics, revealing key opportunities for strategic regional growth.",
-    "icon": "/icons/placeholder-cable.svg"
+    "icon": "/icons/cable.png"
   },
   {
     "title_en": "Control Your Global Presence",
     "body_en": "Manage and track satellite offices, ensuring consistent performance and streamlined operations everywhere.",
-    "icon": "/icons/placeholder-earth.svg"
+    "icon": "/icons/earth.png"
   },
   {
     "title_en": "Remove Language Barriers",
     "body_en": "Adapt to diverse markets with built-in localization for clear communication and enhanced user experience.",
-    "icon": "/icons/placeholder-account.svg"
+    "icon": "/icons/account.png"
   },
   {
     "title_en": "Visualize Growth",
     "body_en": "Generate precise, visually compelling reports that illustrate your growth trajectories across all regions.",
-    "icon": "/icons/placeholder-chart.svg"
+    "icon": "/icons/chart.png"
   }
 ]

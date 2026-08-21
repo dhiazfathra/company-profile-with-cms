@@ -4,9 +4,10 @@ A pipeline that converts a Figma file into a live static site, then evolves it
 into an admin-editable, CMS-backed, multi-language site — with no copy rework
 between the two phases.
 
-**Status: Phase 1 live.** The static site is deployed; content lives in
-`content/*.json`. Phase 2 (Payload CMS) is specified but not built — the
-`bun run gen:cms` and `bun run seed` commands do not exist yet.
+**Status: Phase 1 complete; deploy pending.** The static site is built and
+ready to deploy; content lives in `content/*.json`. Phase 2 (Payload CMS) is
+specified but not built — the `bun run gen:cms` and `bun run seed` commands
+do not exist yet.
 
 Deployed URL: TBD — Vercel import pending
 

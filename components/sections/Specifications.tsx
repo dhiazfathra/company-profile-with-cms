@@ -51,7 +51,7 @@ export default async function Specifications() {
                   key={cell.row as number}
                   className="flex items-center gap-3 border-b border-divider-1 px-8 py-6 last:border-b-0"
                 >
-                  <img src={cell.icon as string} alt="" aria-hidden="true" className="h-3.5 w-3.5" />
+                  <img src={cell.icon as string} alt={cell.iconAlt as string} className="h-3.5 w-3.5" />
                   <span className="font-mono text-caption tracking-[-0.12px] text-text-headline">
                     {cell.label as string}
                   </span>

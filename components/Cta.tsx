@@ -21,7 +21,7 @@ export default function Cta({
     >
       {label}
       {variant === 'solid' ? (
-        <img src="/icons/arrow-linkout.svg" alt="" aria-hidden="true" className="h-3 w-3 invert" />
+        <img src="/icons/arrow-linkout.svg" alt="" aria-hidden="true" className="h-3 w-3" />
       ) : null}
     </a>
   )
