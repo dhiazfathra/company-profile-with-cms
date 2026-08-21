@@ -142,7 +142,13 @@ export default buildConfig({
       url: process.env.DATABASE_URI || 'file:./payload.db',
     },
   }),
-  secret: process.env.PAYLOAD_SECRET || 'dev-secret-change-me',
+  secret: (() => {
+    if (process.env.PAYLOAD_SECRET) return process.env.PAYLOAD_SECRET
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('PAYLOAD_SECRET must be set in production')
+    }
+    return 'dev-secret-change-me'
+  })(),
   localization: {
     locales: [${locales}],
     defaultLocale: '${manifest.locales[0]}',

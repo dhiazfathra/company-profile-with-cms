@@ -1,10 +1,10 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-21T15:32:31Z
-branch: worktree-figma-to-cms-phase2 — 1 ahead, 0 behind main
-head: ec9ea9b
-dirty files: 1
+generated: 2026-08-21T15:35:53Z
+branch: detached HEAD at 74a636d
+head: 74a636d
+dirty files: 3
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md
