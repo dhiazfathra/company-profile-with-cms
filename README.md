@@ -34,11 +34,33 @@ flips `lib/content.ts` to read from Payload. No component changes.
 |---------|-------------|
 | `bun install` | Install dependencies |
 | `bun run dev` | Start the development server |
-| `bun run test` | Run tests |
+| `bun run build` | Production build |
+| `bun run test` | Run unit tests (Vitest) |
+| `bun run e2e` | Run end-to-end tests (Playwright) — starts the dev server itself |
+| `bun run e2e:report` | Open the e2e HTML report with traces, videos, screenshots |
 | `bun run lint` | Run the linter |
 | `bun run validate:manifest` | Validate `site.manifest.json` against the schema — currently exits 1, since that file does not exist yet |
 | `bun run gen:cms` | Phase 2, not yet built — will generate `payload.config.ts` from `site.manifest.json` |
 | `bun run seed` | Phase 2, not yet built — will load `content/*.json` into Payload |
+
+## Testing
+
+Unit tests cover the manifest schema and the content seam. End-to-end tests cover
+the running app, the seam over real HTTP, and the validator CLI as a subprocess:
+
+```bash
+bunx playwright install chromium --with-deps   # once
+bun run e2e
+```
+
+Every e2e test records a screenshot, video, and trace into `e2e-results/`
+(gitignored); CI uploads that directory as a workflow artifact. Committed
+evidence and reproduction details live in [`docs/e2e/README.md`](docs/e2e/README.md).
+
+`e2e/content-seam.spec.ts` is the one to preserve: it asserts that no
+locale-suffixed key ever reaches rendered HTML, which is what keeps the Phase 2
+migration a backend swap rather than a refactor. It renders through a test-only
+route gated behind `E2E=1`, which 404s on any normally-started server.
 
 ## Architecture
 
