@@ -21,7 +21,15 @@
  *    to be rejected is accepted.
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import sharp from 'sharp'
 
@@ -118,7 +126,23 @@ function unitPassCount(cwd, label) {
 const unitCounts = [unitPassCount(WEB, 'web'), unitPassCount(PKG, 'figma-to-site')]
 
 run('bun', ['run', 'lint'])
+
+/**
+ * What the build produced, observed rather than remembered.
+ *
+ * This row said "static export" for a phase after `output: 'export'` was
+ * dropped — the one hardcoded claim in a file whose whole rule is that a figure
+ * has to come from the run. A static export writes `out/`; a server build does
+ * not. The mtime check is because an `out/` left behind by an earlier phase
+ * would otherwise answer for this build.
+ */
+const buildStart = Date.now()
 run('bun', ['run', 'build'])
+const exportIndex = join(WEB, 'out/index.html')
+const buildMode =
+  existsSync(exportIndex) && statSync(exportIndex).mtimeMs >= buildStart
+    ? 'static export (`apps/web/out/`)'
+    : 'server build, no static export'
 
 run('bun', ['run', 'e2e'], { cwd: WEB })
 // playwright.config.ts writes this alongside the list and html reporters, so the
@@ -294,7 +318,7 @@ rather than writing a figure it did not observe.
 | of which design-fidelity, one test per section | **${sections.length} passed** |
 | Unit tests | **${unitCounts.reduce((a, b) => a + b, 0)} passed** (${unitCounts.join(' + ')}) |
 | Lint | \`eslint .\` clean |
-| Build | static export |
+| Build | ${buildMode} |
 | Eval validator | proven in both directions, see below |
 
 ## Reproduce
