@@ -1,11 +1,10 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-
-generated: 2026-08-21T12:47:42Z
-branch: figma-to-site-eval — 4 ahead, 0 behind main
-head: 9299ab2
-dirty files: 12
+generated: 2026-08-21T12:57:30Z
+branch: figma-to-site-eval — 6 ahead, 0 behind main
+head: 8327e49
+dirty files: none (clean tree)
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md
