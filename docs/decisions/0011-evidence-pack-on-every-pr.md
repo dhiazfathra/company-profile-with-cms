@@ -40,7 +40,9 @@ in `AGENTS.md` so every agent and every human reads it before opening a PR.
 
 Three properties are enforced in the script rather than asked for in prose:
 
-1. **Every figure is parsed out of the run's own output.** No count is passed in
+1. **Every figure is read from the run's own machine-readable report** — the
+   vitest and Playwright JSON reports rather than their console summaries, which
+   are formatted for a human and change without the results changing. No count is passed in
    or written by hand. If a command fails, the script throws and writes nothing —
    a pack that reports a pass it did not observe is worse than no pack.
 2. **The checks are proven in both directions.** The script writes deliberately

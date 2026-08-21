@@ -35,8 +35,11 @@ e2e suite) and writes:
 Three rules the script enforces so the pack cannot become theatre, and which you
 must not work around:
 
-- **Every figure is parsed out of the run's own output.** If a command fails, the
-  script throws and writes nothing. Do not hand-edit a number into
+- **Every figure is read from the run's own machine-readable report** — vitest's
+  and Playwright's JSON reports, not their terminal summaries. A summary line is
+  written for a human: its spacing, its colour and the stream it lands on all
+  change, and a script that parses one reports a formatting change as a missing
+  result. If a command fails, the script throws and writes nothing. Do not hand-edit a number into
   `pr-section.md`; regenerate it.
 - **The checks are proven in both directions.** The script feeds deliberately
   broken fixtures to the eval suite's validator and fails if the validator accepts

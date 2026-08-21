@@ -10,8 +10,9 @@
  *
  * Two rules shape this file, both from packages/figma-to-site/SKILL.md:
  *
- * 1. Evidence is what a command printed, never what the author remembers. Every
- *    number in the output is parsed out of `run.log`, and a command that fails
+ * 1. Evidence is what a command reported, never what the author remembers. Every
+ *    number comes out of a machine-readable report — vitest's and Playwright's
+ *    JSON — rather than off a terminal summary written for a human, and a command that fails
  *    fails this script — an evidence pack that reports a pass it did not observe
  *    is worse than no evidence at all.
  * 2. A check is only known to work if it has been seen to fail. So the eval
@@ -19,7 +20,7 @@
  *    well as the real suite, and this script errors out if a fixture it expected
  *    to be rejected is accepted.
  */
-import { execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import sharp from 'sharp'
@@ -39,30 +40,42 @@ const say = (line) => {
 }
 
 /**
+ * Terminal control sequences, removed from everything this script reads.
+ *
+ * A colourised summary reads identically to a human and not at all to a regular
+ * expression: with colour on, vitest prints `Tests  \x1b[1m\x1b[32m95 passed`, and
+ * `/Tests {2}(\d+)/` finds nothing. That is a formatting difference reported as a
+ * missing result — the one thing this script must never do.
+ */
+const stripAnsi = (text) => text.replace(/\u001B\[[0-9;]*[A-Za-z]/g, '')
+
+/**
  * Run a command, record it, and return its output. `allowFailure` exists only for
  * the negative-direction fixtures, where a non-zero exit is the expected result.
+ *
+ * stdout and stderr are merged. Which stream a runner picks for its summary is
+ * its own business and it changes between versions; reading only one turns that
+ * choice into a failure here.
  */
 function run(cmd, args, { cwd = ROOT, allowFailure = false } = {}) {
   say(
     `\n$ ${[cmd, ...args].join(' ')}${cwd === ROOT ? '' : `   # in ${cwd.slice(ROOT.length + 1)}`}`,
   )
-  try {
-    const out = execFileSync(cmd, args, {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    log.push(out.trimEnd())
-    return { ok: true, out }
-  } catch (error) {
-    const out = `${error.stdout ?? ''}${error.stderr ?? ''}`
-    log.push(out.trimEnd())
-    if (allowFailure) return { ok: false, out }
-    console.error(out)
-    throw new Error(
-      `\`${cmd} ${args.join(' ')}\` failed — nothing to report, so nothing is written`,
-    )
-  }
+  const result = spawnSync(cmd, args, {
+    cwd,
+    encoding: 'utf8',
+    // Both streams, always: which one a runner writes its summary to is its own
+    // business, and reading only stdout turns that choice into a failure here.
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+  })
+  if (result.error) throw result.error
+  const out = stripAnsi(`${result.stdout ?? ''}${result.stderr ?? ''}`)
+  log.push(out.trimEnd())
+  if (result.status === 0) return { ok: true, out }
+  if (allowFailure) return { ok: false, out }
+  console.error(out)
+  throw new Error(`\`${cmd} ${args.join(' ')}\` failed — nothing to report, so nothing is written`)
 }
 
 /** Pull a number out of the logs rather than trusting a count written by hand. */
@@ -77,19 +90,50 @@ function must(pattern, text, what) {
 const sha = run('git', ['rev-parse', '--short', 'HEAD']).out.trim()
 const branch = run('git', ['rev-parse', '--abbrev-ref', 'HEAD']).out.trim()
 
-const unit = run('bun', ['run', 'test']).out
-// Two workspaces, two summaries: the site's and the package's.
-const unitCounts = [...unit.matchAll(/Tests {2}(\d+) passed/g)].map((m) => Number(m[1]))
-if (unitCounts.length < 2) throw new Error('expected a test summary from each workspace')
+mkdirSync(OUT, { recursive: true })
+
+/**
+ * Pass count for one workspace, read out of vitest's JSON report rather than off
+ * its terminal summary.
+ *
+ * The summary line is written for a human: its spacing, its colour and the stream
+ * it lands on are all free to change, and every one of those breaks a regular
+ * expression while the tests themselves are green. Parsing the report keeps this
+ * script failing for the only reason it should — a test that did not pass.
+ */
+function unitPassCount(cwd, label) {
+  const file = join(OUT, `vitest-${label}.json`)
+  run('bun', ['run', 'test', '--', '--reporter=json', `--outputFile=${file}`], { cwd })
+  const report = JSON.parse(readFileSync(file, 'utf8'))
+  const { numTotalTests = 0, numPassedTests = 0, numFailedTests = 0 } = report
+  // A run of nothing exits 0. Same rule as an empty asset scan: nothing to
+  // check is a failure, not a clean bill of health.
+  if (!numTotalTests) throw new Error(`${label} ran no tests at all`)
+  if (numFailedTests || numPassedTests !== numTotalTests) {
+    throw new Error(`${label}: ${numFailedTests} failed of ${numTotalTests}`)
+  }
+  return numPassedTests
+}
+
+const unitCounts = [unitPassCount(WEB, 'web'), unitPassCount(PKG, 'figma-to-site')]
 
 run('bun', ['run', 'lint'])
 run('bun', ['run', 'build'])
 
-const e2e = run('bun', ['run', 'e2e'], { cwd: WEB }).out
-const e2eCount = must(/(\d+) passed \(/, e2e, 'the e2e pass count')
-const sections = [...e2e.matchAll(/design fidelity › (\S+) matches the Figma design/g)].map(
-  (m) => m[1],
-)
+run('bun', ['run', 'e2e'], { cwd: WEB })
+// playwright.config.ts writes this alongside the list and html reporters, so the
+// figures below are the run's own record rather than a reading of its console.
+const e2eReport = JSON.parse(readFileSync(join(WEB, 'e2e-results/results.json'), 'utf8'))
+const specs = (function walk(suites) {
+  return suites.flatMap((s) => [...(s.specs ?? []), ...walk(s.suites ?? [])])
+})(e2eReport.suites ?? [])
+const e2eCount = e2eReport.stats?.expected ?? 0
+if (!e2eCount || e2eReport.stats?.unexpected) {
+  throw new Error(`e2e: ${e2eReport.stats?.unexpected ?? 0} unexpected of ${specs.length}`)
+}
+const sections = specs
+  .filter((s) => s.ok && / matches the Figma design$/.test(s.title))
+  .map((s) => s.title.replace(/ matches the Figma design$/, ''))
 
 // ------------------------------------------- the validator, in both directions
 
@@ -191,16 +235,13 @@ try {
   rmSync(FIXTURE, { recursive: true, force: true })
 }
 
-const clean = run('bun', ['run', 'test'], { cwd: PKG }).out
 proofs.push({
   what: 'The real suite, fixtures removed',
   expected: 'accept',
-  observed: `${must(/Tests {2}(\d+) passed/, clean, 'the restored pass count')} passed`,
+  observed: `${unitPassCount(PKG, 'figma-to-site-restored')} passed`,
 })
 
 // ------------------------------------------------------------------- output
-
-mkdirSync(OUT, { recursive: true })
 
 const manifest = JSON.parse(readFileSync(join(WEB, 'design/refs/refs.json'), 'utf8'))
 const order = Object.keys(manifest.sections)
@@ -244,8 +285,8 @@ writeFileSync(
   `# E2E evidence
 
 Produced by \`bun run evidence\` at \`${sha}\` on \`${branch}\`. Every number below was
-parsed out of the run's own output; the script fails rather than writing a figure
-it did not observe.
+read out of the run's own JSON report, not off a console summary; the script fails
+rather than writing a figure it did not observe.
 
 | | |
 |---|---|
@@ -351,8 +392,9 @@ writeFileSync(
 <main>
   <h1>E2E evidence</h1>
   <p class="lede">Branch <code>${esc(branch)}</code> at <code>${esc(sha)}</code>, produced by
-  <code>bun run evidence</code>. Every figure was parsed out of the run's own output — the
-  script fails rather than printing a number it did not observe.</p>
+  <code>bun run evidence</code>. Every figure was read out of the run's own JSON report rather
+  than off a console summary — the script fails rather than printing a number it did not
+  observe.</p>
 
   <div class="cards">
     <div class="card"><b class="pass">${esc(e2eCount)}</b><span>Playwright e2e, chromium</span></div>
