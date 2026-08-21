@@ -56,7 +56,7 @@ ten assets below shipped as placeholder SVGs. `scripts/capture-figma.mjs`
 has since captured the real PNGs for all of them; `content/` now points at
 the real files and the placeholder SVGs are unused (left on disk, harmless).
 
-Three of those captures were wrong, and shipped. The crop locates a node by the
+Two of those captures were wrong, and shipped. The crop locates a node by the
 width and height declared for it in the script's `TARGETS` table and takes the
 closest-matching selection outline, so a wrong declared size does not fail — it
 returns a different region of canvas. See `docs/decisions/0007` and `0008`.
@@ -65,7 +65,14 @@ returns a different region of canvas. See `docs/decisions/0007` and `0008`.
 |---|---|---|---|
 | `Header` (`1-122`) | 1200x362 | correct for that node — but the node is the green *band*, not the hero image | the band, which `Header.tsx` then nested inside a second band of its own |
 | `Footer` (`1-257`) | 1200x519 | 1200x250 | a strip of Figma's own UI — selection badge, canvas, cookie banner — as a design *reference* |
-| `Showcase` (`1-252`) | 1200x664 | 1200x704 | the picture with 40px cropped away |
+
+`Showcase` (`1-252`) looked like a third case and was not. Its declared 1200x664
+was right; the section around it had 96px of vertical padding where the design has
+20px. Widening the declared height to 704 on the wrong theory made the crop reach
+past the node and ship Figma's dimension badge — which read "1200 Fill x 664.29
+Fill" and disproved the change. `tests/assets.test.ts` now fails on any committed
+image containing Figma's interface, because the block check demonstrably does not:
+that badge scored 1.7 against a limit of 34.
 
 `Header` now exports the laptop alone via a design-px offset from the band's
 outline (`cropRelative`), because the laptop is clipped by its parent frame and

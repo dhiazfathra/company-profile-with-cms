@@ -17,9 +17,9 @@
     "weak evidence — noted where it applies rather than quietly banked.",
     "",
     "Node ids are deliberately absent. The capture script's TARGETS table is the",
-    "one place that maps a node id to an output file, and three of its declared",
-    "node sizes were wrong — which is the whole reason this file exists. Restating",
-    "ids here would add a second unverified copy of the thing that broke."
+    "one place that maps a node id to an output file, and two of its entries named",
+    "the wrong pixels — the whole reason this file exists. Restating ids here would",
+    "add a second unverified copy of the thing that broke."
   ],
   "designWidth": 1200,
   "sections": {

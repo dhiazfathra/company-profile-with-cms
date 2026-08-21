@@ -1,6 +1,5 @@
 import { readdir } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error -- build tooling, plain ESM with no type declarations
 import { findViewerChrome } from '@/scripts/figma-crop.mjs'
 
 /**

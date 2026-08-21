@@ -78,7 +78,7 @@ The crop has to be *told* each node's size, and that is its sharp edge.
 and height the caller declares in `TARGETS`, then takes the best match. It cannot
 distinguish "this node is 1200x362" from "some node near here is 1200x362", and
 it never fails — a wrong declared size returns a confident, plausible, wrong
-rectangle. Three declared sizes were wrong and all three shipped:
+rectangle. Two targets named the wrong pixels and both shipped:
 
 - `Header` (node `1-122`) declared 1200x362. That size was correct for the node,
   but the node is the flat green background band, not the hero image. The band
@@ -93,8 +93,15 @@ rectangle. Three declared sizes were wrong and all three shipped:
   shipped as `design/refs/Footer.png`, a *design reference*. A corrupt reference
   is worse than a missing one: it cannot fail a bad build and it cannot pass a
   good one.
-- `Showcase` (node `1-252`) declared 1200x664; the node is 1200x704. Forty pixels
-  of the picture were cropped away.
+- `Showcase` (node `1-252`) was *wrongly believed* to be a third bad capture.
+  Its declared 1200x664 was correct; the section around it carried 96px of
+  vertical padding where the design has 20px, and the fix belonged in the
+  component. Acting on the wrong theory — that the 1200x704 section reference
+  *was* this node, because at thumbnail size the image appears to fill that frame
+  corner to corner — widened the declared height to 704. The crop then reached
+  past the node and shipped Figma's dimension badge into `public/img/showcase.png`,
+  where it legibly read "1200 Fill x 664.29 Fill" and disproved the theory that
+  had produced it. Corrected back to 664.29, with the padding fixed instead.
 
 So the declared size in `TARGETS` is load-bearing and must be verified against
 something other than the crop's own success. That is precisely what ADR-0008

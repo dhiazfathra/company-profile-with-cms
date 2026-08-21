@@ -51,8 +51,21 @@ of bug ADR-0007 describes.
 reduced to a 48-cell-wide grid of mean colours and compared cell by cell, default
 limit 34 on a 0–255 mean-absolute-difference scale. At that resolution font
 hinting, antialiasing and image resampling wash out, while a wrong background, a
-missing element or a transposed layout survives. It caught the `ShowcaseImage`
-crop: score 42.1, then 1.7 after re-capture.
+missing element or a transposed layout survives. It caught `ShowcaseImage`, whose
+section carried 96px of vertical padding where the design has 20px: score 42.1,
+then 23.8 once the padding was corrected.
+
+**Axis 3 — no viewer chrome**, over every committed image rather than per section:
+`tests/assets.test.ts` scans `public/img`, `public/icons` and `design/refs` for
+selection-coloured blobs thicker than an outline stroke. This exists because axis 2
+provably cannot see the thing it catches. A 237x34 Figma dimension badge shipped
+along the bottom edge of `public/img/showcase.png` and the section still scored 1.7
+against a limit of 34 — a coarse block average is blind to small high-contrast
+intrusions, and tightening its tolerance to catch them would make it fail on font
+rendering instead. A badge is also a *diagnostic*: Figma prints the node's real
+size inside it, so its presence means the crop reached past its target and the
+declared size is wrong. In that instance the badge read "1200 Fill x 664.29 Fill"
+and disproved the change that had produced it.
 
 `design/refs/refs.json` carries the provenance that makes this honest: each
 section's design size, where that size came from (`reference` = trust the
@@ -113,8 +126,8 @@ already shipped:
   exist — the file even carried a comment saying so. Vertical rhythm wrong, and
   the CTA button should stretch to the full width of the text column rather than
   hug its label.
-- `ShowcaseImage`: had section padding, when the design's section *is* the image,
-  full-bleed corner to corner.
+- `ShowcaseImage`: 96px of vertical padding where the design has 20px, and no
+  horizontal padding — the image is full width, with white above and below.
 - `Header`'s headline wrapped to two lines. `--font-display` resolves to Crimson
   Text, which advances 1132px for "Browse everything." at 160px where the design's
   face occupies 1068px; compensated with a measurement-derived

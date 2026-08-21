@@ -14,7 +14,7 @@ import {
  * captured by cropping screenshots of the Figma web viewer, and the crop finds a
  * node by the size the caller declares for it; where that declared size was
  * wrong the crop silently returned a different region of canvas and shipped it
- * as the asset. Three targets were wrong. Nothing else noticed: the manifest
+ * as the asset. Two targets were wrong. Nothing else noticed: the manifest
  * validated, the unit tests passed, the build succeeded, and the rest of this
  * e2e suite went green on a page that rendered a green band inside a green band.
  *
