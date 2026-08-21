@@ -118,4 +118,5 @@ suite's structure in CI on every push — same rule as an empty asset scan: a ch
 nobody can run is not a check.
 
 Decisions behind all of this: `docs/decisions/0007` (capture by screenshot),
-`0008` (the fidelity gate), `0009` (why this is a package).
+`0008` (the fidelity gate), `0009` (why this is a package), `0010` (why the skill
+gets evals of its own, and why CI checks the suite rather than running it).

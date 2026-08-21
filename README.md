@@ -39,7 +39,7 @@ either place.
 | `bun run dev`               | Start the site's development server                                                     |
 | `bun run build`             | Production build (static export)                                                        |
 | `bun run start`             | Serve the static export from `out/`                                                     |
-| `bun run test`              | Unit tests for both the site and the package                                            |
+| `bun run test`              | Unit tests for both the site and the package, plus the eval suite's structure           |
 | `bun run lint`              | Lint the site                                                                           |
 | `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                        |
 | `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
@@ -82,6 +82,7 @@ design.
 | [0007](docs/decisions/0007-figma-capture-by-screenshot.md)            | Capture Figma assets by cropping viewer screenshots, not MCP asset calls |
 | [0008](docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots  |
 | [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                  |
+| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)        | Evaluate the skill's judgement behaviourally; validate the suite in CI   |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
