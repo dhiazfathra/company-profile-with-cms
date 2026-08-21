@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "validate:manifest": "tsx scripts/validate-manifest.ts"
+    "validate:manifest": "tsx scripts/validate-manifest.ts",
+    "e2e": "playwright test",
+    "e2e:report": "playwright show-report e2e-results/report"
   },
   "dependencies": {
     "next": "16.3.1",
@@ -20,6 +22,7 @@
     "zod": "^3.22"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",

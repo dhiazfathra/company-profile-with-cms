@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-e2e-throwaway/
 /out/
 
 # production
@@ -43,3 +44,7 @@ next-env.d.ts
 # project
 .tokensave
 .superpowers/
+
+# playwright e2e
+/e2e-results/
+/test-results/
