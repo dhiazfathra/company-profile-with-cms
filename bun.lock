@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "scaffold",
+      "devDependencies": {
+        "sharp": "^0.35.3",
+      },
     },
     "apps/web": {
       "name": "company-profile-with-cms",

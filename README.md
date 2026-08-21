@@ -46,6 +46,7 @@ either place.
 | `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
 | `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                        |
 | `bun run e2e:report`        | Open the e2e HTML report with traces, videos, screenshots                               |
+| `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                        |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
 Chromium, so capture needs a visible browser. What CI runs is the _verification_ —
@@ -83,6 +84,7 @@ design.
 | [0008](docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots  |
 | [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                  |
 | [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)        | Evaluate the skill's judgement behaviourally; validate the suite in CI   |
+| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)              | Every pull request carries a generated evidence pack                     |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
