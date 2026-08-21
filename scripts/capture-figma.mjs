@@ -16,7 +16,7 @@
  */
 import { chromium } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
-import { cropToSelection, findSelection } from './figma-crop.mjs'
+import { cropRelative, cropToSelection, findSelection } from './figma-crop.mjs'
 
 const FILE_KEY = 'v7ZzmwgTae9hxdKdNdAe7V'
 const RAW = 'design/captures'
@@ -25,20 +25,56 @@ const RAW = 'design/captures'
  * `w`/`h` are the node's size in Figma design px, used to pick the right
  * selection outline out of the capture. `zoomTo` asks for a canvas zoom-in
  * before the capture so a tiny node lands on enough pixels to ship.
+ *
+ * `w`/`h` MUST be the size of the node `node` actually selects, and nothing
+ * else. The matcher scores candidate outlines by how close they are to these
+ * numbers and takes the best one; it cannot tell "the node is 1200x362" from
+ * "some node near here is 1200x362". Two entries in this table originally
+ * carried a size that was not their node's, and both silently produced the
+ * wrong region of canvas as a shipped asset — the header wrote out the green
+ * band behind the laptop, and the footer wrote out a strip of Figma's own UI.
+ * `bun run verify:design` exists because nothing else caught that.
+ *
+ * `crop` (design px, relative to the selected outline's top-left) asks for a
+ * different rectangle than the selection itself. Use it when the pixels you
+ * want cannot be selected on their own — see `cropRelative`.
  */
 const TARGETS = [
-  { name: 'Header', node: '1-122', w: 1200, h: 362, out: 'public/img/header.png' },
+  {
+    // 1-122 is the green band, not the hero image: it is 1200x362 and the
+    // laptop sits on top of it, overhanging 139px above its top edge and
+    // clipped where the band ends. The band is a flat colour reproduced in CSS
+    // by components/sections/Header.tsx, so what this needs to export is the
+    // laptop alone, measured off design/refs/Header.png.
+    name: 'Header',
+    node: '1-122',
+    w: 1200,
+    h: 362,
+    crop: { dx: 149, dy: -139, w: 904, h: 501 },
+    out: 'public/img/header.png',
+  },
   { name: 'Benefits', node: '1-166', w: 1200, h: 620, out: 'public/img/benefits.png' },
   { name: 'FeaturesCarousel', node: '1-187', w: 590, h: 711, out: 'public/img/features-carousel.png' },
   { name: 'Testimonial', node: '1-224', w: 590, h: 669, out: 'public/img/testimonial.png' },
-  { name: 'Showcase', node: '1-252', w: 1200, h: 664, out: 'public/img/showcase.png' },
+  // 704, not the 664 originally declared. design/refs/ShowcaseImage.png is the
+  // whole section and shows the image filling it corner to corner, so the
+  // section's 1200x704 *is* this node; 664 cropped 40px of the picture away and
+  // the content check caught it.
+  { name: 'Showcase', node: '1-252', w: 1200, h: 704, out: 'public/img/showcase.png' },
   { name: 'FooterLogo', node: '1-264', w: 32, h: 70, out: 'public/img/footer-logo.png', zoomTo: 700 },
   { name: 'IconCable', node: '1-147', w: 24, h: 24, out: 'public/icons/cable.png', zoomTo: 700, resizeTo: 128 },
   { name: 'IconEarth', node: '1-152', w: 24, h: 24, out: 'public/icons/earth.png', zoomTo: 700, resizeTo: 128 },
   { name: 'IconAccount', node: '1-157', w: 24, h: 24, out: 'public/icons/account.png', zoomTo: 700, resizeTo: 128 },
   { name: 'IconChart', node: '1-162', w: 24, h: 24, out: 'public/icons/chart.png', zoomTo: 700, resizeTo: 128 },
-  { name: 'CenteredCta', node: '1-253', w: 1200, h: 464, out: 'design/refs/CenteredCta.png' },
-  { name: 'Footer', node: '1-257', w: 1200, h: 519, out: 'design/refs/Footer.png' },
+  // 462, not the 464 originally declared: the selection outline the capture
+  // actually matched measures 1197x461 at 2x. Two px is inside every tolerance
+  // here, but a declared size that disagrees with the outline is the exact
+  // discrepancy that shipped three wrong assets, so it is not left standing.
+  { name: 'CenteredCta', node: '1-253', w: 1200, h: 462, out: 'design/refs/CenteredCta.png' },
+  // 1200x250, per the size badge Figma printed beside the selection in the
+  // original capture — which declared 519, matched nothing, and cropped a strip
+  // of Figma's own UI into design/refs/Footer.png.
+  { name: 'Footer', node: '1-257', w: 1200, h: 250, out: 'design/refs/Footer.png' },
 ]
 
 /** Ctrl + wheel is the only zoom that reaches the canvas; keyboard shortcuts do not. */
@@ -57,8 +93,13 @@ async function zoomIn(page, box, zoomTo) {
   await page.waitForTimeout(2500)
 }
 
+function report(out, cw, ch, resizeTo, healed) {
+  const notes = [resizeTo ? `-> ${resizeTo}px` : '', healed ? `healed ${healed} outline px` : '']
+  console.log(`${out}  ${cw}x${ch} ${notes.filter(Boolean).join(' ')}`.trimEnd())
+}
+
 async function capture(page, target) {
-  const { name, node, w, h, out, zoomTo, resizeTo } = target
+  const { name, node, w, h, out, zoomTo, resizeTo, crop } = target
   await page.goto(`https://www.figma.com/design/${FILE_KEY}/Modern-Product-Launch?node-id=${node}`, {
     waitUntil: 'domcontentloaded',
   })
@@ -78,8 +119,10 @@ async function capture(page, target) {
     await canvas.screenshot({ path: raw })
     scale = undefined
   }
-  const { cw, ch } = await cropToSelection(raw, out, { w, h, scale, resizeTo })
-  console.log(`${out}  ${cw}x${ch}${resizeTo ? ` -> ${resizeTo}px` : ''}`)
+  const { cw, ch, healed } = crop
+    ? await cropRelative(raw, out, { w, h, scale: scale ?? 2, crop })
+    : await cropToSelection(raw, out, { w, h, scale, resizeTo })
+  report(out, cw, ch, resizeTo, healed)
 }
 
 async function dismissCookieBanner(page) {
@@ -91,14 +134,12 @@ async function dismissCookieBanner(page) {
 }
 
 /** Re-crop from the raw captures already on disk, without touching the network. */
-async function recrop({ name, w, h, out, zoomTo, resizeTo }) {
-  const { cw, ch } = await cropToSelection(`${RAW}/${name}.png`, out, {
-    w,
-    h,
-    scale: zoomTo ? undefined : 2,
-    resizeTo,
-  })
-  console.log(`${out}  ${cw}x${ch}${resizeTo ? ` -> ${resizeTo}px` : ''}`)
+async function recrop({ name, w, h, out, zoomTo, resizeTo, crop }) {
+  const raw = `${RAW}/${name}.png`
+  const { cw, ch, healed } = crop
+    ? await cropRelative(raw, out, { w, h, scale: 2, crop })
+    : await cropToSelection(raw, out, { w, h, scale: zoomTo ? undefined : 2, resizeTo })
+  report(out, cw, ch, resizeTo, healed)
 }
 
 const args = process.argv.slice(2)

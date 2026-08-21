@@ -34,6 +34,21 @@ these is a raw literal:
 | `84px` × `154px` | logo-cloud tiles | `--size-logo-tile` |
 | `14px` | check / close icons in the table | `--size-icon-sm` |
 
+## Typeface substitution
+
+`--font-display` resolves to Crimson Text, which is **not** the face the Figma
+file uses — the file's display face has not been identified from the reference
+rasters. The difference is measurable: "Browse everything." at 160px occupies
+1068 design px in `design/refs/Header.png` and advances 1132 px in Crimson Text,
+so the header headline wrapped to two lines and made the whole section 145px too
+tall. `components/sections/Header.tsx` carries `lg:tracking-[-8px]` as a
+compensation derived from that measurement.
+
+That tracking value is a workaround, not a design token. Identifying the real
+typeface would let it be deleted. Until then the same substitution error is
+present, unmeasured, in every other heading on the page — the fidelity check
+tolerates it because it changes advance width rather than section geometry.
+
 ## Assets — resolved
 
 The Figma MCP Starter-plan tool-call limit was reached mid-extraction, and the
@@ -41,9 +56,25 @@ ten assets below shipped as placeholder SVGs. `scripts/capture-figma.mjs`
 has since captured the real PNGs for all of them; `content/` now points at
 the real files and the placeholder SVGs are unused (left on disk, harmless).
 
+Three of those captures were wrong, and shipped. The crop locates a node by the
+width and height declared for it in the script's `TARGETS` table and takes the
+closest-matching selection outline, so a wrong declared size does not fail — it
+returns a different region of canvas. See `docs/decisions/0007` and `0008`.
+
+| Target | Was declared | Actually | What shipped |
+|---|---|---|---|
+| `Header` (`1-122`) | 1200x362 | correct for that node — but the node is the green *band*, not the hero image | the band, which `Header.tsx` then nested inside a second band of its own |
+| `Footer` (`1-257`) | 1200x519 | 1200x250 | a strip of Figma's own UI — selection badge, canvas, cookie banner — as a design *reference* |
+| `Showcase` (`1-252`) | 1200x664 | 1200x704 | the picture with 40px cropped away |
+
+`Header` now exports the laptop alone via a design-px offset from the band's
+outline (`cropRelative`), because the laptop is clipped by its parent frame and
+selecting it directly does not yield its pixels. The band itself is a flat colour
+reproduced in CSS.
+
 | Asset | Figma node | Path in content |
 |---|---|---|
-| Header hero image | `1:122` | `/img/header.png` |
+| Header hero image | `1:122` + offset | `/img/header.png` |
 | Benefits section image | `1:166` | `/img/benefits.png` |
 | Features carousel image | `1:187` | `/img/features-carousel.png` |
 | Testimonial portrait | `1:224` | `/img/testimonial.png` |
@@ -60,8 +91,29 @@ Downloaded successfully: `public/img/logo-1.png`–`logo-6.png`,
 
 ## Reference screenshots
 
-`design/refs/` now holds all 11 sections, including `CenteredCta` (`1:253`)
-and `Footer` (`1:257`) captured after the original rate limit cleared.
+`design/refs/` holds all 11 sections, including `CenteredCta` (`1:253`) and
+`Footer` (`1:257`) captured after the original rate limit cleared.
+`design/refs/refs.json` records, per section, the design size the render is
+checked against, where that number came from, and whether the PNG is trustworthy
+enough to compare content against — with a reason wherever it is not, or wherever
+its tolerance is loosened. `bun run verify:design` and
+`e2e/design-fidelity.spec.ts` read it.
+
+These are canvas rasters from the free-tier web viewer, not asset exports: they
+are softer than an export would be and vector icons arrive rasterised. They are
+good enough to check composition and geometry, which is what they are used for,
+and not good enough to check hairline detail.
+
+Known gaps the fidelity check cannot see:
+
+- The block comparison is coarse, so on a section that is nearly all background
+  (`LogoCloud`, `Footer`) a low score is weak evidence of fidelity.
+- The design puts the footer copyright at the left and "All Rights Reserved" at
+  the right. The build renders them as one field, deliberately — collapsing them
+  keeps the sentence translatable as a unit — and the check is too coarse to
+  notice the difference.
+- Only Chromium at one width (1200 design px) is checked. Nothing compares the
+  responsive breakpoints against the file's mobile and tablet frames.
 
 ## Accessibility gaps in the manifest
 

@@ -16,19 +16,19 @@ export default async function Specifications() {
   }))
 
   return (
-    <section id="specifications" className="px-6 py-16 lg:px-12 lg:py-24">
+    <section data-section="Specifications" id="specifications" className="px-6 py-16 lg:px-12 lg:py-24">
       <div className="mx-auto max-w-2xl text-center">
         <p className="font-mono text-caption text-text-captions">{c.eyebrow as string}</p>
         <h2 className="mt-6 font-display text-4xl leading-[0.9] tracking-[-0.03em] text-text-headline lg:text-h1">
           {c.headline as string}
         </h2>
         <p className="mt-6 font-sans text-paragraph text-text-paragraph">{c.body as string}</p>
-        <div className="mt-8">
+        <div className="mt-10">
           <Cta label={c.ctaLabel as string} href={c.ctaHref as string} />
         </div>
       </div>
 
-      <div className="mt-16 grid gap-6 lg:grid-cols-3 lg:gap-0">
+      <div className="mt-24 grid gap-6 lg:grid-cols-3 lg:gap-0">
         {columns.map(({ column, rows }, index) => (
           <div
             key={column}
@@ -39,7 +39,7 @@ export default async function Specifications() {
             }
           >
             <h3
-              className={`px-8 py-8 text-center font-sans text-2xl ${
+              className={`px-10 py-8 text-center font-sans text-2xl ${
                 index === 0 ? 'text-text-headline' : 'text-accent-6'
               }`}
             >
@@ -49,7 +49,7 @@ export default async function Specifications() {
               {rows.map((cell) => (
                 <li
                   key={cell.row as number}
-                  className="flex items-center gap-3 border-b border-divider-1 px-8 py-6 last:border-b-0"
+                  className="flex items-center gap-3 border-b border-divider-1 px-10 py-9 last:border-b-0"
                 >
                   <img src={cell.icon as string} alt={cell.iconAlt as string} className="h-3.5 w-3.5" />
                   <span className="font-mono text-caption tracking-[-0.12px] text-text-headline">

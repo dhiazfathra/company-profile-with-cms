@@ -4,7 +4,7 @@ export default async function Testimonial() {
   const c = await getGlobal('Testimonial')
 
   return (
-    <section className="grid items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:px-12 lg:py-24">
+    <section data-section="Testimonial" className="grid items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:px-12 lg:py-24">
       <img src={c.image as string} alt={c.imageAlt as string} className="w-full rounded-2xl" />
 
       <figure>

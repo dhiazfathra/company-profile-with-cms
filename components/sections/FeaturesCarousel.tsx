@@ -7,7 +7,7 @@ export default async function FeaturesCarousel() {
   const items = await getCollection('FeaturesCarouselItem')
 
   return (
-    <section className="grid items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:px-12 lg:py-24">
+    <section data-section="FeaturesCarousel" className="grid items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:px-12 lg:py-24">
       <div>
         <h2 className="font-display text-4xl leading-[0.9] tracking-[-0.03em] text-text-headline lg:text-h1">
           {c.headline as string}

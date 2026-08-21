@@ -6,8 +6,8 @@ export default async function Navigation() {
   const items = await getCollection('NavigationItem')
 
   return (
-    <header className="w-full px-6 pt-8 pb-10 lg:px-12 lg:pt-10 lg:pb-20">
-      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-6">
+    <header data-section="Navigation" className="w-full px-6 pt-8 pb-10 lg:px-12 lg:pt-5 lg:pb-20">
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-6">
         <a
           href="#"
           className="font-sans text-2xl font-medium tracking-[-1.5px] text-text-headline lg:text-[30px]"

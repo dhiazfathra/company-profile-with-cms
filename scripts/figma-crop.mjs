@@ -87,6 +87,99 @@ export async function findSelection(file, { w, h, scale }) {
   return candidates[0]
 }
 
+/**
+ * Repaint pixels that are part of a selection outline, interpolating each from
+ * the nearest clean pixel above and below in its own column.
+ *
+ * Insetting the crop only escapes the outline drawn *on* the node's own bounds.
+ * Figma also strokes ancestors and component instances, and those strokes can
+ * cross the middle of the crop — a purple instance outline ran straight through
+ * the header laptop. Those pixels are viewer chrome, not design, so remove them
+ * rather than shipping them into `public/`.
+ */
+export async function healOutlines(buffer, { width, height, channels }) {
+  const bad = new Uint8Array(width * height)
+  let found = 0
+  for (let i = 0; i < width * height; i++) {
+    const o = i * channels
+    if (isSelectionColour(buffer[o], buffer[o + 1], buffer[o + 2])) {
+      bad[i] = 1
+      found++
+    }
+  }
+  if (!found) return 0
+
+  // Grow the mask: an antialiased stroke has a fringe that is off-colour but
+  // still wrong, and repainting a 2px halo is cheaper than detecting it.
+  const mask = new Uint8Array(bad)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!bad[y * width + x]) continue
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const nx = x + dx
+          const ny = y + dy
+          if (nx >= 0 && ny >= 0 && nx < width && ny < height) mask[ny * width + nx] = 1
+        }
+      }
+    }
+  }
+
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
+      if (!mask[y * width + x]) continue
+      let up = y - 1
+      while (up >= 0 && mask[up * width + x]) up--
+      let down = y + 1
+      while (down < height && mask[down * width + x]) down++
+      const a = up >= 0 ? up : down
+      const b = down < height ? down : up
+      if (a < 0 || b < 0) continue
+      const t = b === a ? 0 : (y - a) / (b - a)
+      const o = (y * width + x) * channels
+      const oa = (a * width + x) * channels
+      const ob = (b * width + x) * channels
+      for (let c = 0; c < channels; c++) {
+        buffer[o + c] = Math.round(buffer[oa + c] * (1 - t) + buffer[ob + c] * t)
+      }
+    }
+  }
+  return found
+}
+
+/**
+ * Crop a region positioned relative to the selection outline, in design px.
+ *
+ * Some assets cannot be selected on their own: the header's laptop is a child of
+ * a frame that clips it, and loading its node id selects something whose bounds
+ * are not the pixels wanted. For those, select a sibling whose bounds *are*
+ * unambiguous and describe the wanted rectangle as an offset from it, measured
+ * off the design. The offset is design px; `scale` converts.
+ */
+export async function cropRelative(file, out, { w, h, scale, crop }) {
+  const box = await findSelection(file, { w, h, scale })
+  const left = Math.round(box.x0 + 1 + crop.dx * scale)
+  const top = Math.round(box.y0 + 1 + crop.dy * scale)
+  const cw = Math.round(crop.w * scale)
+  const ch = Math.round(crop.h * scale)
+  const meta = await sharp(file).metadata()
+  if (left < 0 || top < 0 || left + cw > meta.width || top + ch > meta.height) {
+    throw new Error(
+      `relative crop ${left},${top} ${cw}x${ch} falls outside ${file} (${meta.width}x${meta.height})`,
+    )
+  }
+  const { data, info } = await sharp(file)
+    .extract({ left, top, width: cw, height: ch })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const healed = await healOutlines(data, info)
+  await sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } })
+    .png({ compressionLevel: 9 })
+    .toFile(out)
+  return { box, cw, ch, healed }
+}
+
 /** Crop inside the outline so no selection colour survives, then optionally resize. */
 export async function cropToSelection(file, out, { w, h, scale, inset = 5, resizeTo }) {
   const box = await findSelection(file, { w, h, scale })

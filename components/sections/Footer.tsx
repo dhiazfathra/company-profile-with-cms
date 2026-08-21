@@ -8,7 +8,7 @@ export default async function Footer() {
   const links = await getCollection('FooterLink')
 
   return (
-    <footer className="border-t border-divider-1 px-6 py-16 lg:px-12">
+    <footer data-section="Footer" className="border-t border-divider-1 px-6 py-16 lg:px-12">
       <nav aria-label="Footer">
         <ul className="flex flex-wrap gap-6 lg:gap-10">
           {links.map((link) => (

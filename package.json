@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "validate:manifest": "tsx scripts/validate-manifest.ts",
+    "verify:design": "node scripts/verify-design.mjs",
     "e2e": "playwright test",
     "e2e:report": "playwright show-report e2e-results/report"
   },

@@ -5,7 +5,7 @@ export default async function LogoCloud() {
   const logos = await getCollection('LogoCloudLogo')
 
   return (
-    <section className="px-6 py-[50px] lg:px-12">
+    <section data-section="LogoCloud" className="px-6 py-[50px] lg:px-12">
       <h2 className="font-sans text-paragraph text-text-paragraph">{c.heading as string}</h2>
 
       <ul className="mt-8 grid grid-cols-2 items-center justify-items-center gap-x-10 gap-y-5 sm:grid-cols-3 lg:grid-cols-6">

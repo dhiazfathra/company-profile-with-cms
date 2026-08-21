@@ -7,7 +7,7 @@ export default async function HowItWorks() {
   const steps = await getCollection('HowItWorksStep')
 
   return (
-    <section id="how-it-works" className="px-6 py-16 lg:px-12 lg:py-24">
+    <section data-section="HowItWorks" id="how-it-works" className="px-6 py-16 lg:px-12 lg:py-32">
       <div className="flex flex-wrap items-center justify-between gap-6">
         <h2 className="font-display text-4xl leading-[0.9] tracking-[-0.03em] text-text-headline lg:text-h1">
           {c.headline as string}

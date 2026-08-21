@@ -12,7 +12,7 @@ import Testimonial from '@/components/sections/Testimonial'
 
 export default function Home() {
   return (
-    <div className="mx-auto w-full max-w-[1500px] flex-1">
+    <div className="mx-auto w-full max-w-[1200px] flex-1">
       <Navigation />
       <main>
         <Header />
