@@ -35,6 +35,8 @@ jobs:
 
       - name: Build
         run: bun run build
+        env:
+          PAYLOAD_SECRET: ci-build-secret
 
       - name: Run e2e suite
         run: bun run e2e

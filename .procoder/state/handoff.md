@@ -1,9 +1,9 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-21T15:58:48Z
-branch: detached HEAD at 2f43fc1
-head: 2f43fc1
+generated: 2026-08-21T16:02:14Z
+branch: detached HEAD at 54b8a86
+head: 54b8a86
 dirty files: 2
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
