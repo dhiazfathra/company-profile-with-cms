@@ -50,13 +50,20 @@ export const BLOCK_TOLERANCE = 34
  * collection time, and Playwright compiles specs without top-level await. An
  * async loader here forces every consumer into a barrel of workarounds.
  *
- * The returned object carries `refsDir` so `checkSection` can resolve reference
- * PNGs without the caller threading the path through a second argument.
+ * The returned object carries the `refsDir` it was called with — not one read from
+ * the file — so `checkSection` resolves reference PNGs from the same directory the
+ * caller loaded the manifest from.
  */
 export function loadManifest(refsDir = DEFAULT_REFS_DIR) {
   const manifest = JSON.parse(readFileSync(`${refsDir}/refs.json`, 'utf8'))
-  if (!manifest.sections || typeof manifest.sections !== 'object') {
+  const sections = manifest.sections
+  if (!sections || typeof sections !== 'object' || Array.isArray(sections)) {
     throw new Error(`${refsDir}/refs.json has no "sections" object`)
+  }
+  // A manifest with zero sections generates zero checks, and a suite of zero
+  // checks passes. That is the failure this whole package exists to prevent.
+  if (!Object.keys(sections).length) {
+    throw new Error(`${refsDir}/refs.json has an empty "sections" object — nothing would be checked`)
   }
   for (const [name, spec] of Object.entries(manifest.sections)) {
     if (!Array.isArray(spec.size) || spec.size.length !== 2 || !spec.size.every((n) => n > 0)) {
@@ -69,7 +76,9 @@ export function loadManifest(refsDir = DEFAULT_REFS_DIR) {
       )
     }
   }
-  return { refsDir, ...manifest }
+  // `refsDir` last: the caller's path is authoritative, so a stray `refsDir` field
+  // in refs.json cannot point one entry point at a different reference directory.
+  return { ...manifest, refsDir }
 }
 
 const rowsFor = (aspect) => Math.max(1, Math.round(GRID / aspect))

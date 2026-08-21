@@ -36,6 +36,7 @@ either place.
 | `bun install` | Install and link all workspaces |
 | `bun run dev` | Start the site's development server |
 | `bun run build` | Production build (static export) |
+| `bun run start` | Serve the static export from `out/` |
 | `bun run test` | Unit tests for both the site and the package |
 | `bun run lint` | Lint the site |
 | `bun run validate:manifest` | Validate `site.manifest.json` against its schema |
@@ -51,7 +52,7 @@ Figma.
 
 ## Architecture
 
-```
+```text
 Figma ──capture (screenshot)──> apps/web/design/refs/*.png + apps/web/public/img/*.png
       ──extract──────────────> site.manifest.json ──> content/*.json ──> components
                                 (human reviews)

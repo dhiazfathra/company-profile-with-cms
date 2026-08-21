@@ -16,6 +16,16 @@ import { findViewerChrome } from './figma-crop.mjs'
 
 const IMAGE = /\.(png|jpe?g)$/i
 
+async function imagesUnder(dir) {
+  const found = []
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = `${dir}/${entry.name}`
+    if (entry.isDirectory()) found.push(...(await imagesUnder(path)))
+    else if (IMAGE.test(entry.name)) found.push(path)
+  }
+  return found.sort()
+}
+
 /**
  * Check every image in `dirs`.
  *
@@ -24,6 +34,9 @@ const IMAGE = /\.(png|jpe?g)$/i
  * reported in `empty` rather than passing silently: a scan that found no files to
  * scan is not a clean scan, and that distinction is the difference between a
  * guardrail and a no-op.
+ *
+ * The walk recurses: a directory whose top level is clean while a subdirectory
+ * holds a contaminated image is exactly the case a shallow scan calls green.
  */
 export async function scanAssets(dirs, options) {
   const scanned = []
@@ -31,13 +44,12 @@ export async function scanAssets(dirs, options) {
   const contaminated = []
 
   for (const dir of dirs) {
-    const files = (await readdir(dir)).filter((f) => IMAGE.test(f)).sort()
+    const files = await imagesUnder(dir)
     if (!files.length) {
       empty.push(dir)
       continue
     }
-    for (const file of files) {
-      const path = `${dir}/${file}`
+    for (const path of files) {
       scanned.push(path)
       const blobs = await findViewerChrome(path, options)
       if (!blobs.length) continue

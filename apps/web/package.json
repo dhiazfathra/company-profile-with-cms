@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "npx --yes serve@14 out",
     "lint": "eslint .",
     "test": "vitest run",
     "validate:manifest": "tsx scripts/validate-manifest.ts",

@@ -19,6 +19,7 @@
  * table that cannot be reviewed against the design it describes.
  */
 import { mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { assertNoViewerChrome, cropRelative, cropToSelection, findSelection } from './figma-crop.mjs'
 
 /** Ctrl + wheel is the only zoom that reaches the canvas; keyboard shortcuts do not. */
@@ -56,14 +57,18 @@ export function validateConfig(config) {
   }
   const seen = new Set()
   for (const [i, t] of config.targets.entries()) {
-    const at = `targets[${i}]${t?.name ? ` (${t.name})` : ''}`
-    if (!t.name) problems.push(`${at}: name is required`)
+    const at = `targets[${i}]${typeof t?.name === 'string' ? ` (${t.name})` : ''}`
+    if (!t || typeof t !== 'object' || Array.isArray(t)) {
+      problems.push(`${at}: must be an object`)
+      continue
+    }
+    if (typeof t.name !== 'string' || !t.name) problems.push(`${at}: name is required`)
     else if (seen.has(t.name)) problems.push(`${at}: duplicate name`)
     else seen.add(t.name)
-    if (!t.node) problems.push(`${at}: node is required`)
+    if (typeof t.node !== 'string' || !t.node) problems.push(`${at}: node is required`)
     if (!(t.w > 0)) problems.push(`${at}: w must be the selected node's width in design px`)
     if (!(t.h > 0)) problems.push(`${at}: h must be the selected node's height in design px`)
-    if (!t.out) problems.push(`${at}: out is required`)
+    if (typeof t.out !== 'string' || !t.out) problems.push(`${at}: out is required`)
     if (t.crop) {
       const { dx, dy, w, h } = t.crop
       if ([dx, dy].some((v) => typeof v !== 'number') || !(w > 0) || !(h > 0)) {
@@ -167,7 +172,7 @@ export async function captureAll(config, { only = [], cropOnly = false, log = ()
   const targets = only.length ? config.targets.filter((t) => only.includes(t.name)) : config.targets
 
   await mkdir(rawDir, { recursive: true })
-  for (const dir of new Set(targets.map((t) => t.out.replace(/\/[^/]+$/, '')))) {
+  for (const dir of new Set(targets.map((t) => dirname(t.out)))) {
     await mkdir(dir, { recursive: true })
   }
 

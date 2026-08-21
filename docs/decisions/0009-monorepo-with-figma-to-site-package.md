@@ -1,12 +1,15 @@
 # ADR-0009: Split the repository into a monorepo, with the Figma pipeline as a package
 
 ## Status
+
 Accepted
 
 ## Date
+
 2026-08-21
 
 ## Context
+
 Phase 1 produced two things that happen to have been built in the same directory:
 
 1. `company-profile-with-cms` — a manifest-driven Next.js site of one specific
@@ -36,9 +39,10 @@ components. Three specific costs followed:
   learned that lesson the expensive way.
 
 ## Decision
+
 Restructure as a Bun-workspaces monorepo:
 
-```
+```text
 apps/web/                    the Next.js site, unchanged in behaviour
 packages/figma-to-site/      the Figma capture + fidelity pipeline
   SKILL.md                   the workflow, its rationale, and its failure history
@@ -69,6 +73,7 @@ Three rules fall out of the split and are load-bearing:
 ## Alternatives Considered
 
 ### Leave everything at the repository root
+
 - Pros: zero migration; no workspace tooling; every path in every doc stays valid
 - Cons: keeps all three costs above. In particular the method stays uncopyable and
   its workflow document stays outside version control
@@ -76,6 +81,7 @@ Three rules fall out of the split and are load-bearing:
   the one with no home
 
 ### Publish `figma-to-site` to npm as a separate repository
+
 - Pros: genuinely reusable by anything; independent release cadence
 - Cons: the only consumer is here, and the package's credibility rests entirely on
   the failures documented in this repository's ADRs and this design's assets. A
@@ -85,6 +91,7 @@ Three rules fall out of the split and are load-bearing:
   harder. Kept `private: true` for the same reason
 
 ### Copy the scripts into each future project
+
 - Pros: no abstraction to design, no config indirection
 - Cons: the guardrails drift, and each copy re-learns the failures by repeating
   them. The whole point of ADR-0007/0008 is that these mistakes are not obvious
@@ -92,6 +99,7 @@ Three rules fall out of the split and are load-bearing:
 - Rejected: this is the failure mode the package prevents
 
 ### Extract only the code, keep the workflow document in a personal skills directory
+
 - Pros: less to review; the document can be edited freely
 - Cons: the document *is* the deliverable. Half of what was learned — do not infer
   a node size from a downscaled reference, suspect the component before the asset,
@@ -101,12 +109,14 @@ Three rules fall out of the split and are load-bearing:
   expensive part
 
 ### Turborepo or Nx for orchestration
+
 - Pros: task graph, caching, affected-only runs
 - Cons: two workspaces and about eight scripts. The root `package.json` delegates
   with `bun run --cwd`, which is legible with no config file to learn
 - Rejected: no scale problem to solve yet
 
 ## Consequences
+
 The site is at `apps/web` and every path in the previous ADRs, the plan documents
 and `TOKEN-GAPS.md` is relative to it. Those documents were written when it was the
 root; they have been corrected where they name a moved file, and they are not

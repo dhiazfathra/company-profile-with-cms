@@ -211,4 +211,27 @@ describe('loadManifest', () => {
     const sub = await write('empty', { designWidth: 1200 })
     expect(() => loadManifest(sub)).toThrow(/no "sections" object/)
   })
+
+  it('rejects a sections array, which would silently check nothing', async () => {
+    const sub = await write('arr', { sections: [{ size: [1200, 738], sizeFrom: 'reference' }] })
+    expect(() => loadManifest(sub)).toThrow(/no "sections" object/)
+  })
+
+  it('rejects an empty sections object rather than generating zero checks', async () => {
+    // Zero checks pass. A manifest that names no section turns the whole gate
+    // into a green no-op, which is the exact failure this package exists for.
+    const sub = await write('none', { sections: {} })
+    expect(() => loadManifest(sub)).toThrow(/nothing would be checked/)
+  })
+
+  it('ignores a refsDir written into the file, keeping the caller authoritative', async () => {
+    // Two entry points load this manifest — the CLI with its own path, the
+    // Playwright spec with the project's. A refsDir in the file would let them
+    // compare renders against different reference directories.
+    const sub = await write('override', {
+      refsDir: '/somewhere/else',
+      sections: { Header: { size: [1200, 738], sizeFrom: 'reference' } },
+    })
+    expect(loadManifest(sub).refsDir).toBe(sub)
+  })
 })

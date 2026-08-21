@@ -55,6 +55,22 @@ describe('validateConfig', () => {
     expect(validateConfig({ fileKey: 'a', targets: [bad] }).join()).toMatch(/numeric dx, dy/)
   })
 
+  it('rejects a non-object target instead of crashing on property access', () => {
+    // `targets: [null]` used to throw a TypeError out of the validator itself,
+    // so the caller got a stack trace where it had asked for a problem list.
+    for (const bad of [null, 'Header', 42, ['Header']]) {
+      expect(validateConfig({ fileKey: 'a', targets: [bad] }).join()).toMatch(/must be an object/)
+    }
+  })
+
+  it('requires name, node and out to be non-empty strings', () => {
+    // A truthy non-string `out` passed validation and failed much later, inside
+    // the browser run, as a path error.
+    expect(validateConfig({ fileKey: 'a', targets: [target({ out: 1 })] }).join()).toMatch(/out is required/)
+    expect(validateConfig({ fileKey: 'a', targets: [target({ node: {} })] }).join()).toMatch(/node is required/)
+    expect(validateConfig({ fileKey: 'a', targets: [target({ name: 7 })] }).join()).toMatch(/name is required/)
+  })
+
   it('reports every problem at once rather than the first', () => {
     // A capture run is slow and needs a real browser window. Failing on one
     // problem at a time turns a five-minute fix into five runs.
@@ -104,6 +120,23 @@ describe('scanAssets', () => {
       rects: outline({ x: 5, y: 5, w: 290, h: 190, strokeWidth: 2 }),
     })
     expect((await scanAssets([framed])).contaminated).toHaveLength(1)
+  })
+
+  it('scans nested directories, not just the top level', async () => {
+    // A shallow scan called a tree clean when the contaminated image sat one
+    // directory down — the guardrail passing on exactly the file it exists for.
+    const nested = join(dir, 'nested')
+    const deep = join(nested, 'icons')
+    await mkdir(deep, { recursive: true })
+    await canvas(join(nested, 'clean.png'), { width: 80, height: 60 })
+    await canvas(join(deep, 'badged.png'), {
+      width: 300,
+      height: 200,
+      rects: badge({ x: 30, y: 60 }),
+    })
+    const scan = await scanAssets([nested])
+    expect(scan.scanned).toHaveLength(2)
+    expect(scan.contaminated.join()).toMatch(/icons\/badged\.png/)
   })
 
   it('reports a directory with no images instead of passing silently', async () => {
