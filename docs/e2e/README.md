@@ -24,12 +24,12 @@ workflow artifact by `.github/workflows/e2e.yml`.
 | Node | v24.16.0 (repo requires `>=20.9.0`, pinned to `22.12.0` in `.nvmrc`; CI uses the `.nvmrc` version) |
 | Bun | 1.3.11 |
 | Playwright | 1.62.1 (`@playwright/test`), Chromium only |
-| Commit | `13821dfaccaa05fdf3ca927e605d957537e1cb02` |
+| Commit | `328a37ac44ed172ab15d6c4041ed510c04ecbe6a` |
 
 ## Results
 
 ```
-Running 12 tests using 4 workers
+Running 23 tests using 4 workers
 
   ✓ e2e/app.spec.ts › desktop light screenshot
   ✓ e2e/app.spec.ts › desktop dark screenshot
@@ -43,17 +43,33 @@ Running 12 tests using 4 workers
   ✓ e2e/content-seam.spec.ts › never renders a suffixed key in the HTML
   ✓ e2e/content-seam.spec.ts › falls back to English when the requested locale has no translation
   ✓ e2e/content-seam.spec.ts › 404s when E2E is not set on the server
+  ✓ e2e/design-fidelity.spec.ts › Navigation matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › Header matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › LogoCloud matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › Benefits matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › FeaturesCarousel matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › Specifications matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › Testimonial matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › HowItWorks matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › ShowcaseImage matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › CenteredCta matches the Figma design
+  ✓ e2e/design-fidelity.spec.ts › Footer matches the Figma design
 
-  12 passed (10.8s)
+  23 passed (32.0s)
 ```
 
+The eleven `design-fidelity` tests are the design gate: one per section in
+`design/refs/refs.json`, each comparing the live render against the section's
+Figma reference. See [`docs/decisions/0008`](../decisions/) for what it compares.
+
 Existing suites stayed green throughout: `bun run validate:manifest` (18
-sections, locale en), `bun run lint` (clean), `bun run test` (26/26), `bun run
+sections, locale en), `bun run lint` (clean), `bun run test` (29/29 — the three
+added tests scan every committed image for Figma interface, see below), `bun run
 build` (static export succeeds, `out/index.html` has real content).
 
 Also verified on GitHub Actions for this PR: the `CI` workflow's `verify` job
 (validate:manifest, lint, test, build) and the separate `e2e` workflow both
-passed against commit `13821df`.
+passed against commit `328a37a`.
 
 ## What this evidence does and does NOT prove
 
@@ -75,9 +91,18 @@ passed against commit `13821df`.
   file, malformed JSON, valid manifest, invalid/duplicate sections) with
   controlled exit codes and messages, not stack traces.
 
+- Every section's geometry and rough composition match the Figma design, and
+  every committed image is design rather than a screenshot of Figma's own
+  interface. Both of these had already failed in this branch and shipped: three
+  captures returned the wrong region of canvas, one of them carrying Figma's
+  dimension badge into `public/`.
+
 **Does NOT prove:**
-- That every section pixel-matches the Figma design — screenshots are a
-  regression baseline, not a design-diff tool.
+- That every section *pixel*-matches the Figma design. The gate compares aspect
+  ratio against the design size and coarse block colour against the reference
+  image; it is not a pixel diff, and it cannot see fine typographic or hairline
+  differences. On a section that is mostly background a low block score is weak
+  evidence — `design/refs/refs.json` says so where it applies.
 - Anything about Payload/Phase 2, since that phase doesn't exist yet.
 - Cross-browser behaviour: only Chromium is installed and tested.
 - That the live Vercel deployment renders correctly — deployment (Task 6

@@ -88,6 +88,57 @@ export async function findSelection(file, { w, h, scale }) {
 }
 
 /**
+ * Find blobs of selection colour too big to be an outline stroke.
+ *
+ * `healOutlines` repaints thin strokes, which is right for a 2px line drawn over
+ * the design. It is *not* right for Figma's dimension badge — a filled rounded
+ * rectangle with white text in it — or for a panel edge or a cookie banner.
+ * Interpolating those away leaves a smear that still is not the design, so they
+ * have to fail the capture instead of being repaired.
+ *
+ * The distinction is size. A selection stroke is 1-2 device px wide however long
+ * it runs; a badge is tens of px in both directions. So: any blob whose smaller
+ * dimension exceeds `maxStrokeWidth` is viewer chrome.
+ */
+export async function findViewerChrome(file, { maxStrokeWidth = 8 } = {}) {
+  const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { width, height, channels } = info
+  const mask = new Uint8Array(width * height)
+  for (let i = 0; i < width * height; i++) {
+    const o = i * channels
+    if (isSelectionColour(data[o], data[o + 1], data[o + 2])) mask[i] = 1
+  }
+  return components(mask, width, height)
+    .map((b) => ({ ...b, w: b.x1 - b.x0 + 1, h: b.y1 - b.y0 + 1 }))
+    .filter((b) => Math.min(b.w, b.h) > maxStrokeWidth)
+    .sort((a, b) => b.n - a.n)
+}
+
+/**
+ * Throw if `file` contains Figma's own interface.
+ *
+ * Three assets shipped from this pipeline carrying viewer chrome: a reference
+ * that was mostly Figma UI, and a crop whose bottom edge caught the selection
+ * outline and the dimension badge. In both cases the crop *succeeded* and the
+ * fidelity check passed, because a small badge barely moves a coarse block
+ * score. Nothing but looking at the file caught it. This is that look, automated.
+ */
+export async function assertNoViewerChrome(file, options) {
+  const blobs = await findViewerChrome(file, options)
+  if (!blobs.length) return
+  const worst = blobs
+    .slice(0, 3)
+    .map((b) => `${b.w}x${b.h} at ${b.x0},${b.y0}`)
+    .join('; ')
+  throw new Error(
+    `${file} contains Figma interface, not design: ${blobs.length} selection-coloured ` +
+      `region(s) too large to be an outline stroke (${worst}). ` +
+      `A dimension badge here usually means the declared node size is wrong — ` +
+      `read the size off the badge and correct the target.`,
+  )
+}
+
+/**
  * Repaint pixels that are part of a selection outline, interpolating each from
  * the nearest clean pixel above and below in its own column.
  *

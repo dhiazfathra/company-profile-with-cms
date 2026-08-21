@@ -121,13 +121,34 @@ export async function screenshotSection(page, section, renderPath) {
   await el.screenshot({ path: renderPath })
 }
 
-/** Images that have not decoded screenshot as blank space. */
-export function awaitImages(page) {
-  return page.evaluate(() =>
-    Promise.all(
-      Array.from(document.images)
-        .filter((img) => !img.complete)
-        .map((img) => img.decode().catch(() => {})),
-    ),
-  )
+/**
+ * Wait for every image on the page to decode, and throw if any failed.
+ *
+ * An image that has not decoded screenshots as blank space, which would fail the
+ * block check for a reason that has nothing to do with the design. But an image
+ * that failed to *load* must not be measured at all: a 404 leaves
+ * `complete === true` with `naturalWidth === 0`, so filtering on `!complete`
+ * would skip it entirely and swallowing `decode()` rejections would hide it.
+ * Given that this whole check exists because the wrong pixels shipped once, a
+ * missing asset is a hard failure, not a measurement.
+ */
+export async function awaitImages(page) {
+  const broken = await page.evaluate(async () => {
+    const failures = await Promise.all(
+      Array.from(document.images).map(async (img) => {
+        try {
+          await img.decode()
+        } catch {
+          return img.currentSrc || img.src || '(no src)'
+        }
+        // decode() resolves for a zero-byte or errored image in some engines, so
+        // check the decoded dimensions too.
+        return img.naturalWidth === 0 ? img.currentSrc || img.src || '(no src)' : null
+      }),
+    )
+    return failures.filter(Boolean)
+  })
+  if (broken.length) {
+    throw new Error(`these images failed to load, so the page cannot be checked:\n  ${broken.join('\n  ')}`)
+  }
 }

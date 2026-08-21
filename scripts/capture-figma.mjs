@@ -16,7 +16,7 @@
  */
 import { chromium } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
-import { cropRelative, cropToSelection, findSelection } from './figma-crop.mjs'
+import { assertNoViewerChrome, cropRelative, cropToSelection, findSelection } from './figma-crop.mjs'
 
 const FILE_KEY = 'v7ZzmwgTae9hxdKdNdAe7V'
 const RAW = 'design/captures'
@@ -56,11 +56,16 @@ const TARGETS = [
   { name: 'Benefits', node: '1-166', w: 1200, h: 620, out: 'public/img/benefits.png' },
   { name: 'FeaturesCarousel', node: '1-187', w: 590, h: 711, out: 'public/img/features-carousel.png' },
   { name: 'Testimonial', node: '1-224', w: 590, h: 669, out: 'public/img/testimonial.png' },
-  // 704, not the 664 originally declared. design/refs/ShowcaseImage.png is the
-  // whole section and shows the image filling it corner to corner, so the
-  // section's 1200x704 *is* this node; 664 cropped 40px of the picture away and
-  // the content check caught it.
-  { name: 'Showcase', node: '1-252', w: 1200, h: 704, out: 'public/img/showcase.png' },
+  // 1200x664.29, per the size badge Figma printed beside this selection. It was
+  // briefly changed to 704 on the theory that the section reference
+  // (design/refs/ShowcaseImage.png, 1200x704) *was* this node, because at
+  // thumbnail size the image looks like it fills that frame corner to corner. It
+  // does not: there is 20px of white above and below it. The 704 crop reached
+  // past the node and caught the selection outline and the badge, and shipped
+  // them — which is how the true size became legible in the first place. The
+  // block check did not notice, because a 237x34 badge barely moves a 48-cell
+  // grid; `assertNoViewerChrome` is the check that does.
+  { name: 'Showcase', node: '1-252', w: 1200, h: 664.29, out: 'public/img/showcase.png' },
   { name: 'FooterLogo', node: '1-264', w: 32, h: 70, out: 'public/img/footer-logo.png', zoomTo: 700 },
   { name: 'IconCable', node: '1-147', w: 24, h: 24, out: 'public/icons/cable.png', zoomTo: 700, resizeTo: 128 },
   { name: 'IconEarth', node: '1-152', w: 24, h: 24, out: 'public/icons/earth.png', zoomTo: 700, resizeTo: 128 },
@@ -93,7 +98,13 @@ async function zoomIn(page, box, zoomTo) {
   await page.waitForTimeout(2500)
 }
 
-function report(out, cw, ch, resizeTo, healed) {
+/**
+ * Report a finished crop — after proving it is design and not Figma's interface.
+ * The assertion goes here, on the one path every crop returns through, so no
+ * target can opt out of it.
+ */
+async function report(out, cw, ch, resizeTo, healed) {
+  await assertNoViewerChrome(out)
   const notes = [resizeTo ? `-> ${resizeTo}px` : '', healed ? `healed ${healed} outline px` : '']
   console.log(`${out}  ${cw}x${ch} ${notes.filter(Boolean).join(' ')}`.trimEnd())
 }
@@ -122,7 +133,7 @@ async function capture(page, target) {
   const { cw, ch, healed } = crop
     ? await cropRelative(raw, out, { w, h, scale: scale ?? 2, crop })
     : await cropToSelection(raw, out, { w, h, scale, resizeTo })
-  report(out, cw, ch, resizeTo, healed)
+  await report(out, cw, ch, resizeTo, healed)
 }
 
 async function dismissCookieBanner(page) {
@@ -139,7 +150,7 @@ async function recrop({ name, w, h, out, zoomTo, resizeTo, crop }) {
   const { cw, ch, healed } = crop
     ? await cropRelative(raw, out, { w, h, scale: 2, crop })
     : await cropToSelection(raw, out, { w, h, scale: zoomTo ? undefined : 2, resizeTo })
-  report(out, cw, ch, resizeTo, healed)
+  await report(out, cw, ch, resizeTo, healed)
 }
 
 const args = process.argv.slice(2)
