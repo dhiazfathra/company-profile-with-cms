@@ -14,7 +14,7 @@
     "build": "bun run --cwd apps/web build",
     "start": "bun run --cwd apps/web start",
     "lint": "bun run --cwd apps/web lint",
-    "test": "bun run --cwd apps/web test && bun run --cwd packages/figma-to-site test",
+    "test": "bun run --cwd apps/web test && bun run --cwd packages/figma-to-site test && bun run --cwd packages/deploy-to-vercel test",
     "validate:manifest": "bun run --cwd apps/web validate:manifest",
     "verify:design": "bun run --cwd apps/web verify:design",
     "capture:figma": "bun run --cwd apps/web capture:figma",
