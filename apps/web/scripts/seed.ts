@@ -5,10 +5,50 @@ import { getPayload } from '../lib/payload'
 import { loadManifest } from './gen-cms'
 import type { Manifest, Section } from '../schemas/manifest'
 
-// ponytail: image fields are seeded as null — uploading Figma-exported
-// screenshots into Payload's media collection is a separate concern from
-// text/url seeding. Wire it up when an editor actually needs to replace an
-// image from the admin panel.
+const MIME_BY_EXT: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+}
+
+/** Per-run cache so the same asset (e.g. reused across locales) uploads once. */
+const uploadedMediaIds = new Map<string, string | number>()
+
+/**
+ * Uploads a `public/`-relative image path (the flat-JSON content format's
+ * image value, e.g. "/img/showcase.png") into Payload's media collection and
+ * returns its id, reusing an existing media doc with the same filename so
+ * re-running seed doesn't pile up duplicates.
+ */
+async function uploadImage(payload: BasePayload, publicPath: string): Promise<string | number> {
+  const cached = uploadedMediaIds.get(publicPath)
+  if (cached !== undefined) return cached
+
+  const filename = path.basename(publicPath)
+  const existing = await payload.find({
+    collection: 'media',
+    where: { filename: { equals: filename } },
+    limit: 1,
+  })
+  if (existing.docs[0]?.id !== undefined) {
+    uploadedMediaIds.set(publicPath, existing.docs[0].id)
+    return existing.docs[0].id
+  }
+
+  const absolutePath = path.join(process.cwd(), 'public', publicPath)
+  const data = await readFile(absolutePath)
+  const mimeType = MIME_BY_EXT[path.extname(filename).toLowerCase()] ?? 'application/octet-stream'
+  const created = await payload.create({
+    collection: 'media',
+    data: { alt: filename },
+    file: { data, mimetype: mimeType, name: filename, size: data.length },
+  })
+  uploadedMediaIds.set(publicPath, created.id)
+  return created.id
+}
+
 function localizedValue(
   raw: Record<string, unknown>,
   fieldName: string,
@@ -30,9 +70,10 @@ async function seedGlobal(payload: BasePayload, section: Section, locales: strin
   for (const locale of locales) {
     const data: Record<string, unknown> = {}
     for (const field of section.fields) {
-      if (field.type === 'image') continue
       const value = localizedValue(raw, field.name, field.translatable, locale)
-      if (value !== undefined) data[field.name] = value
+      if (value === undefined) continue
+      data[field.name] =
+        field.type === 'image' ? await uploadImage(payload, value as string) : value
     }
     await payload.updateGlobal({ slug: section.name, locale, data })
   }
@@ -53,9 +94,10 @@ async function seedCollection(payload: BasePayload, section: Section, locales: s
     for (const locale of locales) {
       const data: Record<string, unknown> = { _seedIndex: index }
       for (const field of section.fields) {
-        if (field.type === 'image') continue
         const value = localizedValue(raw, field.name, field.translatable, locale)
-        if (value !== undefined) data[field.name] = value
+        if (value === undefined) continue
+        data[field.name] =
+          field.type === 'image' ? await uploadImage(payload, value as string) : value
       }
 
       if (id === undefined) {

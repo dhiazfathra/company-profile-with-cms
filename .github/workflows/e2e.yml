@@ -38,6 +38,12 @@ jobs:
         env:
           PAYLOAD_SECRET: ci-build-secret
 
+      # The e2e suite's webServer runs `next dev` against a fresh sqlite db
+      # (see apps/web/playwright.config.ts) — without this, every image field
+      # is null and design-fidelity.spec.ts fails on "images failed to load".
+      - name: Seed CMS content
+        run: bun run --cwd apps/web seed
+
       - name: Run e2e suite
         run: bun run e2e
 

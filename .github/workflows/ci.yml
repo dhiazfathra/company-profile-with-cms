@@ -25,6 +25,12 @@ jobs:
           node-version-file: .nvmrc
       - run: bun install --frozen-lockfile
       - run: bun run validate:manifest
+      # Regenerate and diff before the drift check: check:cms-drift only
+      # compares payload.config.ts against generated text, not the
+      # translatable-flip guard or .payload-field-locales.json. Running the
+      # generator here fails the build if either drifts from the manifest.
+      - run: bun run --cwd apps/web gen:cms
+      - run: git diff --exit-code -- apps/web/payload.config.ts apps/web/.payload-field-locales.json
       - run: bun run --cwd apps/web check:cms-drift
       - run: bun run lint
       - run: bun run test

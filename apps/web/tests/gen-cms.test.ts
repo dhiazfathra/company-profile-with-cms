@@ -68,7 +68,13 @@ describe('generateConfigSource', () => {
 
   it('places kind: global sections under globals and kind: collection under collections', () => {
     const source = generateConfigSource(manifest)
+    const collectionsBlock = source.slice(
+      source.indexOf('collections:'),
+      source.indexOf('globals:'),
+    )
     const globalsBlock = source.slice(source.indexOf('globals:'))
+    expect(collectionsBlock).toContain("slug: 'Item'")
+    expect(collectionsBlock).not.toContain("slug: 'Hero'")
     expect(globalsBlock).toContain("slug: 'Hero'")
     expect(globalsBlock).not.toContain("slug: 'Item'")
   })

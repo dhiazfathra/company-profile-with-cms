@@ -59,6 +59,8 @@ design/captures/
 # bun run evidence output (report, PR section, run log)
 e2e-evidence/
 
-# Payload CMS (Phase 2): local dev database and its generated types
+# Payload CMS (Phase 2): local dev database, its generated types, and the
+# media collection's local upload storage (seeded from public/img at runtime)
 apps/web/payload.db
 apps/web/payload-types.ts
+apps/web/media/
