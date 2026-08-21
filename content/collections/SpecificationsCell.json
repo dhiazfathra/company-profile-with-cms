@@ -1,0 +1,20 @@
+[
+  { "column": "Area", "row": 1, "label_en": "Ultra-fast browsing", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "Area", "row": 2, "label_en": "Advanced AI insights", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "Area", "row": 3, "label_en": "Seamless integration", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "Area", "row": 4, "label_en": "Advanced AI insights", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "Area", "row": 5, "label_en": "Ultra-fast browsing", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "Area", "row": 6, "label_en": "Full UTF-8 support", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "WebSurge", "row": 1, "label_en": "Fast browsing", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "WebSurge", "row": 2, "label_en": "Basic AI recommendations", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "WebSurge", "row": 3, "label_en": "Restricts customization", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "WebSurge", "row": 4, "label_en": "Basic AI insights", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "WebSurge", "row": 5, "label_en": "Fast browsing", "icon": "/icons/check.svg", "iconAlt_en": "Supported" },
+  { "column": "WebSurge", "row": 6, "label_en": "Potential display errors", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "HyperView", "row": 1, "label_en": "Moderate speeds", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "HyperView", "row": 2, "label_en": "No AI assistance", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "HyperView", "row": 3, "label_en": "Steep learning curve", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "HyperView", "row": 4, "label_en": "No AI assistance", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "HyperView", "row": 5, "label_en": "Moderate speeds", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" },
+  { "column": "HyperView", "row": 6, "label_en": "Partial UTF-8 support", "icon": "/icons/close.svg", "iconAlt_en": "Not supported" }
+]

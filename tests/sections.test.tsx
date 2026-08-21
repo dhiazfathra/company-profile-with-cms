@@ -1,0 +1,119 @@
+import { readdir, readFile } from 'node:fs/promises'
+import { render } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import manifest from '@/site.manifest.json'
+import { ordinal } from '@/lib/ordinal'
+
+const globals = manifest.sections.filter((s) => s.kind === 'global')
+const collections = manifest.sections.filter((s) => s.kind === 'collection')
+
+const sourceOf = (name: string) => readFile(`components/sections/${name}.tsx`, 'utf8')
+
+/** Every `_en` value in a global's content file — the copy that must not be inlined. */
+async function copyOf(name: string): Promise<string[]> {
+  const raw = JSON.parse(await readFile(`content/globals/${name}.json`, 'utf8'))
+  return Object.entries(raw)
+    .filter(([key]) => key.endsWith('_en'))
+    .map(([, value]) => String(value))
+}
+
+/** Every `_en` value across all rows of a collection's content file. */
+async function collectionCopyOf(name: string): Promise<string[]> {
+  const rows = JSON.parse(await readFile(`content/collections/${name}.json`, 'utf8')) as Record<
+    string,
+    unknown
+  >[]
+  return rows.flatMap((row) =>
+    Object.entries(row)
+      .filter(([key]) => key.endsWith('_en'))
+      .map(([, value]) => String(value)),
+  )
+}
+
+describe('sections', () => {
+  it('default-exports a component for every global section in the manifest', async () => {
+    for (const section of globals) {
+      const mod = await import(`@/components/sections/${section.name}`)
+      expect(mod.default, `${section.name} must default-export a component`).toBeTypeOf('function')
+    }
+  })
+
+  it('renders no component for a collection section', async () => {
+    const files = await readdir('components/sections')
+    const names = files.map((f) => f.replace(/\.tsx$/, ''))
+    expect(names.sort()).toEqual(globals.map((s) => s.name).sort())
+  })
+
+  it('reads every collection section in exactly one component, which renders every row', async () => {
+    const files = await readdir('components/sections')
+    const names = files.map((f) => f.replace(/\.tsx$/, ''))
+    const sources = await Promise.all(files.map((f) => readFile(`components/sections/${f}`, 'utf8')))
+
+    for (const section of collections) {
+      const readerIndexes = sources
+        .map((s, i) => (s.includes(`getCollection('${section.name}')`) ? i : -1))
+        .filter((i) => i !== -1)
+      expect(readerIndexes, `${section.name} must be read by exactly one component`).toHaveLength(1)
+
+      const owner = names[readerIndexes[0]]
+      const mod = await import(`@/components/sections/${owner}`)
+      const { container } = render(await mod.default())
+      for (const value of await collectionCopyOf(section.name)) {
+        expect(container.innerHTML, `${owner} must render ${section.name} row content: ${value}`).toContain(
+          value.replace(/&/g, '&amp;').replace(/</g, '&lt;'),
+        )
+      }
+    }
+  })
+
+  it('renders global content from the seed', async () => {
+    for (const section of globals) {
+      const mod = await import(`@/components/sections/${section.name}`)
+      const { container } = render(await mod.default())
+      for (const value of await copyOf(section.name)) {
+        // Image alt text is an attribute, not text content.
+        expect(container.innerHTML, `${section.name} must render ${value}`).toContain(
+          value.replace(/&/g, '&amp;').replace(/</g, '&lt;'),
+        )
+      }
+    }
+  })
+
+  it('contains no hardcoded copy in any component source', async () => {
+    for (const section of globals) {
+      // The section name is a legitimate identifier in its own source (imports,
+      // getGlobal/getCollection arguments), so scrub it before scanning for copy.
+      // Cost: copy that is exactly the section name — Benefits' eyebrow — cannot
+      // be caught here, which is the narrowest possible blind spot.
+      const source = (await sourceOf(section.name)).replaceAll(section.name, '')
+      for (const value of await copyOf(section.name)) {
+        expect(source, `${section.name}.tsx must not inline ${value}`).not.toContain(value)
+      }
+
+      // Same check for every collection this component reads via getCollection.
+      for (const collection of collections) {
+        const rawSource = await sourceOf(section.name)
+        if (!rawSource.includes(`getCollection('${collection.name}')`)) continue
+        const scrubbed = rawSource.replaceAll(collection.name, '')
+        for (const value of await collectionCopyOf(collection.name)) {
+          expect(scrubbed, `${section.name}.tsx must not inline ${collection.name} copy: ${value}`).not.toContain(
+            value,
+          )
+        }
+      }
+    }
+  })
+
+  it('never reads a locale-suffixed key', async () => {
+    const files = await readdir('components/sections')
+    for (const file of files) {
+      expect(await readFile(`components/sections/${file}`, 'utf8')).not.toMatch(/_en\b/)
+    }
+  })
+})
+
+describe('ordinal', () => {
+  it('formats the array index as a two-digit marker', () => {
+    expect([0, 1, 9].map(ordinal)).toEqual(['01', '02', '10'])
+  })
+})

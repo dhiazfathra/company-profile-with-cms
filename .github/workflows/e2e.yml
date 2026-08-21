@@ -30,6 +30,9 @@ jobs:
       - name: Run e2e suite
         run: bun run e2e
 
+      # e2e-results/design holds one render per section from
+      # e2e/design-fidelity.spec.ts; on a failure the Playwright report also has
+      # the render attached beside its Figma reference.
       - name: Upload e2e artifacts
         if: always()
         uses: actions/upload-artifact@v4

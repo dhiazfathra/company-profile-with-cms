@@ -5,6 +5,13 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Section components render content-driven `src` values (including the
+  // placeholder SVGs from TOKEN-GAPS.md) whose intrinsic dimensions are not
+  // content, so next/image's required width/height cannot be supplied.
+  {
+    files: ["components/**/*.tsx"],
+    rules: { "@next/next/no-img-element": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

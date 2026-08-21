@@ -1,26 +1,57 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Design tokens mirror site.manifest.json `tokens`, which mirrors the Figma
+   variables of file v7ZzmwgTae9hxdKdNdAe7V. Literals with no Figma variable
+   behind them are listed in TOKEN-GAPS.md. */
+@theme {
+  --color-accent-1: #485c11;
+  --color-accent-2: #dfecc6;
+  --color-accent-4: #000000;
+  --color-accent-5: #6f6f6f;
+  --color-accent-6: #929292;
+  --color-black: #000000;
+  --color-mid-green: #8e9c78;
+  --color-dark-grey: #6f6f6f;
+  --color-background-1: #ffffff;
+  --color-divider-1: #e9e9e9;
+  --color-text-headline: #000000;
+  --color-text-paragraph: #6f6f6f;
+  --color-text-captions: #485c11;
+  --color-text-link: #000000;
+  --color-text-on-accent-1: #ffffff;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-display: var(--font-crimson-text), "Crimson Text", Georgia, serif;
+  --font-sans: var(--font-dm-sans), "DM Sans", system-ui, sans-serif;
+  --font-mono: var(--font-roboto-mono), "Roboto Mono", ui-monospace, monospace;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --text-display: 160px;
+  --text-display--line-height: 0.9;
+  --text-display--letter-spacing: -4.25px;
+  --text-h1: 60px;
+  --text-h1--line-height: 0.9;
+  --text-h1--letter-spacing: -3px;
+  --text-h2: 40px;
+  --text-h2--line-height: 1;
+  --text-h2--letter-spacing: -4px;
+  --text-h3: 18px;
+  --text-h3--line-height: 1;
+  --text-h3--letter-spacing: -0.7px;
+  --text-stat: 80px;
+  --text-stat--line-height: 1;
+  --text-stat--letter-spacing: -4px;
+  --text-paragraph: 15px;
+  --text-paragraph--line-height: 1.4;
+  --text-paragraph--letter-spacing: -0.5px;
+  --text-link: 14px;
+  --text-link--line-height: 1.4;
+  --text-link--letter-spacing: -2.5px;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: -1px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background-1);
+  color: var(--color-text-headline);
+  font-family: var(--font-sans);
 }

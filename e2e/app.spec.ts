@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test.describe('homepage (Next.js starter — Tasks 4-6 not implemented yet)', () => {
+test.describe('homepage', () => {
   test('responds 200 and renders without console/page errors', async ({ page }, testInfo) => {
     const consoleMessages: string[] = []
     const pageErrors: string[] = []
