@@ -2,26 +2,38 @@
 
 **v0.1.0**
 
-A monorepo with two outputs from one piece of work:
+A monorepo with three outputs from one piece of work:
 
 | Workspace                                          | What it is                                                                                                            |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | [`apps/web`](apps/web)                             | A Figma design built as a manifest-driven Next.js site, now backed by Payload CMS, with no copy rework between phases |
-| [`packages/figma-to-site`](packages/figma-to-site) | The reusable method: capture a Figma file by screenshot with no paid seat, and prove the render matches the design    |
+| [`packages/figma-to-site`](packages/figma-to-site) | Step one as a reusable skill: capture a Figma file by screenshot with no paid seat, and prove the render matches      |
+| [`packages/site-to-cms`](packages/site-to-cms)     | Step two: move that page's content into a CMS, and prove the page actually reads from it                              |
 
-The site is the instance. The package is the transferable part — and it exists
-because the first attempt at the site shipped a hero section rendering a green band
-nested inside another green band, while every automated check was green. Its
-[SKILL.md](packages/figma-to-site/SKILL.md) is the workflow, the reasoning, and the
-failure history; [ADR-0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)
-records why the two are separated.
+The site is the instance. The two skills are the transferable part, and each exists
+because of a failure the site had already shipped or nearly shipped.
+
+[`figma-to-site`](packages/figma-to-site/SKILL.md) comes from a hero section that
+rendered a green band nested inside another green band while every automated check
+was green. Its rule: **verify the render, not the diff.**
+
+[`site-to-cms`](packages/site-to-cms/SKILL.md) comes from the migration that
+followed. It finished with 154 tests, eleven fidelity comparisons and a clean
+build — all of which would have been just as green with the CMS not connected at
+all, because the seed wrote into Payload exactly the strings the components had
+hardcoded. Its rule: **prove the seam, not the render.**
+
+[ADR-0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md) records why
+the site and the skills are separated;
+[ADR-0012](docs/decisions/0012-cms-step-as-a-second-skill.md) why the CMS step is
+its own skill and ships no extracted code.
 
 ## Quick start
 
 ```bash
-bun install          # links both workspaces
+bun install          # links every workspace
 bun run dev          # the site at http://localhost:3000
-bun run test         # both suites: the site's and the package's
+bun run test         # the site's suite and both skills' suites
 ```
 
 The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
@@ -41,7 +53,7 @@ either place.
 | `bun run dev`               | Start the site's development server                                                     |
 | `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)  |
 | `bun run start`             | Serve the production build (`next start`)                                               |
-| `bun run test`              | Unit tests for both the site and the package, plus the eval suite's structure           |
+| `bun run test`              | Unit tests for the site and both skills, plus each eval suite's structure               |
 | `bun run lint`              | Lint the site                                                                           |
 | `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                        |
 | `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
@@ -67,10 +79,24 @@ browser render ──────two-axis check───────────
                  coarse block colour vs a vouched-for reference)
 ```
 
-The load-bearing idea, from `SKILL.md`: **verify the render, not the diff.** A
+The load-bearing idea, from `figma-to-site`: **verify the render, not the diff.** A
 green test suite proves the code does what the code does. Nothing is verified until
 something compares a browser render against a number or an image taken from the
 design.
+
+Once the content moves into the CMS, that check stops being sufficient — a render
+looks identical whether the page read its copy from the database or from a string
+literal. So `site-to-cms` adds the seam:
+
+```text
+admin UI ──writes a value no fixture contains──> Payload ──> lib/content.ts ──> page
+                                                                                │
+                        required on the page and in the server's HTML ───────────┘
+```
+
+**Prove the seam, not the render.** `apps/web/e2e/cms-round-trip.spec.ts` is that
+proof, and it is verified in the failing direction: hardcode the headline back into
+the component and it must go red.
 
 ## Decisions
 
@@ -87,6 +113,7 @@ design.
 | [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                  |
 | [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)        | Evaluate the skill's judgement behaviourally; validate the suite in CI   |
 | [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)              | Every pull request carries a generated evidence pack                     |
+| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)             | The CMS step is a second skill, evals only, with no extracted code       |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
