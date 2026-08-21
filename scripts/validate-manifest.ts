@@ -3,7 +3,24 @@ import path from 'node:path'
 import { ManifestSchema } from '../schemas/manifest'
 
 const file = path.join(process.cwd(), 'site.manifest.json')
-const result = ManifestSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')))
+
+let raw: string
+try {
+  raw = readFileSync(file, 'utf8')
+} catch {
+  console.error(`Cannot read ${file} — does it exist?`)
+  process.exit(1)
+}
+
+let json: unknown
+try {
+  json = JSON.parse(raw)
+} catch (err) {
+  console.error(`${file} is not valid JSON: ${(err as Error).message}`)
+  process.exit(1)
+}
+
+const result = ManifestSchema.safeParse(json)
 
 if (!result.success) {
   console.error('site.manifest.json is invalid:\n')
