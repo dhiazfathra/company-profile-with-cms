@@ -148,6 +148,14 @@ collection, keyed on the full path so a re-run reuses the existing row instead o
 piling up duplicates. Locally those files land in `apps/web/media/`, which is
 gitignored — correct here, and the subject of step 3's second trap.
 
+`app/(payload)/admin/importMap.js` is generated too, by
+`bun run --cwd apps/web gen:importmap`, and no build step writes it: Payload
+resolves every admin component through the committed copy, so
+`bun run --cwd apps/web check:importmap` regenerates and diffs it in CI. Both
+generators must produce the same output on every machine — a config that branches
+on an environment variable breaks that, which is trap three in step 3 and
+[ADR-0016](decisions/0016-the-import-map-must-not-depend-on-the-environment.md).
+
 Then the checks:
 
 ```bash
@@ -156,8 +164,8 @@ bun run lint
 bun run e2e     # Playwright, including one design-fidelity test per section
 ```
 
-Counts, run individually: 52 in `apps/web`, 95 in `packages/figma-to-site`, 57 in
-`packages/site-to-cms` and 26 in `packages/deploy-to-vercel` — 230 across the
+Counts, run individually: 63 in `apps/web`, 95 in `packages/figma-to-site`, 62 in
+`packages/site-to-cms` and 30 in `packages/deploy-to-vercel` — 250 across the
 tree. The production guard added in
 [ADR-0014](decisions/0014-media-on-blob-storage.md) briefly left one case in
 `apps/web/tests/payload-secret.test.ts` red, because that case stubs
@@ -226,6 +234,26 @@ whichever duplicate the query happens to return. `reset-media` deletes all of
 them so the seed recreates every row through the current adapter.
 [ADR-0014](decisions/0014-media-on-blob-storage.md) has the full account.
 
+**Trap three: the fix for trap two shipped its own defect.** The obvious way to
+keep a laptop without a blob token writing to disk is to register the storage
+plugin conditionally — and that makes the generated import map depend on the
+machine that generated it. Every commit of `importMap.js` came from a machine
+with no token, so the plugin's client upload handler was never in it; production,
+which has the token, asked for a component the map did not list, and `/admin`
+answered `200` with a correct `<title>` and an empty React root:
+
+```text
+getFromImportMap: PayloadComponent not found in importMap {
+  key: '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler' }
+```
+
+Register the plugin unconditionally with `enabled: Boolean(token)` instead, so
+one committed map is correct in both environments, and let the production guard
+throw at module level. A status code is not a render: nothing that asks `/admin`
+for `200` can tell a working panel from a blank one, which is why
+`apps/web/e2e/admin.spec.ts` asserts on the login form's own fields — a control
+only the mounted panel draws.
+
 Set every variable `apps/web/.env.example` documents, pipe secret values in from
 a file rather than typing them, then deploy and verify the running app rather than
 the build log:
@@ -245,12 +273,13 @@ production's.
 Local, with `bun run dev` running:
 
 - `http://localhost:3000/` returns 200 and renders the sections.
-- `http://localhost:3000/admin` returns 200 and you can sign in with the seeded
-  editor account.
+- `http://localhost:3000/admin` returns 200 **and renders the panel** — sign in
+  with the seeded editor account rather than trusting the status code, which is
+  `200` for a blank React root too (ADR-0016).
 - Every `<img>` src on the homepage resolves **200, not 500**. These are
   `/api/media/file/<name>` routes served by Payload out of the media collection,
   not static files, so a 500 here is the ADR-0014 failure and not a typo.
-- `bun run test` runs the four unit suites — 230 across the tree — and
+- `bun run test` runs the four unit suites — 250 across the tree — and
   `bun run lint` is clean.
 - `bun run e2e` passes, including the CMS round trip and one fidelity comparison
   per section.

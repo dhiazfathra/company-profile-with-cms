@@ -6,7 +6,7 @@
     <title>Figma → CMS, with receipts — company-profile-with-cms</title>
     <meta
       name="description"
-      content="A Figma design became a CMS-backed, deployed Next.js site in two days, across nine pull requests. Every claim on this page carries the command that produced it."
+      content="A Figma design became a CMS-backed, deployed Next.js site in two days, across eleven pull requests. Every claim on this page carries the command that produced it."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1125,8 +1125,8 @@
             A Figma file became a CMS-backed site. <em>The proof shipped with it.</em>
           </h1>
           <p class="lede">
-            Two days, nine pull requests, one deployed Next.js + Payload site — and three skills
-            extracted from the three times a green check mark lied. Every number on this page names
+            Two days, eleven pull requests, one deployed Next.js + Payload site — and three skills
+            extracted from the four times a green check mark lied. Every number on this page names
             the command that produced it.
           </p>
           <div class="hero-actions">
@@ -1162,9 +1162,9 @@
 
           <dl class="stats rev">
             <div class="stat"><b>18</b><span>manifest sections</span></div>
-            <div class="stat"><b>239</b><span>unit tests, 4 workspaces</span></div>
-            <div class="stat"><b>27</b><span>eval cases, 3 skills</span></div>
-            <div class="stat"><b>15</b><span>decision records</span></div>
+            <div class="stat"><b>250</b><span>unit tests, 4 workspaces</span></div>
+            <div class="stat"><b>29</b><span>eval cases, 3 skills</span></div>
+            <div class="stat"><b>16</b><span>decision records</span></div>
             <div class="stat"><b>0</b><span>parity disagreements</span></div>
           </dl>
         </section>
@@ -1172,10 +1172,10 @@
         <section class="band wrap">
           <div class="band-head rev">
             <span class="eyebrow">Why it matters</span>
-            <h2>Three times everything was green and the page was wrong.</h2>
+            <h2>Four times everything was green and the page was wrong.</h2>
             <p class="lede">
               This repository is not a template. It is the record of a pipeline that shipped defects
-              behind passing checks three times, and of the guardrail added each time so the same
+              behind passing checks four times, and of the guardrail added each time so the same
               class of defect cannot pass again.
             </p>
           </div>
@@ -1219,6 +1219,22 @@
               </p>
               <p class="rule-out">“A check that cannot confirm what it looked at says so, once.”</p>
             </article>
+
+            <article class="fail rev">
+              <span class="n">04 · shipped to production</span>
+              <h3>An admin panel that returned 200 and rendered nothing</h3>
+              <span class="green-check was-wrong">GET /admin ✓ 200 · title ✓ · CI ✓</span>
+              <p>
+                The blob storage plugin from 03 was registered only when its token was set, so the
+                committed <code>importMap.js</code> — generated on machines without one — omitted
+                the client upload handler that production then asked for. Every check that had ever
+                looked at <code>/admin</code> had asked for a status code, and a blank React root is
+                a 200.
+              </p>
+              <p class="rule-out">
+                “A generated file committed from one environment is a claim about all of them.”
+              </p>
+            </article>
           </div>
         </section>
 
@@ -1228,8 +1244,9 @@
               <span class="eyebrow">The outcome</span>
               <h2>Deployed, and checked against the deployment.</h2>
               <p class="lede">
-                The last gap closed on 22 August: media served from blob storage, and the three-way
-                parity report agreeing across the Figma references, the local render and production.
+                The last gap closed on 22 August: media served from blob storage, an admin panel
+                that renders rather than merely answering, and the three-way parity report agreeing
+                across the Figma references, the local render and production.
               </p>
             </div>
 
@@ -1275,6 +1292,12 @@ homepage                          <span class="ok">-> 18 distinct media URLs, al
 
 $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
                                   <span class="ok">-> 0 disagreement(s)</span></code></pre>
+
+            <p class="muted">
+              <strong>The <code>/admin -&gt; 200</code> line above is the one that lied.</strong> It
+              was true and the panel was blank: the status code says the route answered, not that it
+              rendered. #11 replaced it with a check on the committed import map itself — ADR-0016.
+            </p>
 
             <p class="muted">
               <strong>Point it at production, not a preview.</strong> Preview deployments are
@@ -1333,8 +1356,8 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
               <p>Move that page's content into a CMS, and prove the page actually reads from it.</p>
               <ul>
                 <li>No <code>src/</code> — the judgement is the deliverable (ADR-0012)</li>
-                <li>11 eval cases, each with one deterministic and one LLM grader</li>
-                <li>57 structural tests over the suite itself</li>
+                <li>12 eval cases, each with one deterministic and one LLM grader</li>
+                <li>62 structural tests over the suite itself</li>
               </ul>
               <span class="tag">Prove the seam, not the render</span>
             </article>
@@ -1348,8 +1371,8 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
               </p>
               <ul>
                 <li>7 steps, written from this repository's own live deploy</li>
-                <li>6 eval cases anchored to real error strings from the incident</li>
-                <li>26 structural tests</li>
+                <li>7 eval cases anchored to real error strings from the incident</li>
+                <li>30 structural tests</li>
               </ul>
               <span class="tag">The user logs in; the agent never holds the token</span>
             </article>
@@ -1360,7 +1383,7 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
           <div class="band-head rev" style="margin-bottom: var(--s3)">
             <h3>The whole record is one click away.</h3>
             <p class="muted">
-              Architecture, the three checks, all nine pull requests, fifteen decision records, and
+              Architecture, the four checks, all eleven pull requests, sixteen decision records, and
               what the checks still cannot see.
             </p>
           </div>
@@ -1397,8 +1420,8 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
           </h1>
           <p class="lede">
             A monorepo on Bun: one site, three skills. Sections below mirror the repository —
-            architecture, the three checks, the pull requests, the decision records, how to
-            reproduce it, and the blind spots that remain.
+            architecture, the four checks, the pull requests, the decision records, how to reproduce
+            it, and the blind spots that remain.
           </p>
         </section>
 
@@ -1659,7 +1682,7 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
 
         <section class="band wrap" id="checks">
           <div class="band-head rev">
-            <span class="eyebrow">02 · The three checks</span>
+            <span class="eyebrow">02 · The four checks</span>
             <h2>Each is verified in the failing direction.</h2>
             <p>
               A detector that has only ever seen clean input is not known to detect anything. Each
@@ -1706,14 +1729,39 @@ $ bun run --cwd apps/web check:assets
             deliberately <em>not</em> on push, because a run against a URL that has not been
             redeployed yet would report the previous deployment's state as this commit's.
           </p>
+
+          <h3>Check 4 — the generated files, against their generators</h3>
+          <p class="muted">
+            Two files in <code>apps/web</code> are generated and committed, and no build step
+            rewrites them: <code>payload.config.ts</code> from the manifest, and
+            <code>app/(payload)/admin/importMap.js</code> from that config — the map through which
+            Payload resolves every admin component. Each check regenerates its file and fails on a
+            difference. That is the only way the repository can notice that a committed copy was
+            produced somewhere the running environment does not resemble, which is not hypothetical:
+            it is how <code>/admin</code> came to serve a <code>200</code> and a blank page —
+            ADR-0016.
+          </p>
+          <pre><code>$ bun run --cwd apps/web check:cms-drift
+                             <span class="c"># config vs site.manifest.json</span>
+$ bun run --cwd apps/web check:importmap
+                             <span class="c"># import map vs payload.config.ts</span></code></pre>
+          <p class="muted">
+            The generator has to be environment-independent for this to mean anything. A config that
+            branches on <code>process.env</code> produces a different map per machine, and then the
+            check only proves the committed map matches whoever ran it last. So the drift gate is
+            paired with an assertion about the result:
+            <code>apps/web/e2e/admin.spec.ts</code> requires the login form's own fields, which only
+            a mounted panel draws — a <code>200</code> and a <code>&lt;title&gt;</code> are what the
+            blank version also served.
+          </p>
         </section>
 
         <section class="band wrap" id="process">
           <div class="band-head rev">
             <span class="eyebrow">03 · Process</span>
-            <h2>Nine pull requests.</h2>
+            <h2>Eleven pull requests.</h2>
             <p>
-              +19,241 / −1,198 lines across 21–22 August 2026. Eight merged, one open. Every entry
+              +19,828 / −1,303 lines across 21–22 August 2026. Ten merged, one open. Every entry
               expands; the italic line is what the pull request cost to learn.
             </p>
           </div>
@@ -2180,11 +2228,12 @@ $ bun run --cwd apps/web check:assets
               </div>
             </details>
 
-            <details class="pr rev" data-state="open">
+            <details class="pr rev" data-state="merged">
               <summary>
                 <div class="pr-meta">
-                  <span class="num">#9</span><span class="chip open">open</span><span>22 Aug</span>
-                  <span class="add">+20</span><span class="del">−12</span><span>2 files</span>
+                  <span class="num">#9</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+20</span><span class="del">−12</span
+                  ><span>2 files</span>
                 </div>
                 <div class="pr-title">The deployment serves its media; parity-report is clean</div>
                 <p class="pr-oneline">
@@ -2212,13 +2261,91 @@ $ bun run --cwd apps/web check:assets
                 </p>
               </div>
             </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#11</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+587</span><span class="del">−105</span
+                  ><span>23 files</span>
+                </div>
+                <div class="pr-title">
+                  Keep the blob plugin in the import map so <code>/admin</code> is not blank
+                </div>
+                <p class="pr-oneline">
+                  The fix in #8 shipped its own defect: a generated file, committed from a machine
+                  that could not see production's configuration.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>The defect</h4>
+                <ul>
+                  <li>
+                    Payload resolves admin components through the committed
+                    <code>app/(payload)/admin/importMap.js</code>. #8 registered
+                    <code>vercelBlobStorage</code> only when <code>BLOB_READ_WRITE_TOKEN</code> was
+                    set, so every machine that generated the map dropped the plugin — and its client
+                    upload handler — out of it
+                  </li>
+                  <li>
+                    Production, where the token <em>is</em> set, then asked for a component nobody
+                    had written into the map:
+                    <code
+                      >getFromImportMap: PayloadComponent not found in importMap { key:
+                      '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler' }</code
+                    >
+                  </li>
+                  <li>
+                    <code>/admin</code> answered <code>200</code> with a correct
+                    <code>&lt;title&gt;</code> and an empty React root. Nothing in four green checks
+                    asks a page whether it rendered
+                  </li>
+                </ul>
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    <code>vercelBlobStorage</code> is now registered unconditionally with
+                    <code>enabled: Boolean(token)</code>, so the client handler is always in
+                    <code>admin.dependencies</code> and one committed map is correct in both
+                    environments; the production guard becomes a module-level throw above
+                    <code>buildConfig</code>
+                  </li>
+                  <li>
+                    <code>scripts/gen-importmap.ts</code> — <code>gen:importmap</code> and
+                    <code>check:importmap</code> — with the check running in CI beside
+                    <code>check:cms-drift</code>, so a map that drifts from the config fails the
+                    build rather than the panel
+                  </li>
+                  <li>
+                    The script calls the generator under Bun rather than the upstream Payload CLI,
+                    which cannot load this config (<code>ERR_REQUIRE_ASYNC_MODULE</code> via
+                    <code>richtext-lexical</code>), then formats its output so the commit gate never
+                    meets an unformattable generated file
+                  </li>
+                  <li>
+                    An e2e test that asserts the panel <em>mounts</em> — the login form's own fields
+                    — because the drift gate proves the map matches the config, not that the result
+                    renders
+                  </li>
+                  <li>
+                    CI is given a format-valid placeholder token, since the adapter now parses it on
+                    every build
+                  </li>
+                </ul>
+                <p class="lesson">
+                  A generated file committed from one environment is a claim about every environment
+                  that will read it. Either the generator is environment-independent, or a check
+                  regenerates it and compares — ADR-0016.
+                </p>
+              </div>
+            </details>
           </div>
         </section>
 
         <section class="band wrap" id="decisions">
           <div class="band-head rev">
             <span class="eyebrow">04 · Decisions</span>
-            <h2>Fifteen records, each with its rejected alternatives.</h2>
+            <h2>Sixteen records, each with its rejected alternatives.</h2>
             <p>
               <code>docs/decisions/</code> in the repository. Superseded, never rewritten — the
               record of what was believed at the time is the point.
@@ -2312,6 +2439,10 @@ $ bun run --cwd apps/web check:assets
                   <td class="adr">0015</td>
                   <td>A checker must prove it looked at the right thing</td>
                 </tr>
+                <tr>
+                  <td class="adr">0016</td>
+                  <td>The admin import map must not depend on the environment that generated it</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2330,9 +2461,9 @@ $ bun run --cwd apps/web check:assets
           </div>
 
           <p class="muted">
-            <strong>239 unit tests</strong> is the root <code>bun run test</code>: 61 in
-            <code>apps/web</code>, 95 in <code>figma-to-site</code>, 57 in <code>site-to-cms</code>,
-            26 in <code>deploy-to-vercel</code>. The evidence pack on a pull request reports 156 —
+            <strong>250 unit tests</strong> is the root <code>bun run test</code>: 63 in
+            <code>apps/web</code>, 95 in <code>figma-to-site</code>, 62 in <code>site-to-cms</code>,
+            30 in <code>deploy-to-vercel</code>. The evidence pack on a pull request reports 156 —
             it counts only the two workspaces a change to the site can break. Neither figure is the
             other's correction.
           </p>
@@ -2391,6 +2522,13 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
                   </td>
                 </tr>
                 <tr>
+                  <td class="cmd">bun run --cwd apps/web check:importmap</td>
+                  <td>
+                    Regenerates <code>app/(payload)/admin/importMap.js</code> and fails on a
+                    difference — the committed map is what <code>/admin</code> renders from
+                  </td>
+                </tr>
+                <tr>
                   <td class="cmd">bun run parity-report</td>
                   <td>Figma vs local vs deployment, side by side; non-zero on a disagreement</td>
                 </tr>
@@ -2413,7 +2551,7 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
           <div class="table-scroll rev">
             <table>
               <caption>
-                Four variables, three traps
+                Four variables, four traps
               </caption>
               <thead>
                 <tr>
@@ -2442,7 +2580,10 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
                   <td>
                     Now required in production: without it, media rows survive in the remote
                     database while the files stay on the machine that ran the seed, and every image
-                    500s behind a green build
+                    500s behind a green build. Its <em>presence</em> is the second trap — the
+                    storage plugin must be registered whether or not the token is set, or the
+                    generated import map differs per machine and <code>/admin</code> renders blank
+                    where the token exists (ADR-0016)
                   </td>
                 </tr>
               </tbody>
@@ -2491,9 +2632,18 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
                 rather than guessed at.
               </li>
               <li>
+                <strong>The deployed admin panel, rendered.</strong>
+                <code>apps/web/e2e/admin.spec.ts</code> does assert the panel mounts rather than
+                merely answering — it requires the login form's own fields — but it runs against the
+                dev server, in the one configuration where the blob token is unset. That is the
+                configuration whose import map was always correct. Nothing opens the
+                <em>deployed</em> <code>/admin</code> and asserts a control only the mounted panel
+                draws; <code>parity-report</code> asks production for a status code.
+              </li>
+              <li>
                 <strong>This page.</strong> It is a static document generated from the pull
                 requests, the ADRs and a test run — not a live dashboard. The numbers are true as of
-                22 August 2026 at <code>bc36f77</code> plus the open #9.
+                22 August 2026 at <code>eaea98f</code> plus the open #10.
               </li>
             </ul>
           </div>
@@ -2567,7 +2717,7 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
               <a
                 href="https://github.com/dhiazfathra/company-profile-with-cms/pulls?q=is%3Apr"
                 rel="noreferrer noopener"
-                >All nine pull requests</a
+                >All eleven pull requests</a
               >
             </li>
             <li>
