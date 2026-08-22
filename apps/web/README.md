@@ -10,13 +10,15 @@ see [ADR-0009](../../docs/decisions/0009-monorepo-with-figma-to-site-package.md)
 for why they are separate. Commands below work from this directory; the repository
 root delegates the same names.
 
-**Status: Phase 2 complete; deploy pending.** Payload CMS is wired in: `bun run
+**Status: Phase 2 deployed.** Payload CMS is wired in: `bun run
 gen:cms` generates `payload.config.ts` from `site.manifest.json`, `bun run
 seed` loads `content/*.json` into it, and `/admin` is live under `bun run dev`.
 The site is no longer a static export — content is read from Payload at
 request time (see "Adding a language" below for why).
 
-Deployed URL: TBD — Vercel import pending
+Deployed URL: https://company-profile-with-cms-web.vercel.app/ — media on this
+deployment is broken until a Vercel Blob store is provisioned and the database
+reseeded; see [docs/parity-gaps.md](../../docs/parity-gaps.md).
 
 See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a
 Figma variable.
@@ -38,14 +40,17 @@ table below is what changes when it is not local.
 
 ## Deploying
 
-Two variables, and one of them is a trap. Rationale in
-[ADR-0013](../../docs/decisions/0013-deployment-configuration.md).
+Three variables, and two of them are traps a green build says nothing about.
+Rationale for the first two in
+[ADR-0013](../../docs/decisions/0013-deployment-configuration.md); for the
+third in [ADR-0014](../../docs/decisions/0014-media-on-blob-storage.md).
 
-| Variable              | Required            | What happens without it                                          |
-| --------------------- | ------------------- | ---------------------------------------------------------------- |
-| `PAYLOAD_SECRET`      | **yes**             | The build fails: `PAYLOAD_SECRET must be set in production`      |
-| `DATABASE_URI`        | **yes in practice** | The build **succeeds** and every editor save is lost — see below |
-| `DATABASE_AUTH_TOKEN` | with a hosted DB    | A remote libSQL URL cannot authenticate                          |
+| Variable                | Required            | What happens without it                                                                                  |
+| ----------------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `PAYLOAD_SECRET`        | **yes**             | The build fails: `PAYLOAD_SECRET must be set in production`                                              |
+| `DATABASE_URI`          | **yes in practice** | The build **succeeds** and every editor save is lost — see below                                         |
+| `DATABASE_AUTH_TOKEN`   | with a hosted DB    | A remote libSQL URL cannot authenticate                                                                  |
+| `BLOB_READ_WRITE_TOKEN` | **yes**             | The build fails: without it, uploaded media would 500 in production — see [`.env.example`](.env.example) |
 
 `PAYLOAD_SECRET` failing the build is deliberate, not a bug to work around:
 `payload.config.ts` throws rather than fall back to its development secret when
