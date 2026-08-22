@@ -88,7 +88,17 @@ turso db tokens create <name> --expiration 30d    # -> a JWT; treat it like a pa
 Give the token an explicit `--expiration` rather than the default (which may
 be `never`) — a deployment credential that outlives its need is a standing
 liability, and rotating it later means minting a new one and updating it
-everywhere it's stored, so plan the lifetime up front.
+everywhere it's stored, so plan the lifetime up front. When it's time to
+rotate (before the old token expires, not after):
+
+1. `turso db tokens create <name> --expiration 30d` — mint the replacement
+   before the old one stops working, not after.
+2. Set the new value as `DATABASE_AUTH_TOKEN` in Vercel (step 4) — same
+   `--sensitive --force` overwrite as any other credential update.
+3. Deploy fresh and verify (steps 5–6) with the new token in place.
+4. Only once that deployment is confirmed working, invalidate the old
+   token. Rotating and invalidating in the same step is how a deploy that
+   silently used the old token turns into an outage instead of a warning.
 
 Write the token straight to a local file with tight permissions, never into a
 terminal history or a chat transcript, and clean it up when you're done:
@@ -228,10 +238,13 @@ touches this path:
 vercel logs <deployment-url>
 ```
 
-Only once curl confirms the right status with real content **and** a
-write/read through the deployed app itself succeeds is the deployment
-verified. Anything less is "the build succeeded" or "I can reach the
-database myself," both of which are different and weaker claims.
+Only once curl confirms the right status with real content, a write/read
+through the deployed app itself succeeds, **and the test record is deleted
+and confirmed gone** is the deployment verified. A write/read check that
+skips cleanup leaves a fabricated row sitting in production — don't declare
+success until that's confirmed cleaned up. Anything less is "the build
+succeeded" or "I can reach the database myself," both of which are
+different and weaker claims.
 
 ## 7. Document what you just did
 

@@ -1,9 +1,9 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-21T22:27:35Z
-branch: vercel-deploy-skill — 2 ahead, 0 behind main
-head: 80d7d39
+generated: 2026-08-22T02:39:17Z
+branch: vercel-deploy-skill — 5 ahead, 0 behind main
+head: d10da8b
 dirty files: none (clean tree)
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
