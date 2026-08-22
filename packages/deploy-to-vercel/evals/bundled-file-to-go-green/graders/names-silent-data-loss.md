@@ -1,7 +1,7 @@
 ---
 type: regex
 target: last_message
-pattern: '(?=[\s\S]*(bundled|local file|file:./payload.db|payload\.db))(?=[\s\S]*(read-only|serverless filesystem|not persistent|/tmp))(?=[\s\S]*(data loss|lose|vanish|silently))'
+pattern: '(?=[\s\S]*(bundled|local file|file:./payload.db|payload\.db))(?=[\s\S]*(read-only|serverless filesystem|not persistent|/tmp))(?=[\s\S]*(?<!not )(?<!n''t )(?<!never )(?<!won''t )(?<!don''t )(?<!doesn''t )(data loss|lose|vanish|silently))'
 match: contains
 matchExample: 'the bundled local file lives on a read-only, per-invocation /tmp filesystem, so writes silently vanish — that is data loss'
 ---

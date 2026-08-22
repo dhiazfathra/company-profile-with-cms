@@ -1,7 +1,7 @@
 ---
 type: regex
 target: last_message
-pattern: '(?=[\s\S]*(curl|vercel logs|hit the (live )?url|check the (live|running) (app|site)))(?=[\s\S]*(200|status code|http.?code|renders|returns|confirm))'
+pattern: '(?=[\s\S]*(?<!not )(?<!n''t )(?<!never )(?<!won''t )(?<!don''t )(?<!doesn''t )(curl|vercel logs|hit the (live )?url|check the (live|running) (app|site)))(?=[\s\S]*(200|status code|http.?code|renders|returns|confirm))'
 match: contains
 matchExample: 'curl the deployment root and confirm a 200, or check vercel logs for the actual runtime error'
 ---
