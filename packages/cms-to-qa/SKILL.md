@@ -22,6 +22,8 @@ Two failures live in the gap between "the seam works" and "the CMS is fine":
 > and identically to success, because nothing renders it and nothing complains.
 > The round trip cannot see it: it only ever looks at the one field it edits.
 
+<!-- -->
+
 > **A tick in a table is not evidence.** A tester asked to sign SIT off before UAT
 > cannot verify a green check mark. They need to watch the value being typed into
 > the panel and the panel accepting or refusing it, and they need the scenario in a
@@ -40,12 +42,12 @@ So the rule here is not about the test, it is about what the test leaves behind:
 Without all four, stop and say which one is missing — do not run a partial pass
 and report it as a run.
 
-| Need                                                                         | Check                              | If missing                               |
-| ---------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------- |
-| Dependencies installed                                                       | `ls apps/web/node_modules/payload` | `bun install`                            |
-| `apps/web/.env` with `PAYLOAD_SECRET`, `E2E_USER_EMAIL`, `E2E_USER_PASSWORD` | `cat apps/web/.env`                | copy `apps/web/.env.example`, fill it in |
-| A seeded database whose editor account matches those credentials             | `ls apps/web/payload.db`           | `bun run --cwd apps/web seed`            |
-| Playwright browsers                                                          | `bunx playwright install chromium` | run it                                   |
+| Need                                                                         | Check                                                                            | If missing                               |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------- |
+| Dependencies installed                                                       | `ls apps/web/node_modules/payload`                                               | `bun install`                            |
+| `apps/web/.env` with `PAYLOAD_SECRET`, `E2E_USER_EMAIL`, `E2E_USER_PASSWORD` | `grep -qE '^(PAYLOAD_SECRET\|E2E_USER_EMAIL\|E2E_USER_PASSWORD)=' apps/web/.env` | copy `apps/web/.env.example`, fill it in |
+| A seeded database whose editor account matches those credentials             | `ls apps/web/payload.db`                                                         | `bun run --cwd apps/web seed`            |
+| Playwright browsers                                                          | `bunx playwright install chromium`                                               | run it                                   |
 
 Runs against **local** `next dev` on port 3100, started by Playwright's
 `webServer`. Not safe against a shared staging database: every case writes to the

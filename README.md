@@ -43,7 +43,7 @@ its own skill and ships no extracted code.
 ```bash
 bun install          # links every workspace
 bun run dev          # the site at http://localhost:3000
-bun run test         # the site's suite and both skills' suites
+bun run test         # the site's suite and all four skills' suites
 ```
 
 [`docs/reproduce.md`](docs/reproduce.md) is the long version: clone to running
@@ -85,7 +85,7 @@ either place — except `cms:e2e`, which only resolves from the repository root
 | `bun run dev`               | Start the site's development server                                                              |
 | `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)           |
 | `bun run start`             | Serve the production build (`next start`)                                                        |
-| `bun run test`              | Unit tests for the site and both skills, plus each eval suite's structure                        |
+| `bun run test`              | Unit tests for the site and all four skills, plus each eval suite's structure                    |
 | `bun run lint`              | Lint the site                                                                                    |
 | `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                                 |
 | `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                       |
@@ -147,14 +147,20 @@ to every field and its presence therefore says nothing. Add a section to
 `site.manifest.json` and its cases exist
 ([ADR-0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)).
 
-Every run leaves three artefacts for the manual tester who signs SIT off before
-UAT, because a green row is not something they can re-derive:
+A browser run (`bun run cms:e2e <Page>` or `--all`) leaves three artefacts for
+the manual tester who signs SIT off before UAT, because a green row is not
+something they can re-derive:
 
-| Artefact               | What they do with it                                                              |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| `report.html`          | Watch the cases they doubt — one recording per case, beside the value and outcome |
-| `test-scenarios.xlsx`  | Filter to failures, follow the numbered steps by hand, annotate, sign             |
-| `<page>/videos/*.webm` | The recordings, named `<field>--<case>.webm`, to attach to a release ticket       |
+| Artefact               | What they do with it                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `report.html`          | Watch the executed cases they doubt — one recording per case, beside the value and outcome   |
+| `test-scenarios.xlsx`  | Filter to failures, follow the numbered steps by hand, annotate, sign                        |
+| `<page>/videos/*.webm` | One recording per executed case, named `<field>--<case>.webm`, to attach to a release ticket |
+
+Recordings exist only for cases the browser actually ran — a case marked `NOT RUN`
+or `NOT EXECUTED` has no video. `--discover-only` runs no browser at all: it
+writes `inventory.json` and the per-page field matrices, with none of the three
+artefacts above.
 
 A field the run could not execute gets a row saying so, and a page the invocation
 did not target is named rather than dropped — the denominator is the whole matrix

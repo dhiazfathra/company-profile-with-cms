@@ -161,7 +161,13 @@ ${EXTRA}
       .map((p) => {
         const t = summarise(byPage.get(p.page) ?? [])
         const exit = exitByPage.get(p.page)
-        const verdict = t.fail > 0 || exit !== 0 ? STATUS.fail : STATUS.pass
+        const result = resultsByPage.get(p.page)
+        const verdict =
+          result === null
+            ? STATUS.notExecuted
+            : t.fail > 0 || exit !== 0
+              ? STATUS.fail
+              : STATUS.pass
         return `<tr><td><a href="#${esc(p.page)}">${esc(p.page)}</a></td><td>${badge(verdict)}</td>
       <td>${t.total}</td><td>${t.pass}</td><td>${t.fail}</td><td>${t.notRun}</td><td>${t.notExecuted}</td></tr>`
       })

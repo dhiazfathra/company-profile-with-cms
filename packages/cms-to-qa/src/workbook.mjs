@@ -263,9 +263,10 @@ function addNotCovered(book, inventory, rows) {
 export async function writeWorkbook(file, { runId, reproduce, inventory, rows, ranPages }) {
   const book = new ExcelJS.Workbook()
   book.creator = 'cms-to-qa'
-  // No `book.created`: exceljs stamps the current time, and a byte-for-byte
-  // different file on every run for the same inputs makes the pack impossible to
-  // diff. The run ID on the Summary sheet is the timestamp that matters.
+  // No `book.created`: left unset, exceljs writes no timestamp at all, which is
+  // what makes the pack byte-for-byte diffable across runs with the same inputs.
+  // Setting it to `new Date()` would defeat that for no reader who needs it —
+  // the run ID on the Summary sheet is the timestamp that matters.
   addSummary(book, { runId, reproduce, inventory, rows, ranPages })
   addScenarios(book, rows)
   addTraceability(book, inventory, rows)
