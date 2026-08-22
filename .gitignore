@@ -79,3 +79,4 @@ test-evidence/
 # Local agent index (procoder), regenerated per machine
 .procoder/index/
 .serena/
+.procoder/state/
