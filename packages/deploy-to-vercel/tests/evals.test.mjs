@@ -18,9 +18,12 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const EVALS = new URL('../evals/', import.meta.url).pathname
+// fileURLToPath, not .pathname: a file URL's pathname keeps percent-encoding
+// and is not a valid path on Windows, where this suite also runs in CI.
+const EVALS = fileURLToPath(new URL('../evals/', import.meta.url))
 
 const GRADER_TYPES = ['regex', 'tool_used', 'tool_order', 'file_exists', 'llm', 'baseline']
 /** A grader that scores without a model, so a case cannot rest on judge prose alone. */

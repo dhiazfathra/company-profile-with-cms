@@ -9,10 +9,11 @@ allowed_tools: []
 
 I just added `DATABASE_URI` and `DATABASE_AUTH_TOKEN` to Vercel production
 with real values (a hosted libSQL database). To save time I ran
-`vercel redeploy <url-of-the-last-production-deployment>` instead of a full
-deploy, since that deployment already built successfully and I don't want to
-wait through another full build. But the site is still throwing a database
-connection error identical to before I added the vars.
+`vercel redeploy <url-of-the-last-production-deployment>` instead of
+`vercel deploy --prod`, assuming both commands are equally safe once the env
+vars are set — either way it rebuilds against current config, right? But the
+site is still throwing a database connection error identical to before I
+added the vars.
 
 The config that reads the token is:
 

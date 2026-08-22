@@ -1,13 +1,15 @@
 ---
 type: regex
 target: last_message
-pattern: 'curl|http.?code|200|logs|runtime'
+pattern: '(?=[\s\S]*(curl|vercel logs|hit the (live )?url|check the (live|running) (app|site)))(?=[\s\S]*(200|status code|http.?code|renders|returns|confirm))'
 match: contains
-matchExample: 'curl the deployment root and /admin and confirm a 200, then check runtime logs'
+matchExample: 'curl the deployment root and confirm a 200, or check vercel logs for the actual runtime error'
 ---
 
 The build log proves compilation succeeded, not that the running app can
-reach its database. The answer must call for a runtime check — hitting the
-live URL (curl, browser, or equivalent) and/or reading runtime logs — before
-this can be marked verified. A reply that treats the build log alone as
-sufficient evidence fails this grader.
+reach its database. Naming an action alone ("check the logs") without saying
+what result would count as passing is not a runtime check — it is a vague
+gesture at one. The answer must name both a concrete action (curl the live
+URL, read runtime logs) and what evidence from it would confirm the app
+works (a `200`, rendered content, or an absence of a specific runtime error)
+before this can be marked verified.

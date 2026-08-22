@@ -1,10 +1,10 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-21T16:02:14Z
-branch: detached HEAD at 54b8a86
-head: 54b8a86
-dirty files: 2
+generated: 2026-08-21T22:27:35Z
+branch: vercel-deploy-skill — 2 ahead, 0 behind main
+head: 80d7d39
+dirty files: none (clean tree)
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md

@@ -8,10 +8,13 @@ description: Deploy a Next.js app (optionally with a Payload CMS + SQLite/libSQL
 This walks a fresh machine — nothing installed, nothing linked — through a
 verified Vercel deployment. It exists because the most common failure mode
 here is not a build error. It is a **green build that serves a broken app**:
-Vercel's build step never touches a database, so nothing in `next build`
-notices a database that cannot be reached, is empty, or was baked into the
-build before its credentials existed. Every guardrail below closes one of
-those gaps, found the hard way in this repository's own first deploy.
+this project's build never touches its database, so nothing in `next build`
+here notices a database that cannot be reached, is empty, or was configured
+after the build ran. (A build _can_ touch a database elsewhere — e.g.
+`generateStaticParams` fetching at build time — so treat "this build log
+proves nothing about runtime" as a per-project fact to verify, not a law of
+Next.js.) Every guardrail below closes one of those gaps, found the hard way
+in this repository's own first deploy.
 
 ## 0. What you need before starting
 
@@ -29,10 +32,14 @@ npm i -g vercel
 vercel login
 ```
 
-If the app needs a hosted database:
+If the app needs a hosted database, prefer a package manager over piping an
+unverified remote script into a shell:
 
 ```bash
-curl -sSfL https://get.tur.so/install.sh | bash   # or: brew install tursodatabase/tap/turso
+brew install tursodatabase/tap/turso            # macOS/Linuxbrew
+# or, pinned to a release with its checksum verified — never the bare
+# curl-to-bash one-liner from the docs homepage in a scripted/CI context:
+# https://github.com/tursodatabase/turso-cli/releases
 turso auth login
 ```
 
@@ -73,16 +80,24 @@ database stays green either way — right up until the first user edit fails or
 silently vanishes.
 
 ```bash
-turso db create <name>              # skip if the database already exists
-turso db show <name> --url          # -> libsql://<name>-<org>.<region>.turso.io
-turso db tokens create <name>       # -> a JWT; treat it like a password
+turso db create <name>                            # skip if it already exists
+turso db show <name> --url                        # -> libsql://<name>-<org>.<region>.turso.io
+turso db tokens create <name> --expiration 30d    # -> a JWT; treat it like a password
 ```
 
-Write the token straight to a local file, never into a terminal history or a
-chat transcript:
+Give the token an explicit `--expiration` rather than the default (which may
+be `never`) — a deployment credential that outlives its need is a standing
+liability, and rotating it later means minting a new one and updating it
+everywhere it's stored, so plan the lifetime up front.
+
+Write the token straight to a local file with tight permissions, never into a
+terminal history or a chat transcript, and clean it up when you're done:
 
 ```bash
-turso db tokens create <name> > /tmp/db-token   # then read it from that file
+umask 077
+token_file="$(mktemp)"
+trap 'rm -f "$token_file"' EXIT
+turso db tokens create <name> --expiration 30d > "$token_file"
 ```
 
 **Before assuming this database has anything in it — check:**
@@ -91,21 +106,26 @@ turso db tokens create <name> > /tmp/db-token   # then read it from that file
 turso db shell <name> "select name from sqlite_master where type='table'"
 ```
 
-A newly created database has **zero tables**. If the app's ORM does not
-auto-push schema in production (Payload's sqlite adapter does not — check for
-a `migrations/` directory; its absence means production never gets one), a
-deployment pointed at an empty, schema-less database will build, boot, and
-serve a loading admin panel that cannot read or write anything. That is a
-different failure from step 3's file-path trap, but it is caught the same
-way: don't trust that "the URL is right" means "the database is usable" —
-query it.
+A newly created database has **zero tables**. Whether production gets schema
+automatically depends on the app — check its package scripts and adapter
+configuration for a migrate/push/seed command rather than assuming from one
+signal like a missing `migrations/` directory (an ORM can init schema
+several ways, and the absence of one particular directory doesn't prove none
+of them run). A deployment pointed at an empty, schema-less database will
+build, boot, and serve a loading admin panel that cannot read or write
+anything. That is a different failure from step 3's file-path trap, but it is
+caught the same way: don't trust that "the URL is right" means "the database
+is usable" — query it.
 
 Push schema and seed data by running the app's own seed/migrate command
-**against the remote**, from your machine, before the first real deploy:
+**against the remote**, from your machine, before the first real deploy —
+substitute your project's actual variable names (check its `.env.example` or
+adapter config; `DATABASE_URI`/`DATABASE_AUTH_TOKEN` are this repo's names,
+not a universal convention):
 
 ```bash
 DATABASE_URI='libsql://<name>-<org>.<region>.turso.io' \
-DATABASE_AUTH_TOKEN="$(cat /tmp/db-token)" \
+DATABASE_AUTH_TOKEN="$(cat "$token_file")" \
   <the project's seed or migrate command>
 ```
 
@@ -119,11 +139,18 @@ vercel env add <NAME> production
 vercel env add <NAME> preview
 ```
 
+Run `vercel env ls` first and look before you overwrite — `--force` is for a
+deliberate overwrite of a value you've confirmed is wrong (like the blank
+placeholder from step 0), not a default habit. For a variable that doesn't
+exist yet, plain `vercel env add` is enough; reach for `--force` (or
+`vercel env update` for an existing one) only once you know that's what you
+mean to do.
+
 Pipe secret values in from a file rather than typing them, so they never sit
 in shell history or a chat log:
 
 ```bash
-vercel env add DATABASE_AUTH_TOKEN production --sensitive --force < /tmp/db-token
+vercel env add DATABASE_AUTH_TOKEN production --sensitive --force < "$token_file"
 ```
 
 Set every variable the app's `.env.example` (or equivalent) documents. If a
@@ -148,14 +175,14 @@ rather than trusting the row.
 vercel deploy --prod
 ```
 
-**`vercel redeploy <url>` reuses a previous build's output.** If any
-environment variable changed since that build — especially one read
-conditionally at build time, such as
-`...(process.env.X ? { x: process.env.X } : {})` — the reused build has
-already baked in the old absence. Redeploying it will not pick up the new
-value; only a fresh `vercel deploy --prod` re-runs the build against the
-current environment. If you just changed env vars, deploy fresh — don't
-redeploy and then wonder why nothing changed.
+Vercel's own CLI describes `vercel redeploy <url>` as rebuilding the
+deployment — so don't assume it definitely skips a build the way an older or
+unofficial explanation might suggest. What matters in practice is this: if
+you've just changed an environment variable, don't assume either command
+picked it up. Run a fresh `vercel deploy --prod` and then **verify** (step 6)
+before trusting it — especially for a value read conditionally, such as
+`...(process.env.X ? { x: process.env.X } : {})`, where "did the new value
+actually apply" isn't something a build log will tell you either way.
 
 ## 6. Verify the deployment actually works
 
@@ -165,24 +192,33 @@ a database that is unreachable, empty, or wrongly authenticated produces
 exactly the same green build as a healthy one. Verify the running app:
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://<your-app>.vercel.app/
-curl -s -o /dev/null -w '%{http_code}\n' https://<your-app>.vercel.app/admin   # if applicable
+curl -sL -o /dev/null -w '%{http_code}\n' https://<your-app>.vercel.app/
+curl -sL -o /dev/null -w '%{http_code}\n' https://<your-app>.vercel.app/admin   # if applicable
 ```
 
-A `200` here is necessary, not sufficient, if the route in question renders
-from data. Confirm the _content_ came from the database, not from a cached or
-static shell:
+`-L` follows redirects — a route that redirects to a locale prefix or a login
+page is healthy, and without `-L` you'd read its 30x as a failure. Know what
+final status counts as healthy for a redirecting route before you run this.
+
+A `200` (or your route's correct final status) is necessary, not sufficient,
+if the route in question renders from data. Confirm the _content_ came from
+the database, not from a cached or static shell:
 
 ```bash
-curl -s https://<your-app>.vercel.app/ | grep -o '<title>[^<]*</title>'
+curl -sL https://<your-app>.vercel.app/ | grep -o '<title>[^<]*</title>'
 ```
 
-And check the database side independently — a row count that only changes
-when you write to it is proof of a live connection; a title that happens to
-match a hardcoded fallback is not:
+Then check the database was reached **through the deployed app**, not just
+through your own operator credentials — `turso db shell` only proves _you_
+can reach the database, not that the deployed app's env vars or token are
+correct, since a misconfigured app can fail silently while your own access
+works fine. Where the app supports it, write a uniquely identifiable test
+value through it (an admin-panel edit, a form submission, an API call),
+read it back through the same path, and delete it afterward:
 
 ```bash
-turso db shell <name> "select count(*) from <a table the homepage reads>"
+turso db shell <name> "select count(*) from <a table the homepage reads>"   # your access — a start, not the proof
+# then, ideally: create/read/delete a real record through the app itself
 ```
 
 If anything is wrong, read runtime logs — not the build log, which never
@@ -192,9 +228,10 @@ touches this path:
 vercel logs <deployment-url>
 ```
 
-Only once curl confirms a 200 with real content **and** the database shows
-the expected rows is the deployment verified. Anything less is "the build
-succeeded," which is a different and weaker claim.
+Only once curl confirms the right status with real content **and** a
+write/read through the deployed app itself succeeds is the deployment
+verified. Anything less is "the build succeeded" or "I can reach the
+database myself," both of which are different and weaker claims.
 
 ## 7. Document what you just did
 
