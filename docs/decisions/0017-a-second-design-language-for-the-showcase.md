@@ -36,17 +36,33 @@ turns it into a build output changes what the artefact is.
 
 ## Decision
 
-**A second full file, `docs/showcase/v2.html`, whose body is byte-identical to
-`index.html`'s and whose `<head>` carries a different stylesheet.**
+**A second full file, `docs/showcase/v2.html`, whose document content is
+byte-identical to `index.html`'s and whose `<head>` carries a different
+stylesheet.**
 
-The identity is not a convention, it is the mechanism. Everything below `<body>`
-was copied unmodified and verified as such:
+The identity is not a convention, it is the mechanism: the body was copied
+unmodified, and exactly two things were added to it afterwards — this variant's
+theme button, and the script that drives it and builds the table-of-contents
+rail. So the naive whole-body comparison is `False`, and the check that means
+anything is the one that names those two additions and requires everything else
+to match:
 
 ```text
-$ python3 -c "a=open('index.html').read(); b=open('v2.html').read();
-             print(a[a.index('<body'):] == b[b.index('<body'):])"
-True
+$ cd docs/showcase && python3 - <<'PY'
+import re
+a = open('index.html').read(); b = open('v2.html').read()
+body = lambda s: s[s.index('<body'):]
+strip = lambda s: re.sub(r'\s*<button class="theme"[\s\S]*?</button>', '',
+                 re.sub(r'\s*<script>\s*// ── Theme\.[\s\S]*?</script>', '', s))
+print('whole body:            ', body(a) == body(b))
+print('less the two additions:', strip(body(b)) == body(a))
+PY
+whole body:             False
+less the two additions: True
 ```
+
+A stricter reading of "unchanged content" than the diff, because it rejects a
+reworded sentence as loudly as a deleted section.
 
 Two consequences of that constraint shaped the stylesheet:
 
@@ -59,10 +75,9 @@ Two consequences of that constraint shaped the stylesheet:
   presentation attribute. So `.diagram svg g rect { fill: var(--paper) }` moves
   the whole diagram onto paper without touching a single node of its markup.
 
-The light/dark toggle and the table-of-contents rail added to v2 are the only
-additions to the body: one button, and a script that generates the rail from the
-sections' own `id` and `.eyebrow` text so the page still holds exactly one list of
-its sections.
+The rail is generated rather than written out, so the page still holds exactly
+one list of its sections: the script reads the `id` and the `01 · Architecture`
+eyebrow each section already carries.
 
 ## Alternatives considered
 
