@@ -1,0 +1,21 @@
+{
+  "name": "site-to-cms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Move a built site's content into a CMS and prove the page reads from it.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "evals"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}

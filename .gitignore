@@ -31,8 +31,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — never committed, at any depth
 .env*
+# ...except the template, which carries names and never values. `.env*` above is
+# unanchored so it matches apps/web/.env too; without this negation it would also
+# swallow the one file developers need to see.
+!.env.example
 
 # vercel
 .vercel
