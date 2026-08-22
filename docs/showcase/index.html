@@ -1153,7 +1153,7 @@
 
           <dl class="stats rev">
             <div class="stat"><b>18</b><span>manifest sections</span></div>
-            <div class="stat"><b>239</b><span>unit tests, 17 files</span></div>
+            <div class="stat"><b>239</b><span>unit tests, 4 workspaces</span></div>
             <div class="stat"><b>27</b><span>eval cases, 3 skills</span></div>
             <div class="stat"><b>15</b><span>decision records</span></div>
             <div class="stat"><b>0</b><span>parity disagreements</span></div>
@@ -2312,6 +2312,14 @@ $ bun run --cwd apps/web check:assets
               they were run, including which steps cannot run in CI and why.
             </p>
           </div>
+
+          <p class="muted">
+            <strong>239 unit tests</strong> is the root <code>bun run test</code>: 61 in
+            <code>apps/web</code>, 95 in <code>figma-to-site</code>, 57 in <code>site-to-cms</code>,
+            26 in <code>deploy-to-vercel</code>. The evidence pack on a pull request reports 156 —
+            it counts only the two workspaces a change to the site can break. Neither figure is the
+            other's correction.
+          </p>
 
           <pre class="rev"><code>bun install          <span class="c"># links every workspace</span>
 bun run dev          <span class="c"># the site at http://localhost:3000, /admin included</span>
