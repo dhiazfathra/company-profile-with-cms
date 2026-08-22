@@ -1012,8 +1012,9 @@
       }
 
       @media print {
-        body[data-view] [data-part] {
-          display: revert !important;
+        body[data-view] [data-part],
+        body[data-view] [data-part][hidden] {
+          display: block !important;
         }
         body,
         .paper {
@@ -1076,6 +1077,7 @@
             id="tab-story"
             role="tab"
             aria-selected="true"
+            tabindex="0"
             aria-controls="view-story"
             data-view-btn="story"
           >
@@ -1085,6 +1087,7 @@
             id="tab-docs"
             role="tab"
             aria-selected="false"
+            tabindex="-1"
             aria-controls="view-docs"
             data-view-btn="docs"
           >
@@ -1109,7 +1112,13 @@
       <!-- ══════════════════════════════════════════════════════════
            STORY
            ══════════════════════════════════════════════════════════ -->
-      <div id="view-story" data-part="story" role="tabpanel" aria-labelledby="tab-story">
+      <div
+        id="view-story"
+        data-part="story"
+        role="tabpanel"
+        tabindex="0"
+        aria-labelledby="tab-story"
+      >
         <section class="wrap hero">
           <span class="eyebrow">Case study · 21–22 August 2026 · 9 pull requests</span>
           <h1 class="display">
@@ -1351,7 +1360,7 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
           <div class="band-head rev" style="margin-bottom: var(--s3)">
             <h3>The whole record is one click away.</h3>
             <p class="muted">
-              Architecture, the two checks, all nine pull requests, fifteen decision records, and
+              Architecture, the three checks, all nine pull requests, fifteen decision records, and
               what the checks still cannot see.
             </p>
           </div>
@@ -1373,7 +1382,14 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
       <!-- ══════════════════════════════════════════════════════════
            DOCUMENTATION
            ══════════════════════════════════════════════════════════ -->
-      <div id="view-docs" data-part="docs" role="tabpanel" aria-labelledby="tab-docs" hidden>
+      <div
+        id="view-docs"
+        data-part="docs"
+        role="tabpanel"
+        tabindex="0"
+        aria-labelledby="tab-docs"
+        hidden
+      >
         <section class="wrap hero" style="padding-bottom: var(--s5)">
           <span class="eyebrow">Documentation · v0.1.0</span>
           <h1 class="display" style="font-size: clamp(2.4rem, 5vw, 4rem); max-width: 30ch">
@@ -1381,8 +1397,8 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
           </h1>
           <p class="lede">
             A monorepo on Bun: one site, three skills. Sections below mirror the repository —
-            architecture, the two checks, the pull requests, the decision records, how to reproduce
-            it, and the blind spots that remain.
+            architecture, the three checks, the pull requests, the decision records, how to
+            reproduce it, and the blind spots that remain.
           </p>
         </section>
 
