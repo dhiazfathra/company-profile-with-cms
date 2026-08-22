@@ -33,9 +33,10 @@
  * a CI run that has no dev server, and reports what it dropped rather than
  * quietly scoring a two-way check as a three-way pass.
  */
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 import { REPORT_CSS } from './report-style.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,6 +52,7 @@ function flag(name, fallback) {
   return i === -1 ? fallback : argv[i + 1]
 }
 const skipLocal = argv.includes('--skip-local')
+const noShots = argv.includes('--no-shots')
 const localUrl = (flag('local', process.env.PARITY_LOCAL_URL || DEFAULT_LOCAL) || '').replace(
   /\/$/,
   '',
@@ -131,6 +133,60 @@ export function visibleText(fragment) {
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/**
+ * Screenshots every section of one environment, at the design width so the
+ * three columns of the report are directly comparable.
+ *
+ * Status text is not enough on its own. A row can pass every check here — the
+ * marker rendered, the text was non-empty, the images returned 200 — while the
+ * section looks wrong, because this script only asks whether things loaded. So
+ * the report shows the design reference, the local render and the deployed
+ * render beside each other and lets a reader see what no assertion in here
+ * covers.
+ */
+async function capture(baseUrl, sections) {
+  const { chromium } = await import('@playwright/test')
+  const browser = await chromium.launch()
+  const shots = new Map()
+  try {
+    const page = await browser.newPage({
+      viewport: { width: refs.designWidth, height: 900 },
+      deviceScaleFactor: 2,
+    })
+    await page.goto(baseUrl + '/', { waitUntil: 'networkidle' })
+    for (const name of sections) {
+      const el = page.locator(`[data-section="${name}"]`).first()
+      if ((await el.count()) === 0) continue
+      try {
+        await el.scrollIntoViewIfNeeded()
+        shots.set(name, await el.screenshot())
+      } catch {
+        // A section that cannot be screenshotted is reported as absent rather
+        // than failing the run: the verdict above already covers whether it
+        // rendered, and losing the whole report over one image is worse.
+      }
+    }
+  } finally {
+    await browser.close()
+  }
+  return shots
+}
+
+/** Inline so the report is one self-contained file a reader can be sent. */
+async function thumb(input, width = 380) {
+  if (!input) return null
+  try {
+    const buf = await sharp(input)
+      .flatten({ background: '#fff' })
+      .resize({ width, withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer()
+    return `data:image/webp;base64,${buf.toString('base64')}`
+  } catch {
+    return null
+  }
 }
 
 /** Probes one environment and returns a per-section verdict plus page-level facts. */
@@ -216,6 +272,18 @@ async function main() {
     return { section, figma, local: l, prod: p, agree: agrees([figma.state, l.state, p.state]) }
   })
 
+  const localShots =
+    noShots || !local?.reachable ? new Map() : await capture(localUrl, sectionNames)
+  const prodShots = noShots || !prod.reachable ? new Map() : await capture(prodUrl, sectionNames)
+  for (const row of rows) {
+    const referencePath = join(WEB, 'design/refs', `${row.section}.png`)
+    row.shots = {
+      figma: existsSync(referencePath) ? await thumb(referencePath) : null,
+      local: await thumb(localShots.get(row.section)),
+      prod: await thumb(prodShots.get(row.section)),
+    }
+  }
+
   /**
    * Page-level rows. The admin panel is the one that is easy to forget: it is the
    * reason the site stopped being a static export, and a deployment can serve the
@@ -252,9 +320,23 @@ async function main() {
     localUrl: skipLocal ? null : localUrl,
     prodUrl,
   }
+  // The screenshots are inlined into the HTML; keeping them out of the JSON
+  // leaves it diffable and small enough to read in a CI log.
   writeFileSync(
     join(OUT, 'report.json'),
-    JSON.stringify({ generatedFrom, rows, pageRows, disagreements: disagreements.length }, null, 2),
+    JSON.stringify(
+      {
+        generatedFrom,
+        rows: rows.map(({ shots, ...row }) => ({
+          ...row,
+          shots: Object.fromEntries(Object.entries(shots).map(([k, v]) => [k, Boolean(v)])),
+        })),
+        pageRows,
+        disagreements: disagreements.length,
+      },
+      null,
+      2,
+    ),
   )
 
   const BADGE = { pass: '✓ matches', fail: '✗ differs', warn: '△ unvouched', skipped: '– skipped' }
@@ -267,6 +349,27 @@ async function main() {
       <th scope="row">${esc(r.section ?? r.label)}</th>
       ${cell(r.figma)}${cell(r.local)}${cell(r.prod)}
     </tr>`,
+    )
+    .join('\n')
+
+  const pane = (src, caption, note) =>
+    `<figure>
+      <figcaption><b>${esc(caption)}</b></figcaption>
+      ${src ? `<img alt="${esc(caption)} — ${esc(note)}" src="${src}">` : `<div class="missing">${esc(note)}</div>`}
+    </figure>`
+
+  const gallery = rows
+    .map(
+      (r) => `<div class="sec">
+      <header><h3>${esc(r.section)}</h3>
+        <span class="meta">${r.agree ? 'checks agree' : 'checks disagree'}</span></header>
+      <div class="trio">
+        ${pane(r.shots.figma, 'Figma reference', 'no reference PNG committed')}
+        ${pane(r.shots.local, 'Local', skipLocal ? 'local column skipped' : 'not captured')}
+        ${pane(r.shots.prod, 'Deployed', 'not captured')}
+      </div>
+      ${r.agree ? '' : `<p class="note">${esc(r.prod.state === 'fail' ? r.prod.detail : r.local.detail)}</p>`}
+    </div>`,
     )
     .join('\n')
 
@@ -283,6 +386,11 @@ ${REPORT_CSS}
   :root[data-theme='dark'] td.v.fail b { color:#ff7b6b }
   td.v.warn b, td.v.skipped b { color:var(--muted) }
   tr.bad th { border-left:3px solid #c0392b; padding-left:11px }
+  .trio { display:grid; grid-template-columns:repeat(3,1fr); gap:14px }
+  @media (max-width:720px) { .trio { grid-template-columns:1fr } }
+  .trio figcaption b { color:var(--ink) }
+  .missing { border:1px dashed var(--line); border-radius:6px; padding:22px 12px;
+    color:var(--muted); font-size:12.5px; text-align:center }
 </style>
 <main>
   <h1>Three-way parity</h1>
@@ -309,6 +417,12 @@ ${REPORT_CSS}
     <tr><th>Feature</th><th>Figma</th><th>Local</th><th>Deployed</th></tr>
     ${tableRows}
   </table></div>
+
+  <h2>Section by section, side by side</h2>
+  <p>The design, this machine, and the deployment — the same section, the same width, in that
+  order. The table above only knows whether things loaded; a row can pass every check in it and
+  still look wrong. This is the part that shows you.</p>
+  ${gallery}
 
   <h2>What this does not cover</h2>
   <ul>
