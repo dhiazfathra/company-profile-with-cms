@@ -40,6 +40,14 @@ bun run test         # the site's suite and both skills' suites
 site to working deployment, one section per skill in the order they were run,
 including which steps cannot run in CI and why.
 
+[`docs/showcase/index.html`](docs/showcase/index.html) is the same story told
+once, for a reader rather than a runner: open it in a browser — no build step, no
+dependencies — for the narrative up front and the full technical record (the
+architecture, the three checks, all nine pull requests, the fifteen decisions,
+and what the checks still cannot see) behind a toggle. Its figures come from the
+gates named in this README; regenerate them there and update the page rather
+than editing a number into it.
+
 The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
 `bun run --cwd apps/web gen:cms` generates its config from
 `apps/web/site.manifest.json`; `bun run --cwd apps/web seed` loads
