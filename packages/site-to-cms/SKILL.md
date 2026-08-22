@@ -286,9 +286,14 @@ generator owns its style.
 **Then find out what actually regenerates it, and do not assume the build
 does.** This step used to claim Payload regenerates the import map on every
 `next build` and `next dev`. It does not: `withPayload` never calls the
-generator, only the `payload generate:importmap` CLI does, and the file is
-committed. That one wrong sentence is why nobody suspected the map when the
-deployed `/admin` went blank with
+generator. Nothing in the build pipeline does — an explicit generator run has
+to, and the file is committed between runs. Upstream ships that generator as
+the `payload generate:importmap` CLI, but a project is not required to invoke
+it through that CLI: this repository's `apps/web/scripts/gen-importmap.ts`
+calls the same `generateImportMap` function directly, because the CLI cannot
+load this config (see the second rule below). That one wrong sentence — "the
+build regenerates it" — is why nobody suspected the map when the deployed
+`/admin` went blank with
 
 ```text
 getFromImportMap: PayloadComponent not found in importMap {
