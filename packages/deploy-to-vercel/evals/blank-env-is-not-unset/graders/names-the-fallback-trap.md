@@ -1,7 +1,7 @@
 ---
 type: regex
 target: last_message
-pattern: '(?=[\s\S]*(read-only|serverless filesystem|CANTOPEN|cannot open))(?=[\s\S]*(bundled|payload\.db|local sqlite file))'
+pattern: '(?=[\s\S]*(read-only|serverless filesystem|CANTOPEN))(?=[\s\S]*(bundled|payload\.db|local sqlite file))'
 match: contains
 matchExample: 'a serverless filesystem is read-only, so the bundled local sqlite file at ./payload.db can never open for writing'
 ---

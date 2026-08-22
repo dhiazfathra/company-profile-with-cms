@@ -1,9 +1,9 @@
 ---
 type: regex
 target: last_message
-pattern: '(?=[\s\S]*(not (guaranteed|certain|verified)|don''t assume|can''t assume|verify|confirm))(?=[\s\S]*(vercel deploy --prod|fresh (deploy|build)))'
+pattern: '(?=[\s\S]*(vercel deploy --prod|fresh (deploy|build)))(?=[\s\S]*(curl|http|runtime check|status code))'
 match: contains
-matchExample: 'do not assume redeploy picked up the new values — run a fresh vercel deploy --prod and confirm with a runtime check'
+matchExample: 'do not assume redeploy picked up the new values — run a fresh vercel deploy --prod, then curl the live URL to confirm the runtime status code'
 ---
 
 Vercel's CLI describes `vercel redeploy` as rebuilding the deployment, so the

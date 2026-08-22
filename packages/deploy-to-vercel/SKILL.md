@@ -82,8 +82,11 @@ silently vanishes.
 ```bash
 turso db create <name>                            # skip if it already exists
 turso db show <name> --url                        # -> libsql://<name>-<org>.<region>.turso.io
-turso db tokens create <name> --expiration 30d    # -> a JWT; treat it like a password
 ```
+
+Don't run `turso db tokens create` standalone here — it prints the token to
+your terminal, defeating the point of the protected flow below. Create the
+token only through that flow.
 
 Give the token an explicit `--expiration` rather than the default (which may
 be `never`) — a deployment credential that outlives its need is a standing
