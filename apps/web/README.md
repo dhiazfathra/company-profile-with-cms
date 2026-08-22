@@ -23,7 +23,11 @@ against production: 18 media rows recreated through the adapter, with the same
 18 files present in the blob store. Verified working on 2026-08-22 after PR #8
 merged and redeployed: every one of the homepage's 18 media URLs answers `200`,
 `/admin` answers `200`, and `bun run parity-report --skip-local --prod <url>`
-reports 0 disagreements. Check the
+reports 0 disagreements. That `200` from `/admin` proved less than it looked:
+the panel behind it was blank until
+[ADR-0016](../../docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md),
+because the committed import map was generated where `BLOB_READ_WRITE_TOKEN`
+was unset and so omitted a component production asked for. Check the
 production URL above, not a preview URL — preview deployments are protected and
 serve a login page to anything unauthenticated. See
 [docs/parity-gaps.md](../../docs/parity-gaps.md).
@@ -135,21 +139,23 @@ flips `lib/content.ts` to read from Payload. No component changes.
 
 ## Commands
 
-| Command                     | Description                                                                                                                        |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `bun install`               | Install dependencies                                                                                                               |
-| `bun run dev`               | Start the development server                                                                                                       |
-| `bun run build`             | Production build                                                                                                                   |
-| `bun run test`              | Run unit tests (Vitest)                                                                                                            |
-| `bun run e2e`               | Run end-to-end tests (Playwright) — starts the dev server itself                                                                   |
-| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                                                          |
-| `bun run lint`              | Run the linter                                                                                                                     |
-| `bun run validate:manifest` | Validate `site.manifest.json` against the schema                                                                                   |
-| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                                                         |
-| `bun run capture:figma`     | Re-capture assets and references from Figma, per `design/figma.targets.json` — opens a real Chrome window                          |
-| `bun run gen:cms`           | Generate `payload.config.ts` from `site.manifest.json`; refuses to run if a field's `translatable` flag changed since the last run |
-| `bun run check:cms-drift`   | Fail (non-zero exit) if `payload.config.ts` is out of sync with `site.manifest.json` — run `gen:cms` and commit the result         |
-| `bun run seed`              | Load `content/*.json` into Payload; upserts by position, safe to re-run                                                            |
+| Command                     | Description                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun install`               | Install dependencies                                                                                                                                    |
+| `bun run dev`               | Start the development server                                                                                                                            |
+| `bun run build`             | Production build                                                                                                                                        |
+| `bun run test`              | Run unit tests (Vitest)                                                                                                                                 |
+| `bun run e2e`               | Run end-to-end tests (Playwright) — starts the dev server itself                                                                                        |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                                                                               |
+| `bun run lint`              | Run the linter                                                                                                                                          |
+| `bun run validate:manifest` | Validate `site.manifest.json` against the schema                                                                                                        |
+| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                                                                              |
+| `bun run capture:figma`     | Re-capture assets and references from Figma, per `design/figma.targets.json` — opens a real Chrome window                                               |
+| `bun run gen:cms`           | Generate `payload.config.ts` from `site.manifest.json`; refuses to run if a field's `translatable` flag changed since the last run                      |
+| `bun run check:cms-drift`   | Fail (non-zero exit) if `payload.config.ts` is out of sync with `site.manifest.json` — run `gen:cms` and commit the result                              |
+| `bun run gen:importmap`     | Regenerate `app/(payload)/admin/importMap.js` from `payload.config.ts` — Payload resolves every admin component through it, and no build step writes it |
+| `bun run check:importmap`   | Fail (non-zero exit) if the committed import map is out of sync with `payload.config.ts` — run `gen:importmap` and commit the result                    |
+| `bun run seed`              | Load `content/*.json` into Payload; upserts by position, safe to re-run                                                                                 |
 
 ## Testing
 
@@ -230,6 +236,12 @@ seed`). Payload's database is now the sole authority for content and
   then hydrates with nested `<html>` inside `<body>` while still _looking_
   correct. `e2e/admin.spec.ts` fails on exactly that, and was checked against
   the broken arrangement as well as the fixed one.
+- **`app/(payload)/admin/importMap.js`** — generated by `bun run gen:importmap`,
+  committed, and read by Payload at runtime to resolve every admin component.
+  Nothing in `next build` or `next dev` rewrites it, so a component the config
+  registers but the map omits renders the panel blank behind a `200` (ADR-0016).
+  `bun run check:importmap` catches the drift; the config must not branch on
+  `process.env` in a way that changes what lands in the map.
 - **`payload.config.ts`** — generated by `bun run gen:cms` from
   `site.manifest.json`; never hand-edited (`bun run check:cms-drift` catches
   drift). `.payload-field-locales.json` is the generator's own snapshot of

@@ -22,6 +22,21 @@ test.describe('admin panel', () => {
     })
   }
 
+  /**
+   * A `200` from `/admin` is the server shell, not the panel. When a component
+   * the config registers is missing from `app/(payload)/admin/importMap.js`,
+   * Payload logs `getFromImportMap: PayloadComponent not found` on the server
+   * and renders nothing — the route still answers `200`, the document still
+   * carries a `<title>`, and the page is blank. That shipped to production
+   * once (ADR-0016). Asserting on a control only the mounted panel draws is
+   * what separates the two.
+   */
+  test('mounts the panel, not just the shell', async ({ page }) => {
+    await page.goto('/admin/login')
+    await expect(page.locator('input#field-email')).toBeVisible()
+    await expect(page.locator('input#field-password')).toBeVisible()
+  })
+
   test('serves exactly one <html> element', async ({ page }) => {
     await page.goto('/admin')
     // Not page.locator('html').count() — the browser's parser silently discards

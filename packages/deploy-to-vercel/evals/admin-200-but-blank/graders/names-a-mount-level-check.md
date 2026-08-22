@@ -1,0 +1,19 @@
+---
+type: regex
+target: last_message
+pattern: '(?=[\s\S]*(vercel logs|runtime logs?|browser console|console errors?|log(ging)? ?in|sign(ing)? ?in|load(ing)? a collection|collection list|login form))(?=[\s\S]*(blank|empty page|white (screen|page)|fails? to (mount|render)|missing (client component|import ?map entry)|import ?map))'
+match: contains
+matchExample: 'A 200 from /admin is the server shell; the panel can still fail to mount. Read `vercel logs` for an importMap error and log in to confirm a collection list renders.'
+---
+
+Naming the doubt without naming the instrument is the failure mode this
+grader exists for: "a 200 might not mean much" is not a check. The answer has
+to pair the specific symptom a status code cannot see — a blank page, a panel
+that fails to mount, a missing client component or import-map entry — with a
+concrete way to look for it: the deployment's runtime logs, the browser
+console, or actually signing in and loading a collection. Both halves are now
+required from disjoint vocabularies — "mount" alone no longer satisfies the
+method half, so "the panel may not mount because a client component is
+missing" (symptom only, no instrument) still fails, and naming only an
+instrument with no symptom still fails too. Either half alone leaves the next
+person doing exactly what the prompt did.

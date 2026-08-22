@@ -14,6 +14,8 @@
     "validate:manifest": "tsx scripts/validate-manifest.ts",
     "gen:cms": "tsx scripts/gen-cms.ts",
     "check:cms-drift": "tsx scripts/check-cms-drift.ts",
+    "gen:importmap": "bun scripts/gen-importmap.ts",
+    "check:importmap": "bun scripts/gen-importmap.ts --check",
     "seed": "bun scripts/seed.ts",
     "reset-media": "bun scripts/reset-media.ts",
     "verify:design": "figma-verify-design",

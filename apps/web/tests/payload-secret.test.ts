@@ -12,6 +12,10 @@ async function loadConfig() {
 describe('payload secret', () => {
   it('throws in production when PAYLOAD_SECRET is unset', async () => {
     vi.stubEnv('PAYLOAD_SECRET', '')
+    // A production config also requires blob storage for media (ADR-0014), and
+    // that guard runs first. This case is about the secret, so satisfy the
+    // other guard rather than let it decide the outcome.
+    vi.stubEnv('BLOB_READ_WRITE_TOKEN', 'vercel_blob_rw_test_token')
     vi.stubEnv('NODE_ENV', 'production')
     await expect(loadConfig()).rejects.toThrow(/PAYLOAD_SECRET must be set in production/)
   })

@@ -133,6 +133,18 @@ what loaded and what did not. It exits non-zero on a disagreement, and
 [`docs/parity-gaps.md`](docs/parity-gaps.md) is the gap list it was built from —
 what differed, why, and what was deferred.
 
+**A `200` from `/admin` is the shell, not the panel.** The admin is
+client-rendered: when a component the config registers is missing from the
+committed `app/(payload)/admin/importMap.js`, the route still answers `200` with
+a correct `<title>` and the page is blank, with
+`getFromImportMap: PayloadComponent not found` only in the deployment's runtime
+log. That shipped, because the blob-storage plugin was registered only when its
+token was set and the map was generated where it was not
+([ADR-0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md)).
+`bun run --cwd apps/web check:importmap` regenerates and diffs the map in CI, and
+`e2e/admin.spec.ts` asserts the login form renders rather than that the route
+answers.
+
 Point it at the **production** URL. Preview deployments are protected, so a
 preview URL answers with a login page; the report names that and declines to
 grade the sections, rather than reporting every section as missing
@@ -140,23 +152,24 @@ grade the sections, rather than reporting every section as missing
 
 ## Decisions
 
-| ADR                                                                            | Decision                                                                    |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                      | Next.js + Payload in a single repository                                    |
-| [0002](docs/decisions/0002-manifest-driven-generation.md)                      | Generate components, content, and schema from one manifest                  |
-| [0003](docs/decisions/0003-token-and-section-rebuild.md)                       | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
-| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                       | Phase 1 content stored in the CMS's shape                                   |
-| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)          | Payload native localization; `_en` suffix as interchange format             |
-| [0006](docs/decisions/0006-bun-as-package-manager.md)                          | Bun as package manager and script runner; Node.js as the runtime            |
-| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                     | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
-| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                  | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
-| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)             | Monorepo, with the Figma pipeline as a reusable package                     |
-| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                 | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
-| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                       | Every pull request carries a generated evidence pack                        |
-| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                      | The CMS step is a second skill, evals only, with no extracted code          |
-| [0013](docs/decisions/0013-deployment-configuration.md)                        | Deployment config in repository secrets/variables; sqlite is not serverless |
-| [0014](docs/decisions/0014-media-on-blob-storage.md)                           | Uploaded media on blob storage; a production build without it fails         |
-| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md) | A check that cannot confirm what it looked at says so, once                 |
+| ADR                                                                              | Decision                                                                    |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                        | Next.js + Payload in a single repository                                    |
+| [0002](docs/decisions/0002-manifest-driven-generation.md)                        | Generate components, content, and schema from one manifest                  |
+| [0003](docs/decisions/0003-token-and-section-rebuild.md)                         | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
+| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                         | Phase 1 content stored in the CMS's shape                                   |
+| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)            | Payload native localization; `_en` suffix as interchange format             |
+| [0006](docs/decisions/0006-bun-as-package-manager.md)                            | Bun as package manager and script runner; Node.js as the runtime            |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                       | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                    | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)               | Monorepo, with the Figma pipeline as a reusable package                     |
+| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                   | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
+| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                         | Every pull request carries a generated evidence pack                        |
+| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                        | The CMS step is a second skill, evals only, with no extracted code          |
+| [0013](docs/decisions/0013-deployment-configuration.md)                          | Deployment config in repository secrets/variables; sqlite is not serverless |
+| [0014](docs/decisions/0014-media-on-blob-storage.md)                             | Uploaded media on blob storage; a production build without it fails         |
+| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)   | A check that cannot confirm what it looked at says so, once                 |
+| [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md) | The admin import map must not depend on the environment that generated it   |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).

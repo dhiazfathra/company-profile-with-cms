@@ -262,6 +262,42 @@ curl -sL https://<your-app>.vercel.app/ | grep -oE 'src="/[^"]+"' | sort -u |
     curl -s -o /dev/null -w "%{http_code} $s\n" "https://<your-app>.vercel.app$s"; done
 ```
 
+**A `200` from a client-rendered panel proves the shell, not the panel.** An
+admin UI — Payload's `/admin`, and any equivalent single-page route — is a
+server-rendered shell that hydrates into the real interface. When hydration
+fails, the shell still returns `200` with a plausible `<title>`, and the page
+is blank. This repository shipped exactly that: `/admin` answered `200` while
+the browser console read
+
+```text
+getFromImportMap: PayloadComponent not found in importMap {
+  key: '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler', ...
+}
+```
+
+Two things separate a mounted panel from a blank one, and neither is a status
+code:
+
+```bash
+vercel logs <deployment-url>        # the mount error lands here, never in the build log
+curl -sL https://<your-app>.vercel.app/admin | grep -c 'data-payload\|__NEXT_DATA__'
+# then, actually: log in and load a collection list in a browser
+```
+
+**Generated files that are committed must not depend on the environment that
+generated them.** The blank panel above has a general cause worth carrying to
+any project: an artifact is generated on a laptop or in CI, committed, and
+consumed at runtime in production — while the generator reads an environment
+variable that is set in exactly one of those places. Payload's import map is
+generated from the config, and the config only registered its blob-storage
+plugin when `BLOB_READ_WRITE_TOKEN` was set, so the map committed from a
+machine without the token was missing a component production asked for. The
+fix is not to remember to regenerate: it is to make the generator's output
+independent of the environment (register the plugin unconditionally and pass
+it `enabled: false`) and to regenerate-and-diff in CI, the same way a schema
+or a lockfile is checked. Before you deploy, ask which committed generated
+files exist and whether any branch in their generator reads `process.env`.
+
 Two related facts, both learned here:
 
 - **A storage adapter fixes new uploads, not old rows.** Rows created before the

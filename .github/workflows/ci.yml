@@ -32,6 +32,11 @@ jobs:
       - run: bun run --cwd apps/web gen:cms
       - run: git diff --exit-code -- apps/web/payload.config.ts apps/web/.payload-field-locales.json
       - run: bun run --cwd apps/web check:cms-drift
+      # The import map is a committed, generated file that nothing in `next
+      # build` regenerates or validates: a component the config registers but
+      # the map omits makes /admin render blank at runtime while every check
+      # stays green (ADR-0015). This regenerates it and fails on a diff.
+      - run: bun run --cwd apps/web check:importmap
       - run: bun run lint
       - run: bun run test
       # payload.config.ts throws rather than fall back to its dev secret when
@@ -48,4 +53,4 @@ jobs:
       - run: bun run build
         env:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET || 'ci-build-secret' }}
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN || 'ci-placeholder-token' }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN || 'vercel_blob_rw_ciplaceholder_ciplaceholder' }}
