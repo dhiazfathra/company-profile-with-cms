@@ -1,0 +1,83 @@
+# Asks the deployment the questions no other workflow here can.
+#
+# ci.yml and e2e.yml both run entirely on the runner. That is why every image on
+# the deployed homepage could return 500 while both were green: the difference
+# only existed on the deployment, and nothing fetched it (ADR-0014).
+#
+# So this one runs against a URL rather than a checkout, after a deploy. It is
+# deliberately NOT on `push`: a run against a URL that has not been redeployed
+# yet reports the previous deployment's state as if it were this commit's, which
+# is a worse failure than no check at all. Trigger it by hand, or from a
+# deployment event once the Vercel project emits one.
+name: Parity
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Deployment URL to check
+        required: false
+        default: https://company-profile-with-cms-web.vercel.app
+  deployment_status:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: Three-way parity
+    # A deployment_status fires for every state and every environment; only a
+    # successful *production* deployment is what the default URL points at, and
+    # is worth fetching.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment == 'production')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # Not .nvmrc — that pins Node's version for the other workflows, and
+          # handing it to setup-bun asks for a Bun release with that number,
+          # which does not exist. This is the same version pinned elsewhere.
+          bun-version: 1.3.11
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium --with-deps
+
+      # --skip-local, and the report says so on its face: there is no dev server
+      # on this runner, so this run compares the design against the deployment
+      # and cannot tell a local-only defect from a deployment-only one. The
+      # three-way run is the local one, by hand.
+      #
+      # The URL goes through the environment rather than straight into the
+      # command line: target_url comes from the deployment event, which this
+      # workflow does not control the contents of, and interpolating it directly
+      # into `run:` would let shell metacharacters in that string execute.
+      #
+      # The production alias is preferred over the event's own target_url, which
+      # is a per-deployment URL. Per-deployment URLs are covered by Vercel's
+      # deployment protection, so an unauthenticated fetch of one lands on a
+      # login page — the run would then grade Vercel's sign-in form instead of
+      # this site. The report now names that rather than inventing eleven broken
+      # sections (ADR-0015), but a run that cannot see the site is still a run
+      # that told you nothing. What parity is about is what the public sees, and
+      # the public sees the alias.
+      - name: Check deployment against the design references
+        env:
+          PARITY_URL: ${{ github.event.inputs.url || vars.PRODUCTION_URL || 'https://company-profile-with-cms-web.vercel.app' }}
+        run: bun run parity-report --skip-local --prod "$PARITY_URL"
+
+      - name: Upload parity report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: parity-report
+          path: parity-report/
+          retention-days: 14

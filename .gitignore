@@ -63,6 +63,12 @@ design/captures/
 # bun run evidence output (report, PR section, run log)
 e2e-evidence/
 
+# bun run parity-report output (three-way report, html and json)
+parity-report/
+
+# Local agent scratch: worktrees, session state and per-machine launch config
+.claude/
+
 # Payload CMS (Phase 2): local dev database, its generated types, and the
 # media collection's local upload storage (seeded from public/img at runtime)
 apps/web/payload.db

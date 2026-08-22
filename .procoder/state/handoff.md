@@ -1,14 +1,16 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-22T02:54:28Z
-branch: vercel-deploy-skill — 8 ahead, 0 behind main
-head: 2d6836b
-dirty files: none (clean tree)
+
+generated: 2026-08-22T05:52:49Z
+branch: worktree-three-way-parity — 13 ahead, 0 behind main
+head: 7906e35
+dirty files: 1
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md
 index: none — `procoder index build` has not run here
+
 <!-- /procoder:facts -->
 
 ## Notes

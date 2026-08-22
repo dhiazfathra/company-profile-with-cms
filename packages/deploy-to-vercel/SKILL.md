@@ -209,9 +209,24 @@ curl -sL -o /dev/null -w '%{http_code}\n' https://<your-app>.vercel.app/
 curl -sL -o /dev/null -w '%{http_code}\n' https://<your-app>.vercel.app/admin   # if applicable
 ```
 
-`-L` follows redirects — a route that redirects to a locale prefix or a login
-page is healthy, and without `-L` you'd read its 30x as a failure. Know what
-final status counts as healthy for a redirecting route before you run this.
+`-L` follows redirects, so without it you would read a locale-prefix redirect
+as a failure. But `-L` also turns a redirect **away** from your app into a
+`200`, and that is a trap worth naming on its own:
+
+- **Check the production URL, not a preview URL.** Preview deployments with
+  deployment protection on answer `302` to a login page that itself returns
+  `200`. Every subsequent check then grades the login page: content greps miss,
+  section markers are absent, screenshots show a sign-in form. This project's
+  parity report reported eleven missing sections that way before it learned to
+  check whose page it was reading (ADR-0015 in this repo).
+- **Assert on something only your app emits** — a marker attribute, a known
+  heading — not merely on the status. A checker that cannot confirm it reached
+  your app should say that, not report on what it did reach.
+
+```bash
+curl -s -o /dev/null -w '%{http_code} %{url_effective}\n' -L https://<your-app>.vercel.app/
+# a final URL on a host you did not ask for is not your app answering
+```
 
 A `200` (or your route's correct final status) is necessary, not sufficient,
 if the route in question renders from data. Confirm the _content_ came from
@@ -233,6 +248,30 @@ read it back through the same path, and delete it afterward:
 turso db shell <name> "select count(*) from <a table the homepage reads>"   # your access — a start, not the proof
 # then, ideally: create/read/delete a real record through the app itself
 ```
+
+**Fetch the binaries too, not just the HTML.** An HTML page is rendered from
+database rows, and rows survive a deploy whether or not the files behind them
+do. If the app has uploads (Payload's `upload: true`, or any equivalent), every
+`<img src>` the page emits is a separate request that a green build and a `200`
+homepage say nothing about — this repository shipped a homepage whose 34 images
+all returned `500` while every check was green (ADR-0014):
+
+```bash
+curl -sL https://<your-app>.vercel.app/ | grep -oE 'src="/[^"]+"' | sort -u |
+  while read -r s; do s=${s#src=\"}; s=${s%\"}
+    curl -s -o /dev/null -w "%{http_code} $s\n" "https://<your-app>.vercel.app$s"; done
+```
+
+Two related facts, both learned here:
+
+- **A storage adapter fixes new uploads, not old rows.** Rows created before the
+  adapter was configured point at files that were never on the host. Setting the
+  token repairs nothing; the collection has to be reseeded.
+- **A variable set `--sensitive` cannot be pulled back.** `vercel env pull`
+  returns the literal `[SENSITIVE]` for it, and a script fed that value fails
+  with a confusing parse or format error rather than an auth error. That is the
+  setting working as intended: a data migration against production is run by the
+  account owner in their own shell, not by anything that only has the repo.
 
 If anything is wrong, read runtime logs — not the build log, which never
 touches this path:

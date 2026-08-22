@@ -26,6 +26,10 @@ describe('payload secret', () => {
 
   it('uses PAYLOAD_SECRET when set, even in production', async () => {
     vi.stubEnv('PAYLOAD_SECRET', 'super-secret')
+    // A production config also requires blob storage for media (ADR-0014).
+    // This case is about the secret, so satisfy the other guard rather than
+    // let it decide the outcome.
+    vi.stubEnv('BLOB_READ_WRITE_TOKEN', 'vercel_blob_rw_test_token')
     vi.stubEnv('NODE_ENV', 'production')
     const config = (await loadConfig()).default
     const resolved = await config

@@ -36,6 +36,10 @@ bun run dev          # the site at http://localhost:3000
 bun run test         # the site's suite and both skills' suites
 ```
 
+[`docs/reproduce.md`](docs/reproduce.md) is the long version: clone to running
+site to working deployment, one section per skill in the order they were run,
+including which steps cannot run in CI and why.
+
 The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
 `bun run --cwd apps/web gen:cms` generates its config from
 `apps/web/site.manifest.json`; `bun run --cwd apps/web seed` loads
@@ -98,23 +102,61 @@ admin UI ──writes a value no fixture contains──> Payload ──> lib/con
 proof, and it is verified in the failing direction: hardcode the headline back into
 the component and it must go red.
 
+## Deploying
+
+Three of the four deployment variables have a failure mode worth naming here
+(the fourth, `DATABASE_AUTH_TOKEN`, just refuses to authenticate — see
+[`apps/web/README.md`](apps/web/README.md) for the full table). Two of the
+three below are traps a green build says nothing about.
+`PAYLOAD_SECRET` fails the build loudly. `DATABASE_URI` left on its `file:`
+default builds green and loses every editor save. `BLOB_READ_WRITE_TOKEN` is now
+required in production too — without it, uploaded media goes to a filesystem the
+deployment does not keep, so the media rows survive in the remote database while
+the files stay on the machine that ran the seed and every image 500s behind a
+green build. That one already shipped; [ADR-0014](docs/decisions/0014-media-on-blob-storage.md)
+is the account. Setting the token does not repair existing rows, and a plain
+reseed keeps them: `uploadImage` reuses a row it finds by `sourcePath`, so the
+pre-blob rows are exactly the ones it skips. Clear the collection first —
+`bun run --cwd apps/web reset-media`, then `seed`.
+
+Details in [`apps/web/README.md`](apps/web/README.md), the sequence in
+[`packages/deploy-to-vercel/SKILL.md`](packages/deploy-to-vercel/SKILL.md).
+
+**After deploying, check the deployment.** `bun run evidence` runs entirely on
+your machine, so it cannot see a difference that only exists on the host — which
+is how the media defect above shipped behind four green checks.
+`bun run parity-report` asks the Figma references, the local server and the
+deployment the same questions and writes `parity-report/report.html`: each
+section's design reference, local render and deployed render side by side, plus
+what loaded and what did not. It exits non-zero on a disagreement, and
+`.github/workflows/parity.yml` runs it against a deployment URL.
+[`docs/parity-gaps.md`](docs/parity-gaps.md) is the gap list it was built from —
+what differed, why, and what was deferred.
+
+Point it at the **production** URL. Preview deployments are protected, so a
+preview URL answers with a login page; the report names that and declines to
+grade the sections, rather than reporting every section as missing
+([ADR-0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)).
+
 ## Decisions
 
-| ADR                                                                   | Decision                                                                    |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)             | Next.js + Payload in a single repository                                    |
-| [0002](docs/decisions/0002-manifest-driven-generation.md)             | Generate components, content, and schema from one manifest                  |
-| [0003](docs/decisions/0003-token-and-section-rebuild.md)              | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
-| [0004](docs/decisions/0004-content-json-in-cms-shape.md)              | Phase 1 content stored in the CMS's shape                                   |
-| [0005](docs/decisions/0005-native-localization-suffix-interchange.md) | Payload native localization; `_en` suffix as interchange format             |
-| [0006](docs/decisions/0006-bun-as-package-manager.md)                 | Bun as package manager and script runner; Node.js as the runtime            |
-| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)            | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
-| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)         | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
-| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)    | Monorepo, with the Figma pipeline as a reusable package                     |
-| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)        | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
-| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)              | Every pull request carries a generated evidence pack                        |
-| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)             | The CMS step is a second skill, evals only, with no extracted code          |
-| [0013](docs/decisions/0013-deployment-configuration.md)               | Deployment config in repository secrets/variables; sqlite is not serverless |
+| ADR                                                                            | Decision                                                                    |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                      | Next.js + Payload in a single repository                                    |
+| [0002](docs/decisions/0002-manifest-driven-generation.md)                      | Generate components, content, and schema from one manifest                  |
+| [0003](docs/decisions/0003-token-and-section-rebuild.md)                       | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
+| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                       | Phase 1 content stored in the CMS's shape                                   |
+| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)          | Payload native localization; `_en` suffix as interchange format             |
+| [0006](docs/decisions/0006-bun-as-package-manager.md)                          | Bun as package manager and script runner; Node.js as the runtime            |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                     | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                  | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)             | Monorepo, with the Figma pipeline as a reusable package                     |
+| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                 | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
+| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                       | Every pull request carries a generated evidence pack                        |
+| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                      | The CMS step is a second skill, evals only, with no extracted code          |
+| [0013](docs/decisions/0013-deployment-configuration.md)                        | Deployment config in repository secrets/variables; sqlite is not serverless |
+| [0014](docs/decisions/0014-media-on-blob-storage.md)                           | Uploaded media on blob storage; a production build without it fails         |
+| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md) | A check that cannot confirm what it looked at says so, once                 |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
