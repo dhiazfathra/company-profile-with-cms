@@ -57,7 +57,7 @@ collection was missing anywhere — which is worth stating plainly, because "the
 deployment is missing features" was the starting hypothesis and it was wrong.
 The features were all there; their images were not.
 
-## Closed, with a manual step
+## Closed, after one manual step
 
 **The Vercel Blob store is provisioned and linked.** Created via the dashboard
 (needed a human — not something this work could do on its own), and
@@ -94,15 +94,24 @@ GET /api/media?limit=50  -> 18 docs, filenames match
 blob.vercel-storage.com  -> 18 pathnames, identical set
 ```
 
-**Production still returns 500 for them, and that is expected: the blob adapter
-is not deployed yet.** The running production build predates it, so its
-`/api/media/file/<name>` handler still looks on local disk. Nothing further is
-required beyond **merging the PR** — the next production deploy picks up the
-adapter and the rows already point where it will look.
+**PR #8 has since merged (`bc36f77`), the production deploy picked up the
+adapter, and the gap is closed.** Between the reseed and that deploy production
+still answered 500, which was the expected intermediate state rather than a
+second defect: the rows already pointed at blob storage while the running build
+still resolved `/api/media/file/<name>` on local disk. After the deploy:
 
 ```text
-GET /api/media/file/header-30.png  -> 500   (deployed code has no blob adapter)
+GET /api/media/file/header-30.png -> 200
+GET /api/media/file/logo-190.png  -> 200
+GET /api/media/file/check-33.svg  -> 200
+GET /admin                        -> 200
+homepage                          -> 18 distinct media URLs, all resolving
+bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
+                                  -> 0 disagreement(s)
 ```
+
+That last line is the whole gap list reduced to one command with nothing left in
+it, which is the point of having built it.
 
 The filenames keep their collision suffixes (`header-30.png`, `logo-190.png`).
 That is cosmetic and deliberate to leave alone: Payload derives a suffix from

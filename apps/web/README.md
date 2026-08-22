@@ -20,11 +20,10 @@ Deployed URL: https://company-profile-with-cms-web.vercel.app/ — the Vercel
 Blob store is provisioned and `BLOB_READ_WRITE_TOKEN` is set (PR #8's build
 went green on it), and `apps/web/scripts/reset-media.ts` has been run once
 against production: 18 media rows recreated through the adapter, with the same
-18 files present in the blob store. Media on this deployment stays broken until
-**PR #8 merges**, because the running build predates the adapter and still
-resolves `/api/media/file/…` on local disk — verified 2026-08-22,
-`/api/media/file/header-30.png` answers `500`. The rows already point where the
-next deploy will look, so the merge is the whole remaining fix. Check the
+18 files present in the blob store. Verified working on 2026-08-22 after PR #8
+merged and redeployed: every one of the homepage's 18 media URLs answers `200`,
+`/admin` answers `200`, and `bun run parity-report --skip-local --prod <url>`
+reports 0 disagreements. Check the
 production URL above, not a preview URL — preview deployments are protected and
 serve a login page to anything unauthenticated. See
 [docs/parity-gaps.md](../../docs/parity-gaps.md).
