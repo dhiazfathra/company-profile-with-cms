@@ -167,7 +167,7 @@ function pageReport(page, dir, collected, exitCode) {
     '',
     `| Figure | Value | Read from |`,
     `| --- | --- | --- |`,
-    `| Fields under test | ${new Set(collected.log.filter((l) => l.event === 'case').map((l) => l.field)).size} of ${info.fields.length} discovered | \`logs/cases.jsonl\` |`,
+    `| Fields with a completed case | ${new Set(collected.log.filter((l) => l.event === 'case').map((l) => l.field)).size} of ${info.fields.length} discovered | \`logs/cases.jsonl\` |`,
     `| Cases in the matrix | ${collected.tests.length} | \`logs/results.json\` |`,
     `| Cases passed | ${passed} | \`logs/results.json\` |`,
     `| Cases failed | ${failed.length} | \`logs/results.json\` |`,

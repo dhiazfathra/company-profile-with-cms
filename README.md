@@ -67,7 +67,8 @@ for the site's own detail.
 ## Commands
 
 Each root command delegates to the workspace that owns it, so the names work from
-either place.
+either place — except `cms:e2e`, which only resolves from the repository root
+(see [below](#the-cms-field-matrix)).
 
 | Command                     | Description                                                                                      |
 | --------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -124,7 +125,9 @@ the component and it must go red.
 ### The CMS field matrix
 
 The round trip proves one field. `bun run cms:e2e <Page>` does it for every
-field on a page, with the cases an editor finds on their own eventually — unicode,
+supported, visible field on a page (`casesFor()` skips fields it has no
+template for, and the panel has no input for `admin.hidden` fields), with the
+cases an editor finds on their own eventually — unicode,
 quotes, whitespace, 5000 characters, script tags — and both halves of persistence:
 the value re-read from the database, and the value in the HTML the server sent.
 
