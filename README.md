@@ -49,6 +49,13 @@ and what the checks still cannot see) behind a toggle. Its figures come from the
 gates named in this README; regenerate them there and update the page rather
 than editing a number into it.
 
+[`docs/showcase/v2.html`](docs/showcase/v2.html) is that same document in a
+second design language — paper ground, one accent, hairlines instead of card
+fills, a light/dark toggle and a table of contents alongside the technical
+record. The prose, the figures and the elements are byte-for-byte those of
+`index.html`; only the presentation differs, so a correction to one has to be
+made in both.
+
 The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
 `bun run --cwd apps/web gen:cms` generates its config from
 `apps/web/site.manifest.json`; `bun run --cwd apps/web seed` loads
