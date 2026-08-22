@@ -1659,11 +1659,11 @@ $ bun run parity-report --skip-local --prod https://company-profile-with-cms-web
 
         <section class="band wrap" id="checks">
           <div class="band-head rev">
-            <span class="eyebrow">02 · The two checks</span>
-            <h2>Both are verified in the failing direction.</h2>
+            <span class="eyebrow">02 · The three checks</span>
+            <h2>Each is verified in the failing direction.</h2>
             <p>
-              A detector that has only ever seen clean input is not known to detect anything. Both
-              checks below are proven by breaking the thing they watch and requiring red.
+              A detector that has only ever seen clean input is not known to detect anything. Each
+              check below is proven by breaking the thing it watches and requiring red.
             </p>
           </div>
 
@@ -2616,6 +2616,7 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
         for (const key of Object.keys(panels)) {
           panels[key].hidden = key !== view
           tabs[key].setAttribute('aria-selected', String(key === view))
+          tabs[key].tabIndex = key === view ? 0 : -1
         }
         if (scrollTop) window.scrollTo({ top: 0, behavior: 'auto' })
         reveal()
@@ -2625,16 +2626,22 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
         el.addEventListener('click', () => setView(el.dataset.viewBtn))
       })
 
+      // 'top' deliberately excluded: the header logo links to #top from either
+      // view, and it must not force story when read from documentation.
+      const STORY_IDS = new Set(['outcome', 'what'])
+
       function viewForHash(hash) {
         const id = hash.replace(/^#/, '')
         if (!id) return null
-        return DOC_IDS.has(id) ? 'docs' : 'story'
+        if (DOC_IDS.has(id)) return 'docs'
+        // An unrecognised fragment (a stale bookmark, an external link) keeps
+        // whichever view is already open rather than forcing story.
+        return STORY_IDS.has(id) ? 'story' : null
       }
 
       function syncFromHash() {
         const view = viewForHash(location.hash)
-        if (!view) return
-        setView(view, { scrollTop: false })
+        if (view) setView(view, { scrollTop: false })
         const target = document.getElementById(location.hash.slice(1))
         if (target) target.scrollIntoView({ block: 'start' })
       }
@@ -2678,11 +2685,20 @@ bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</
         document.querySelectorAll('.rev:not(.in)').forEach((el) => el.classList.add('in')),
       )
 
-      // ── Keyboard: left/right between the two tabs, as a tablist should.
+      // ── Keyboard: left/right/home/end between the two tabs, as a tablist should.
       Object.values(tabs).forEach((tab) => {
         tab.addEventListener('keydown', (event) => {
-          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
-          const next = tab === tabs.story ? tabs.docs : tabs.story
+          let next
+          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            next = tab === tabs.story ? tabs.docs : tabs.story
+          } else if (event.key === 'Home') {
+            next = tabs.story
+          } else if (event.key === 'End') {
+            next = tabs.docs
+          } else {
+            return
+          }
+          event.preventDefault()
           setView(next.dataset.viewBtn)
           next.focus()
         })

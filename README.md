@@ -4,13 +4,14 @@
 
 A monorepo with three outputs from one piece of work:
 
-| Workspace                                          | What it is                                                                                                            |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [`apps/web`](apps/web)                             | A Figma design built as a manifest-driven Next.js site, now backed by Payload CMS, with no copy rework between phases |
-| [`packages/figma-to-site`](packages/figma-to-site) | Step one as a reusable skill: capture a Figma file by screenshot with no paid seat, and prove the render matches      |
-| [`packages/site-to-cms`](packages/site-to-cms)     | Step two: move that page's content into a CMS, and prove the page actually reads from it                              |
+| Workspace                                                | What it is                                                                                                            |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`apps/web`](apps/web)                                   | A Figma design built as a manifest-driven Next.js site, now backed by Payload CMS, with no copy rework between phases |
+| [`packages/figma-to-site`](packages/figma-to-site)       | Step one as a reusable skill: capture a Figma file by screenshot with no paid seat, and prove the render matches      |
+| [`packages/site-to-cms`](packages/site-to-cms)           | Step two: move that page's content into a CMS, and prove the page actually reads from it                              |
+| [`packages/deploy-to-vercel`](packages/deploy-to-vercel) | Step three: deploy to Vercel from a fresh machine, and verify the deployment rather than stopping at a green build    |
 
-The site is the instance. The two skills are the transferable part, and each exists
+The site is the instance. The three skills are the transferable part, and each exists
 because of a failure the site had already shipped or nearly shipped.
 
 [`figma-to-site`](packages/figma-to-site/SKILL.md) comes from a hero section that
