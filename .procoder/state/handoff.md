@@ -1,10 +1,10 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-22T03:35:11Z
-branch: detached HEAD at 93ee5b1
-head: 93ee5b1
-dirty files: 2
+generated: 2026-08-22T03:44:26Z
+branch: detached HEAD at 7515344
+head: 7515344
+dirty files: 1
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none
 unlearned lessons: none — no ledger at .procoder/github/LESSONS.md
