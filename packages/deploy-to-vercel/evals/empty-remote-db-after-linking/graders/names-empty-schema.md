@@ -1,7 +1,7 @@
 ---
 type: regex
 target: last_message
-pattern: '(?=[\s\S]*(zero tables|no schema|no tables|empty database))(?=[\s\S]*(?<!not )(?<!n''t )(?<!never )(?<!won''t )(?<!don''t )(?<!doesn''t )(migrat|seed))'
+pattern: '(?=[\s\S]*(zero tables|no schema|no tables|empty database))(?=[\s\S]*(run|apply|push|must|need to)[^.!?\n]{0,30}(migrat|seed))'
 match: contains
 matchExample: 'a freshly created database has zero tables — you need to push schema and seed it before anyone edits content'
 ---
