@@ -154,8 +154,14 @@ message.
   deletes the collection so the next seed creates every row fresh, through blob
   storage, with no duplicates — verified locally (18 rows → 0 → 18, one row per
   `sourcePath`) and covered by `apps/web/tests/reset-media.test.ts`. It is a
-  one-off migration, not a pipeline step, and refuses to run in production
-  without the token for the same reason the config does.
+  one-off migration, not a pipeline step, and it refuses to delete anything
+  unless `BLOB_READ_WRITE_TOKEN` is both present and shaped like a blob token.
+  Not gated on `NODE_ENV`: the invocation that matters passes production
+  credentials through the environment and never sets it, so a `NODE_ENV` guard
+  would be open exactly when it counts. The shape check exists because
+  `vercel env pull` writes the literal `[SENSITIVE]` for a variable flagged
+  Sensitive, and a presence-only check would accept it, delete every row, and
+  then fail the reseed — leaving production with no media at all.
 - **The throw is not a proof that the images resolve.** It makes the
   _misconfiguration_ impossible to deploy, which is a different claim. The gate
   that closes the remaining gap is `bun run parity-report`: it fetches every

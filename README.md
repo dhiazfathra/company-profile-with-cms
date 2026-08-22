@@ -114,7 +114,10 @@ required in production too — without it, uploaded media goes to a filesystem t
 deployment does not keep, so the media rows survive in the remote database while
 the files stay on the machine that ran the seed and every image 500s behind a
 green build. That one already shipped; [ADR-0014](docs/decisions/0014-media-on-blob-storage.md)
-is the account. Setting the token does not repair existing rows — reseed.
+is the account. Setting the token does not repair existing rows, and a plain
+reseed keeps them: `uploadImage` reuses a row it finds by `sourcePath`, so the
+pre-blob rows are exactly the ones it skips. Clear the collection first —
+`bun run --cwd apps/web reset-media`, then `seed`.
 
 Details in [`apps/web/README.md`](apps/web/README.md), the sequence in
 [`packages/deploy-to-vercel/SKILL.md`](packages/deploy-to-vercel/SKILL.md).

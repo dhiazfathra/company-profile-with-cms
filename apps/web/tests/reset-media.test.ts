@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getPayload } from '../lib/payload'
 import { loadManifest } from '../scripts/gen-cms'
+import { assertUsableBlobToken, resetMedia } from '../scripts/reset-media'
 import { seedAll } from '../scripts/seed'
 
 /**
@@ -24,10 +25,9 @@ describe('reset-media', () => {
       const before = await payload.find({ collection: 'media', limit: 0 })
       expect(before.totalDocs).toBeGreaterThan(0)
 
-      for (const doc of before.docs) {
-        await payload.delete({ collection: 'media', id: doc.id })
-      }
-      expect((await payload.find({ collection: 'media', limit: 0 })).totalDocs).toBe(0)
+      // resetMedia, not a reimplementation of it: the value of this test is that
+      // it breaks when the command that runs against production breaks.
+      expect(await resetMedia(payload)).toBe(before.totalDocs)
 
       await seedAll(payload, manifest)
 
@@ -38,4 +38,29 @@ describe('reset-media', () => {
       expect(new Set(sourcePaths).size).toBe(sourcePaths.length)
     },
   )
+})
+
+/**
+ * The guard is the only thing standing between a mistyped invocation and an
+ * empty production media collection, so it is tested in the failing direction
+ * too. `[SENSITIVE]` is the specific value `vercel env pull` writes for a
+ * variable flagged Sensitive, and the documented command pipes that file
+ * straight into this script.
+ */
+describe('reset-media refuses to delete without a usable token', () => {
+  it('accepts a real blob token', () => {
+    expect(() => assertUsableBlobToken('vercel_blob_rw_store123_abcdef')).not.toThrow()
+  })
+
+  it('refuses when the token is absent', () => {
+    expect(() => assertUsableBlobToken(undefined)).toThrow(/is not set/)
+  })
+
+  it('refuses the redacted value vercel env pull writes for a Sensitive variable', () => {
+    expect(() => assertUsableBlobToken('[SENSITIVE]')).toThrow(/redacted/)
+  })
+
+  it('refuses a value of the wrong shape rather than deleting against it', () => {
+    expect(() => assertUsableBlobToken('changeme')).toThrow(/not a blob token/)
+  })
 })

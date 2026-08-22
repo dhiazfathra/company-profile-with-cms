@@ -90,15 +90,36 @@ GET /api/media/file/check-33.svg    -> 500
 bun run parity-report --skip-local  -> 8 sections fail, 34 images, every one a 500
 ```
 
-Run once, against production, after this PR merges and Vercel redeploys `main`:
+Run once, against production, after this PR merges and Vercel redeploys `main`.
+**`vercel env pull` cannot supply these values** — see the section below — so the
+three credentials come from where they were created (the Turso dashboard, and the
+Blob store's own page), not from a pull:
 
 ```bash
-vercel env pull --environment production apps/web/.env.production.local
-bun run --env-file=.env.production.local --cwd apps/web reset-media
-bun run --env-file=.env.production.local --cwd apps/web seed
-rm apps/web/.env.production.local
-bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
+cd apps/web
+export DATABASE_URI='libsql://<your-db>.turso.io'
+export DATABASE_AUTH_TOKEN='<from the Turso dashboard>'
+export BLOB_READ_WRITE_TOKEN='vercel_blob_rw_...'   # from the Blob store page
+bun run reset-media          # refuses unless the blob token is real, see below
+bun run seed
+unset DATABASE_URI DATABASE_AUTH_TOKEN BLOB_READ_WRITE_TOKEN
+cd ../.. && bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
 ```
+
+`reset-media` deletes rows before `seed` recreates them, so it refuses to start
+unless `BLOB_READ_WRITE_TOKEN` is present **and** shaped like a blob token. Both
+halves of that guard are load-bearing, and the earlier version of this document
+had neither:
+
+- It was gated on `NODE_ENV === 'production'`, which an `--env-file` invocation
+  never sets — the guard sat open on precisely the run that can destroy data.
+- A presence-only check accepts the string `[SENSITIVE]`, so the rows would be
+  deleted and the reseed would then fail on
+  `Invalid token format for Vercel Blob adapter`, leaving production with **no**
+  media rows. That is worse than the broken images this is meant to fix.
+
+`apps/web/tests/reset-media.test.ts` covers the guard in both directions,
+including the literal `[SENSITIVE]` case.
 
 ### Why this one step is yours and not this work's
 

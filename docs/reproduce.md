@@ -202,14 +202,23 @@ disk; the database is remote, so the media _rows_ survived every deploy while th
 _files_ stayed on the machine that ran the seed, and every image on the deployed
 homepage returned 500 from `/api/media/file/…` behind a green build. Create a
 Vercel Blob store, link it to the project so Vercel injects
-`BLOB_READ_WRITE_TOKEN` into its builds, and **reseed** — setting the token does
-not backfill rows that point at files which were never on the host. Reseeding a
-database that already has duplicate rows for the same asset is not
-deterministic: `uploadImage`'s lookup takes the first matching row without a
-defined order, so it can bind a section to whichever duplicate the query happens
-to return. Start from a fresh database, or delete the duplicates first, rather
-than reseed in place. [ADR-0014](decisions/0014-media-on-blob-storage.md) has
-the full account.
+`BLOB_READ_WRITE_TOKEN` into its builds, then **clear the media collection and
+seed it again** — setting the token does not backfill rows that point at files
+which were never on the host:
+
+```bash
+bun run --cwd apps/web reset-media    # refuses without a real blob token
+bun run --cwd apps/web seed
+```
+
+A plain reseed is not enough, and deleting only the visible duplicates is not
+enough either. `uploadImage` finds a row by `sourcePath` and reuses it, so any
+surviving pre-blob row is silently kept — exactly the row that has no file
+behind it. With duplicates present the choice is not even deterministic: the
+lookup takes the first match without a defined order, so a section can bind to
+whichever duplicate the query happens to return. `reset-media` deletes all of
+them so the seed recreates every row through the current adapter.
+[ADR-0014](decisions/0014-media-on-blob-storage.md) has the full account.
 
 Set every variable `apps/web/.env.example` documents, pipe secret values in from
 a file rather than typing them, then deploy and verify the running app rather than
