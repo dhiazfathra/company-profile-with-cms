@@ -1,0 +1,64 @@
+# Asks the deployment the questions no other workflow here can.
+#
+# ci.yml and e2e.yml both run entirely on the runner. That is why every image on
+# the deployed homepage could return 500 while both were green: the difference
+# only existed on the deployment, and nothing fetched it (ADR-0014).
+#
+# So this one runs against a URL rather than a checkout, after a deploy. It is
+# deliberately NOT on `push`: a run against a URL that has not been redeployed
+# yet reports the previous deployment's state as if it were this commit's, which
+# is a worse failure than no check at all. Trigger it by hand, or from a
+# deployment event once the Vercel project emits one.
+name: Parity
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Deployment URL to check
+        required: false
+        default: https://company-profile-with-cms-web.vercel.app
+  deployment_status:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: Three-way parity
+    # A deployment_status fires for every state; only a live deployment is worth
+    # fetching, and only the production one is what this URL points at.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .nvmrc
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install chromium --with-deps
+
+      # --skip-local, and the report says so on its face: there is no dev server
+      # on this runner, so this run compares the design against the deployment
+      # and cannot tell a local-only defect from a deployment-only one. The
+      # three-way run is the local one, by hand.
+      - name: Check deployment against the design references
+        run: >-
+          bun run parity-report --skip-local --prod
+          "${{ github.event.inputs.url || github.event.deployment_status.target_url }}"
+
+      - name: Upload parity report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: parity-report
+          path: parity-report/
+          retention-days: 14

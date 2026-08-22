@@ -28,7 +28,7 @@ describe('media blob storage', () => {
     vi.stubEnv('BLOB_READ_WRITE_TOKEN', '')
     vi.stubEnv('NODE_ENV', 'test')
     const resolved = await (await loadConfig()).default
-    expect(resolved.upload?.adapter).toBeUndefined()
+    expect(resolved.upload.adapters).toEqual([])
   })
 
   it('registers the blob adapter for media when the token is set', async () => {

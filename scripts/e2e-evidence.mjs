@@ -147,8 +147,19 @@ run('bun', ['run', 'lint'])
  */
 const SECRET = process.env.PAYLOAD_SECRET ?? 'evidence-secret'
 
+/**
+ * `next build` runs with NODE_ENV=production, so the blob-storage guard added in
+ * ADR-0014 fires here too. A placeholder satisfies it: this build compiles and
+ * collects page data, it never uploads a file, so the value is never used for
+ * anything. What that means for the reader is recorded in the pack's blind
+ * spots — a green build here says nothing about whether blob storage is
+ * actually configured on the deployment. `bun run parity-report` is what
+ * answers that, by fetching the images.
+ */
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN ?? 'evidence-placeholder-token'
+
 const buildStart = Date.now()
-run('bun', ['run', 'build'], { env: { PAYLOAD_SECRET: SECRET } })
+run('bun', ['run', 'build'], { env: { PAYLOAD_SECRET: SECRET, BLOB_READ_WRITE_TOKEN: BLOB_TOKEN } })
 const exportIndex = join(WEB, 'out/index.html')
 const buildMode =
   existsSync(exportIndex) && statSync(exportIndex).mtimeMs >= buildStart
@@ -538,6 +549,13 @@ ${proofs.map((p) => `| ${p.what} | ${p.expected} | \`${p.observed}\` |`).join('\
   signs in as.
 - \`claude plugin eval\` itself is not run: it is early-access gated. What is proven
   is that the suite is well-formed and that the check proving it can fail.
+- Everything here runs against this machine. Nothing in this pack fetches the
+  deployment, so it cannot see a difference that only exists there — which is
+  exactly how every image on the deployed homepage came to return 500 behind a
+  green pack (ADR-0014). The build above is satisfied with a placeholder
+  \`BLOB_READ_WRITE_TOKEN\`, so its passing says nothing about whether media
+  storage is configured where it matters. \`bun run parity-report\` is the check
+  that asks the deployment itself.
 `,
 )
 
@@ -656,6 +674,12 @@ ${REPORT_CSS}
       nothing about editor permissions beyond the one account it signs in as.</li>
     <li><code>claude plugin eval</code> itself is not run: it is early-access gated. What is proven
       is that the suite is well-formed and that the check proving it can fail.</li>
+    <li>Everything here runs against this machine. Nothing in this pack fetches the deployment, so
+      it cannot see a difference that only exists there — which is exactly how every image on the
+      deployed homepage came to return 500 behind a green pack (ADR-0014). The build is satisfied
+      with a placeholder <code>BLOB_READ_WRITE_TOKEN</code>, so its passing says nothing about
+      whether media storage is configured where it matters. <code>bun run parity-report</code> is
+      the check that asks the deployment itself.</li>
   </ul>
 </main>
 `,

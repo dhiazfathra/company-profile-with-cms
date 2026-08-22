@@ -33,10 +33,13 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install chromium --with-deps
 
+      # BLOB_READ_WRITE_TOKEN is required in production too (ADR-0014); a
+      # placeholder satisfies a build that never uploads a file.
       - name: Build
         run: bun run build
         env:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET || 'ci-build-secret' }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN || 'ci-placeholder-token' }}
 
       # The e2e suite's webServer runs `next dev` against a fresh sqlite db
       # (see apps/web/playwright.config.ts) — without this, every image field

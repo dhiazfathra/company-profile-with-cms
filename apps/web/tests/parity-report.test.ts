@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error — plain .mjs script, no types
 import {
   agrees,
   imageSrcs,

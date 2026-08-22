@@ -40,6 +40,12 @@ jobs:
       # request from a fork gets no secrets, and a build that fails there for
       # want of a value that is not a real credential teaches contributors to
       # ignore red checks. The repository secret is what CI uses when it has one.
+      # BLOB_READ_WRITE_TOKEN is required in production for the same reason and
+      # by the same mechanism (ADR-0014). A placeholder is honest here: this
+      # build compiles and collects page data, it never uploads a file. It also
+      # means a green build proves nothing about media storage on the
+      # deployment — `bun run parity-report` is what checks that.
       - run: bun run build
         env:
           PAYLOAD_SECRET: ${{ secrets.PAYLOAD_SECRET || 'ci-build-secret' }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN || 'ci-placeholder-token' }}
