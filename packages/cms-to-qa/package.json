@@ -1,0 +1,31 @@
+{
+  "name": "cms-to-qa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn a CMS field matrix run into the evidence pack a manual QA tester signs SIT off with.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./scenarios": "./src/scenarios.mjs",
+    "./report-html": "./src/report-html.mjs",
+    "./workbook": "./src/workbook.mjs"
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "src",
+    "evals"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}

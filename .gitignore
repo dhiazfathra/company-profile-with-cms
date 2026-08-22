@@ -74,3 +74,8 @@ parity-report/
 apps/web/payload.db
 apps/web/payload-types.ts
 apps/web/media/
+test-evidence/
+
+# Local agent index (procoder), regenerated per machine
+.procoder/index/
+.serena/
