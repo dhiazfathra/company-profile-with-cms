@@ -81,7 +81,36 @@ fresh through blob storage and duplicates cannot survive (verified locally:
 `apps/web/tests/reset-media.test.ts`). It refuses to run in production without
 `BLOB_READ_WRITE_TOKEN` set, for the same reason `payload.config.ts` does.
 
-**Still broken on production as of 2026-08-22, and confirmed so, not assumed:**
+**The reseed has now run** (2026-08-22, against
+`libsql://company-profile-cms-dhiazfathra.aws-ap-northeast-1.turso.io`): 18 media
+rows deleted, 18 recreated through the blob adapter, one per `sourcePath`, and
+the blob store holds exactly the 18 files those rows name. Verified against both
+sides rather than inferred from an exit code:
+
+```text
+reset-media  -> Target: libsql://company-profile-cms-…turso.io; 18 row(s) deleted
+seed         -> 18 rows, ids 1..18, one per sourcePath
+GET /api/media?limit=50  -> 18 docs, filenames match
+blob.vercel-storage.com  -> 18 pathnames, identical set
+```
+
+**Production still returns 500 for them, and that is expected: the blob adapter
+is not deployed yet.** The running production build predates it, so its
+`/api/media/file/<name>` handler still looks on local disk. Nothing further is
+required beyond **merging the PR** — the next production deploy picks up the
+adapter and the rows already point where it will look.
+
+```text
+GET /api/media/file/header-30.png  -> 500   (deployed code has no blob adapter)
+```
+
+The filenames keep their collision suffixes (`header-30.png`, `logo-190.png`).
+That is cosmetic and deliberate to leave alone: Payload derives a suffix from
+files already in the store, the DB row and the blob object agree on the name, and
+there is exactly one row per asset. Renaming them would mean emptying the blob
+store, which buys tidier URLs and nothing else.
+
+**Before that reseed, the state was — confirmed, not assumed:**
 
 ```text
 GET /api/media/file/header-30.png   -> 500
@@ -90,7 +119,8 @@ GET /api/media/file/check-33.svg    -> 500
 bun run parity-report --skip-local  -> 8 sections fail, 34 images, every one a 500
 ```
 
-Run once, against production, after this PR merges and Vercel redeploys `main`.
+The procedure, kept here because it is the one to repeat if the media collection
+ever has to be rebuilt again.
 **`vercel env pull` cannot supply these values** — see the section below — so the
 three credentials come from where they were created (the Turso dashboard, and the
 Blob store's own page), not from a pull:

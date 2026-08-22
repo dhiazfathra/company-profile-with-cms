@@ -18,11 +18,13 @@ request time (see "Adding a language" below for why).
 
 Deployed URL: https://company-profile-with-cms-web.vercel.app/ — the Vercel
 Blob store is provisioned and `BLOB_READ_WRITE_TOKEN` is set (PR #8's build
-went green on it); media on this deployment stays broken until that PR merges
-and `apps/web/scripts/reset-media.ts` is run once against production, because
-the existing rows predate blob storage. Verified still broken on 2026-08-22:
-`/api/media/file/header-30.png` answers `500`, and
-`bun run parity-report --skip-local` fails 8 sections over 34 images. Check the
+went green on it), and `apps/web/scripts/reset-media.ts` has been run once
+against production: 18 media rows recreated through the adapter, with the same
+18 files present in the blob store. Media on this deployment stays broken until
+**PR #8 merges**, because the running build predates the adapter and still
+resolves `/api/media/file/…` on local disk — verified 2026-08-22,
+`/api/media/file/header-30.png` answers `500`. The rows already point where the
+next deploy will look, so the merge is the whole remaining fix. Check the
 production URL above, not a preview URL — preview deployments are protected and
 serve a login page to anything unauthenticated. See
 [docs/parity-gaps.md](../../docs/parity-gaps.md).
