@@ -273,15 +273,50 @@ fired and the gap stayed invisible.
 
 ## Step 10 — Generated files belong to their generator
 
-A CMS scaffolds files into your tree and rewrites them on every build — Payload
-regenerates `app/(payload)/admin/importMap.js` on each `next build` and
-`next dev`. If your formatter and its generator disagree about quotes or trailing
-commas, the file is unformatted the instant it is written, and formatting it by
-hand only means the next build un-formats it. A commit gate then blocks every
-commit in the repository over a file nobody edited.
+A CMS scaffolds files into your tree — Payload writes
+`app/(payload)/admin/importMap.js`, the file it resolves every admin component
+through at runtime. If your formatter and its generator disagree about quotes or
+trailing commas, the file is unformatted the instant it is written, and
+formatting it by hand only means the next regeneration un-formats it. A commit
+gate then blocks every commit in the repository over a file nobody edited.
 
 Add it to `.prettierignore` (or the equivalent). It is generated output; its
 generator owns its style.
+
+**Then find out what actually regenerates it, and do not assume the build
+does.** This step used to claim Payload regenerates the import map on every
+`next build` and `next dev`. It does not: `withPayload` never calls the
+generator, only the `payload generate:importmap` CLI does, and the file is
+committed. That one wrong sentence is why nobody suspected the map when the
+deployed `/admin` went blank with
+
+```text
+getFromImportMap: PayloadComponent not found in importMap {
+  key: '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler', ... }
+```
+
+Two rules follow, and they generalise past Payload:
+
+- **A generated artifact's content must not depend on the environment that
+  generated it.** The config registered its blob-storage plugin only when
+  `BLOB_READ_WRITE_TOKEN` was set, so the map generated on a laptop was missing
+  a component production asked for. Register the thing unconditionally and turn
+  it off with its own flag — `vercelBlobStorage({ enabled: Boolean(token),
+token: token ?? '', ... })` keeps the component in the map and only disables
+  the upload adapter. Any `process.env` read on the path from config to
+  generated file is this bug waiting for a second environment.
+- **Regenerate-and-diff in CI, like a lockfile.** A committed generated file
+  with no drift gate is correct until someone forgets. Ours is
+  `bun run --cwd apps/web check:importmap`, next to `check:cms-drift`, and it
+  fails on any difference. If the vendor CLI cannot load your config (Payload's
+  chokes on the top-level await in `@payloadcms/richtext-lexical` with
+  `ERR_REQUIRE_ASYNC_MODULE`), call its generator directly from a runtime that
+  loads ESM natively rather than skipping the gate.
+
+The reason this cost a deployment rather than a build: the missing component is
+a _runtime_ lookup in a client-rendered panel. The route still answers `200`,
+the shell still carries a `<title>`, and the panel is blank. Nothing in
+`next build` reads the import map at all.
 
 **And a lesson about the diagnosis rather than the fix.** Faced with that gate,
 we concluded the gate was broken — that the tool could not handle the parentheses

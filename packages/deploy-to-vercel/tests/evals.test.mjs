@@ -115,6 +115,8 @@ describe('the eval suite', () => {
       'DATABASE_URI',
       'DATABASE_AUTH_TOKEN',
       'vercel_pat_',
+      'BLOB_READ_WRITE_TOKEN',
+      'getFromImportMap',
       'authToken',
     ]
     for (const c of cases) {

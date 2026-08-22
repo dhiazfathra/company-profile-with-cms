@@ -39,4 +39,27 @@ describe('media blob storage', () => {
     const media = resolved.collections.find((c) => c.slug === 'media')
     expect(media?.upload).toMatchObject({ disableLocalStorage: true })
   })
+
+  /**
+   * The second gap, and the one that shipped after the first: the plugin used
+   * to be dropped from `plugins` when the token was absent, which also dropped
+   * its admin client component from `admin.dependencies`. The import map is
+   * generated where the token is not set and committed, so production asked
+   * the map for a component nobody had written into it and /admin rendered
+   * blank — with a green build. The handler must be registered either way.
+   */
+  it.each([
+    ['without a token', ''],
+    ['with a token', 'vercel_blob_rw_test_token'],
+  ])('registers the client upload handler in the import map %s', async (_name, token) => {
+    vi.stubEnv('PAYLOAD_SECRET', 'test-secret')
+    vi.stubEnv('BLOB_READ_WRITE_TOKEN', token)
+    vi.stubEnv('NODE_ENV', 'test')
+    const resolved = await (await loadConfig()).default
+    expect(
+      resolved.admin.dependencies?.[
+        '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler'
+      ],
+    ).toBeDefined()
+  })
 })

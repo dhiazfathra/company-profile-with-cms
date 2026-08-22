@@ -118,6 +118,22 @@ import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Uploads land on local disk by default, in apps/web/media/ — correct locally,
+// and the second thing after DATABASE_URI that a serverless host breaks
+// without failing the build: the media *rows* live in the remote database and
+// survive, while the *files* stay on whichever machine ran the seed. Every
+// <img> on the page then 500s from /api/media/file/... on a deployment whose
+// build was green. Blob storage moves the files off the filesystem, so it is
+// required in production for the same reason PAYLOAD_SECRET is: a deployment
+// that would serve broken images should fail to build instead.
+if (!process.env.BLOB_READ_WRITE_TOKEN && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'BLOB_READ_WRITE_TOKEN must be set in production — without it uploaded ' +
+      'media files are written to a filesystem the deployment does not keep, ' +
+      'and every image 500s while the build stays green.',
+  )
+}
+
 const Users: CollectionConfig = {
   slug: 'users',
   auth: true,
@@ -190,39 +206,27 @@ ${indent(globals.map(sectionSource).join(',\n'), 2)}${globals.length > 0 ? ',' :
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  // Uploads land on local disk by default, in apps/web/media/ — correct
-  // locally, and the second thing after DATABASE_URI that a serverless host
-  // breaks without failing the build: the media *rows* live in the remote
-  // database and survive, while the *files* stay on whichever machine ran the
-  // seed. Every <img> on the page then 500s from /api/media/file/... on a
-  // deployment whose build was green. Blob storage moves the files off the
-  // filesystem, so it is required in production for the same reason
-  // PAYLOAD_SECRET is: a deployment that would serve broken images should
-  // fail to build instead.
+  // The plugin is registered unconditionally and switched off through
+  // \`enabled\` rather than dropped from the array. Dropping it also drops its
+  // admin client component (VercelBlobClientUploadHandler) from the generated
+  // import map, and the import map is generated wherever the token is *not*
+  // set — a laptop, CI — then committed. Production, where the token *is* set,
+  // asks the map for a component that was never written into it, and /admin
+  // renders blank with \`getFromImportMap: PayloadComponent not found\`.
+  // \`enabled: false\` keeps the component in the map and only turns the
+  // upload adapter off, so one committed map is correct in both environments.
   plugins: [
-    ...(process.env.BLOB_READ_WRITE_TOKEN
-      ? [
-          vercelBlobStorage({
-            collections: { [Media.slug]: true },
-            token: process.env.BLOB_READ_WRITE_TOKEN,
-            // A server-routed upload goes through a Vercel serverless
-            // function, capped at 4.5MB — one seeded asset (showcase.png,
-            // ~8MB) is already over that on its own. clientUploads sends the
-            // file straight from the browser to Blob storage instead, so an
-            // editor's upload is not bounded by the function body limit.
-            clientUploads: true,
-          }),
-        ]
-      : (() => {
-          if (process.env.NODE_ENV === 'production') {
-            throw new Error(
-              'BLOB_READ_WRITE_TOKEN must be set in production — without it uploaded ' +
-                'media files are written to a filesystem the deployment does not keep, ' +
-                'and every image 500s while the build stays green.',
-            )
-          }
-          return []
-        })()),
+    vercelBlobStorage({
+      enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+      collections: { [Media.slug]: true },
+      token: process.env.BLOB_READ_WRITE_TOKEN ?? '',
+      // A server-routed upload goes through a Vercel serverless function,
+      // capped at 4.5MB — one seeded asset (showcase.png, ~8MB) is already
+      // over that on its own. clientUploads sends the file straight from the
+      // browser to Blob storage instead, so an editor's upload is not bounded
+      // by the function body limit.
+      clientUploads: true,
+    }),
   ],
 })
 `
