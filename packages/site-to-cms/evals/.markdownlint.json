@@ -1,0 +1,4 @@
+{
+  "$comment": "These files are read by `claude plugin eval`, not by people browsing docs: a prompt.md is frontmatter plus a scenario, a grader is frontmatter plus a rubric. An H1 on each would be noise in a machine-readable file, and adding thirty of them to satisfy a linter is the tail wagging the dog. Scoped to this directory so the rest of the repository keeps the rule.",
+  "MD041": false
+}

@@ -61,6 +61,13 @@
         "@playwright/test": ">=1.55",
       },
     },
+    "packages/site-to-cms": {
+      "name": "site-to-cms",
+      "version": "0.1.0",
+      "devDependencies": {
+        "vitest": "^4.1.11",
+      },
+    },
   },
   "trustedDependencies": [
     "sharp",
@@ -1488,6 +1495,8 @@
     "simple-wcswidth": ["simple-wcswidth@1.1.2", "", {}, "sha512-j7piyCjAeTDSjzTSQ7DokZtMNwNlEAyxqSZeCS+CXH7fJ4jx3FuJ/mTW3mE+6JLs4VJBbcll0Kjn+KXI5t21Iw=="],
 
     "sisteransi": ["sisteransi@1.0.5", "", {}, "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg=="],
+
+    "site-to-cms": ["site-to-cms@workspace:packages/site-to-cms"],
 
     "sonic-boom": ["sonic-boom@4.2.1", "", { "dependencies": { "atomic-sleep": "^1.0.0" } }, "sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q=="],
 
