@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   agrees,
   imageSrcs,
+  notAppReason,
   sliceSections,
   verdict,
   visibleText,
@@ -64,6 +65,53 @@ describe('verdict', () => {
 
   it('reports a skipped environment as skipped, not as a pass', () => {
     expect(verdict(null, 'Header').state).toBe('skipped')
+  })
+
+  it('blames the URL, not the sections, when the URL did not serve this app', () => {
+    const v = verdict(
+      {
+        reachable: true,
+        servedApp: false,
+        status: 200,
+        detail: 'redirected to https://vercel.com',
+      },
+      'Header',
+    )
+    expect(v.state).toBe('fail')
+    expect(v.detail).toContain('redirected to https://vercel.com')
+    expect(v.detail).not.toContain('section not rendered')
+  })
+})
+
+/**
+ * The case this exists for: a protected Vercel deployment answers 200 with a
+ * login page, which has no section markers. Reported per-section that reads as
+ * eleven broken sections; the defect is the URL.
+ */
+describe('did the URL serve this app', () => {
+  it('accepts a page that carries section markers', () => {
+    expect(
+      notAppReason('https://x.app', { status: 200, body: HTML, finalUrl: 'https://x.app/' }),
+    ).toBe(null)
+  })
+
+  it('names the host it was redirected to', () => {
+    const why = notAppReason('https://preview.vercel.app', {
+      status: 200,
+      body: '<h1>Log in to Vercel</h1>',
+      finalUrl: 'https://vercel.com/login?next=%2F',
+    })
+    expect(why).toContain('redirected to https://vercel.com')
+    expect(why).toContain('protected deployment or wrong URL')
+  })
+
+  it('reports a same-origin page with no markers as not this app', () => {
+    const why = notAppReason('https://x.app', {
+      status: 200,
+      body: '<h1>Parked domain</h1>',
+      finalUrl: 'https://x.app/',
+    })
+    expect(why).toContain('no section markers')
   })
 })
 

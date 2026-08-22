@@ -1,9 +1,9 @@
 # procoder handoff
 
 <!-- procoder:facts -->
-generated: 2026-08-22T04:12:00Z
-branch: worktree-three-way-parity — 9 ahead, 0 behind main
-head: 3dfc3f3
+generated: 2026-08-22T05:02:40Z
+branch: worktree-three-way-parity — 10 ahead, 0 behind main
+head: 0fcb1bf
 dirty files: 1
 sprint: none — no backlog yet (`procoder backlog` starts one)
 open tasks: none

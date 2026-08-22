@@ -89,9 +89,22 @@ function figmaNode(section, from = targets) {
 async function fetchText(url) {
   try {
     const res = await fetch(url, { redirect: 'follow' })
-    return { ok: res.ok, status: res.status, body: res.ok ? await res.text() : '' }
+    return {
+      ok: res.ok,
+      status: res.status,
+      finalUrl: res.url,
+      body: res.ok ? await res.text() : '',
+    }
   } catch (err) {
-    return { ok: false, status: 0, body: '', error: String(err.message ?? err) }
+    return { ok: false, status: 0, finalUrl: url, body: '', error: String(err.message ?? err) }
+  }
+}
+
+function origin(url) {
+  try {
+    return new URL(url).origin
+  } catch {
+    return url
   }
 }
 
@@ -119,6 +132,25 @@ export function sliceSections(html) {
     out.set(m[1], html.slice(m.index, end))
   })
   return out
+}
+
+/**
+ * Whether the URL answered with this site at all, and if not, why — returned as
+ * the reason, or null when it did.
+ *
+ * A 200 is not proof the app answered. A Vercel deployment with protection on
+ * redirects to a login page that returns 200; so does a domain parked on
+ * somebody else's site. Without this check the report scored one of those as
+ * "every one of the eleven sections is missing", which sends the reader to
+ * debug the app over what is really a wrong or protected URL. That happened —
+ * ADR-0015.
+ */
+export function notAppReason(baseUrl, page) {
+  if (sliceSections(page.body).size > 0) return null
+  const landed = origin(page.finalUrl ?? baseUrl)
+  return landed === origin(baseUrl)
+    ? `answered ${page.status} but rendered no section markers — not this app`
+    : `redirected to ${landed} — protected deployment or wrong URL, not this app`
 }
 
 export function imageSrcs(fragment) {
@@ -204,8 +236,18 @@ async function probe(baseUrl) {
   if (!page.ok) {
     return { reachable: false, status: page.status, error: page.error, sections: new Map() }
   }
-  const admin = await head(baseUrl + '/admin')
   const slices = sliceSections(page.body)
+  const notThisApp = notAppReason(baseUrl, page)
+  if (notThisApp) {
+    return {
+      reachable: true,
+      servedApp: false,
+      status: page.status,
+      detail: notThisApp,
+      sections: new Map(),
+    }
+  }
+  const admin = await head(baseUrl + '/admin')
   const sections = new Map()
   for (const [name, fragment] of slices) {
     const srcs = imageSrcs(fragment)
@@ -216,7 +258,7 @@ async function probe(baseUrl) {
     }
     sections.set(name, { rendered: true, text: visibleText(fragment), images })
   }
-  return { reachable: true, status: page.status, admin, sections }
+  return { reachable: true, servedApp: true, status: page.status, admin, sections }
 }
 
 /**
@@ -236,6 +278,7 @@ export function verdict(env, section) {
   if (!env.reachable) {
     return { state: 'fail', detail: `page unreachable (${env.status || env.error})` }
   }
+  if (env.servedApp === false) return { state: 'fail', detail: env.detail }
   const s = env.sections.get(section)
   if (!s) return { state: 'fail', detail: 'section not rendered' }
   const broken = s.images.filter((i) => !i.ok)
@@ -273,6 +316,13 @@ async function main() {
   const local = skipLocal ? null : await probe(localUrl)
   const prod = await probe(prodUrl)
 
+  // An environment whose URL answered with something that is not this app. Held
+  // separately so it can be said once, loudly, instead of once per section.
+  const notApp = [
+    ['local', local, localUrl],
+    ['deployed', prod, prodUrl],
+  ].filter(([, env]) => env && env.servedApp === false)
+
   const sectionNames = Object.keys(refs.sections)
   const rows = sectionNames.map((section) => {
     const figma = figmaVerdict(section)
@@ -281,9 +331,12 @@ async function main() {
     return { section, figma, local: l, prod: p, agree: agrees([figma.state, l.state, p.state]) }
   })
 
+  // No point screenshotting a login page: eleven identical shots of a Vercel
+  // auth wall, laid out next to the design, read as a redesign rather than as a
+  // URL problem.
   const localShots =
-    noShots || !local?.reachable ? new Map() : await capture(localUrl, sectionNames)
-  const prodShots = noShots || !prod.reachable ? new Map() : await capture(prodUrl, sectionNames)
+    noShots || !local?.servedApp ? new Map() : await capture(localUrl, sectionNames)
+  const prodShots = noShots || !prod.servedApp ? new Map() : await capture(prodUrl, sectionNames)
   for (const row of rows) {
     const referencePath = join(WEB, 'design/refs', `${row.section}.png`)
     row.shots = {
@@ -298,19 +351,22 @@ async function main() {
    * reason the site stopped being a static export, and a deployment can serve the
    * homepage perfectly while the panel an editor actually uses is broken.
    */
+  const adminRow = (env) => {
+    if (!env) return { state: 'skipped', detail: 'not checked' }
+    // /admin is not probed at all when the URL did not serve this app: its
+    // status would be the login page's, and reporting that as the panel's
+    // health is worse than saying nothing.
+    if (env.servedApp === false) return { state: 'fail', detail: env.detail }
+    return env.admin?.ok
+      ? { state: 'pass', detail: `${env.admin.status}` }
+      : { state: 'fail', detail: `${env.admin?.status ?? env.status}` }
+  }
   const pageRows = [
     {
       label: 'Admin panel reachable (/admin)',
       figma: { state: 'skipped', detail: 'not a design surface' },
-      local: local
-        ? local.reachable && local.admin.ok
-          ? { state: 'pass', detail: `${local.admin.status}` }
-          : { state: 'fail', detail: `${local.admin?.status ?? local.status}` }
-        : { state: 'skipped', detail: 'not checked' },
-      prod:
-        prod.reachable && prod.admin.ok
-          ? { state: 'pass', detail: `${prod.admin.status}` }
-          : { state: 'fail', detail: `${prod.admin?.status ?? prod.status}` },
+      local: adminRow(local),
+      prod: adminRow(prod),
     },
   ]
   pageRows.forEach((r) => {
@@ -400,11 +456,23 @@ ${REPORT_CSS}
   .trio figcaption b { color:var(--ink) }
   .missing { border:1px dashed var(--line); border-radius:6px; padding:22px 12px;
     color:var(--muted); font-size:12.5px; text-align:center }
+  .banner { border:1px solid #c0392b; border-left-width:4px; border-radius:6px;
+    padding:12px 14px; margin:18px 0; font-size:14px; line-height:1.55 }
 </style>
 <main>
   <h1>Three-way parity</h1>
   <p class="lede">The same questions asked of the design, of the site running on this machine, and
   of the site the public sees. Produced by <code>bun run parity-report</code>.</p>
+
+  ${notApp
+    .map(
+      ([label, env, url]) =>
+        `<p class="banner"><b>Read this first:</b> the ${label} URL <code>${esc(url)}</code> did not
+    serve this site — ${esc(env.detail)}. Every ${label} row below therefore says the section is
+    missing, and that is a URL problem, not a broken site. Point the report at a URL that is
+    publicly reachable, or disable deployment protection for it.</p>`,
+    )
+    .join('\n  ')}
 
   <div class="cards">
     <div class="card"><b class="${disagreements.length === 0 ? 'pass' : ''}">${disagreements.length}</b><span>rows where the three disagree</span></div>
@@ -460,6 +528,9 @@ bun run parity-report</code></pre>
   )
 
   console.log(`parity-report/report.html written — ${disagreements.length} disagreement(s)`)
+  // Say this once and first. Otherwise the eleven identical rows below read as
+  // eleven broken sections, and the reader debugs the app instead of the URL.
+  for (const [label, env, url] of notApp) console.log(`  !! ${label} ${url}: ${env.detail}`)
   for (const d of disagreements) {
     console.log(
       `  ${d.section ?? d.label}: figma=${d.figma.state} local=${d.local.state} deployed=${d.prod.state}`,

@@ -248,6 +248,22 @@ one another. It exits non-zero when they disagree, and
 necessary and not sufficient: the page renders from rows, and rows exist whether
 or not the bytes behind them do.
 
+**Point it at the production URL, not a preview URL.** Preview deployments have
+Vercel deployment protection on, so a preview URL answers `302` to a login page
+that itself returns 200. The report says so in a banner and refuses to grade the
+sections rather than reporting eleven missing ones
+([ADR-0015](decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)),
+but the run still tells you nothing about the deployment. The CI workflow is
+already scoped to production `deployment_status` events for this reason.
+
+Sensitive production variables (`DATABASE_URI`, `DATABASE_AUTH_TOKEN`,
+`PAYLOAD_SECRET`, `BLOB_READ_WRITE_TOKEN`) are flagged Sensitive on the Vercel
+project, so `vercel env pull` returns `[SENSITIVE]` for them rather than the
+value. That is deliberate: only the account owner's own shell, authenticated
+interactively, can run a script against production data. A process handed
+`[SENSITIVE]` fails with `Invalid token format for Vercel Blob adapter`, which is
+the expected symptom, not a bug to work around.
+
 Before opening a pull request, `bun run evidence` runs every gate and writes the
 block to append to the description — see [ADR-0011](decisions/0011-evidence-pack-on-every-pr.md)
 and the root `AGENTS.md`. It refuses to write anything if a gate fails, so it is

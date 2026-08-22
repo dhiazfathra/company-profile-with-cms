@@ -81,6 +81,15 @@ fresh through blob storage and duplicates cannot survive (verified locally:
 `apps/web/tests/reset-media.test.ts`). It refuses to run in production without
 `BLOB_READ_WRITE_TOKEN` set, for the same reason `payload.config.ts` does.
 
+**Still broken on production as of 2026-08-22, and confirmed so, not assumed:**
+
+```text
+GET /api/media/file/header-30.png   -> 500
+GET /api/media/file/logo-190.png    -> 500
+GET /api/media/file/check-33.svg    -> 500
+bun run parity-report --skip-local  -> 8 sections fail, 34 images, every one a 500
+```
+
 Run once, against production, after this PR merges and Vercel redeploys `main`:
 
 ```bash
@@ -91,9 +100,64 @@ rm apps/web/.env.production.local
 bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
 ```
 
-Not run against production by this work directly: the credential only reached
-a script safely through `vercel env add`'s own stdin, the channel already
-proven for setting the token; pulling it back down into a file for a script to
-consume did not carry the real value through cleanly in this environment, so
-the safer and more useful thing was a tested, committed script the account
-owner runs once with their own shell.
+### Why this one step is yours and not this work's
+
+It is a data migration against a live database, and the credentials for that
+database are deliberately unreadable from here. `DATABASE_URI`,
+`DATABASE_AUTH_TOKEN`, `PAYLOAD_SECRET` and `BLOB_READ_WRITE_TOKEN` are all
+flagged **Sensitive** on the Vercel project, which means Vercel itself will not
+decrypt them for a pull — it hands back a placeholder:
+
+```text
+$ vercel env pull --environment production .env.prod.tmp
+$ grep DATABASE_URI .env.prod.tmp
+DATABASE_URI="[SENSITIVE]"
+```
+
+That is the correct behaviour of a correct setting, and it is why the earlier
+attempt to run this script from here failed with
+`Invalid token format for Vercel Blob adapter` — the process was handed the
+literal string `[SENSITIVE]`, not a token. (An earlier version of this document
+blamed the sandbox for that; it was Vercel's sensitive-variable setting, and
+naming the wrong cause is worse than naming none.) Setting a value works from
+here, because `vercel env add` only ever writes; reading one back does not, by
+design.
+
+So there were three ways to finish it, and the reason for the choice matters
+more than the choice:
+
+- **Un-flag the variables as Sensitive so a pull works.** Rejected: it weakens a
+  production security setting permanently to save one manual step once.
+- **Ask for the database credentials to be pasted into this conversation.**
+  Rejected: a live database URL and auth token in a transcript is a worse
+  outcome than a documented manual step, and it would be needed again next time.
+- **Ship a tested script the owner runs once with their own shell.** Chosen.
+  `reset-media.ts` is covered by `apps/web/tests/reset-media.test.ts` and was
+  verified end to end locally (18 rows → 0 → 18, one row per `sourcePath`), so
+  what is deferred is the _running_ of a proven script against production data,
+  not the writing or the testing of it.
+
+Verification that it worked is not a matter of opinion either: the last command
+above is the same gate CI runs, and it exits non-zero while any image 500s.
+
+## Closed — a gap in the gap-finder itself
+
+**The report was pointed at a protected preview URL and reported eleven broken
+sections.** Preview deployments have Vercel deployment protection on, so the
+preview URL answers `302` to Vercel's login page. `parity-report` followed the
+redirect, got a valid `200`, found no `data-section` markers in it, and said
+"section not rendered" once per section — blaming the app for a problem with the
+URL, in the vocabulary of a real defect.
+
+Fixed: an environment that does not answer with this site is now named as such,
+once, in a banner at the top of the report and as the first console line, and no
+section row or screenshot is produced for it.
+[ADR-0015](decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)
+carries the reasoning, the rejected alternatives (including why a protection
+bypass token was not added), and the general rule: a check that cannot confirm
+it is looking at its subject says so instead of reporting on the subject.
+
+**Which URL to use.** Check the production URL, not a preview URL — preview URLs
+are protected and cannot be read by CI or by this script.
+`.github/workflows/parity.yml` already does the right thing: it fires on a
+successful **production** `deployment_status`.

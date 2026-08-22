@@ -20,7 +20,11 @@ Deployed URL: https://company-profile-with-cms-web.vercel.app/ — the Vercel
 Blob store is provisioned and `BLOB_READ_WRITE_TOKEN` is set (PR #8's build
 went green on it); media on this deployment stays broken until that PR merges
 and `apps/web/scripts/reset-media.ts` is run once against production, because
-the existing rows predate blob storage. See
+the existing rows predate blob storage. Verified still broken on 2026-08-22:
+`/api/media/file/header-30.png` answers `500`, and
+`bun run parity-report --skip-local` fails 8 sections over 34 images. Check the
+production URL above, not a preview URL — preview deployments are protected and
+serve a login page to anything unauthenticated. See
 [docs/parity-gaps.md](../../docs/parity-gaps.md).
 
 See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a

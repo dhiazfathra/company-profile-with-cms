@@ -60,9 +60,18 @@ jobs:
       # command line: target_url comes from the deployment event, which this
       # workflow does not control the contents of, and interpolating it directly
       # into `run:` would let shell metacharacters in that string execute.
+      #
+      # The production alias is preferred over the event's own target_url, which
+      # is a per-deployment URL. Per-deployment URLs are covered by Vercel's
+      # deployment protection, so an unauthenticated fetch of one lands on a
+      # login page — the run would then grade Vercel's sign-in form instead of
+      # this site. The report now names that rather than inventing eleven broken
+      # sections (ADR-0015), but a run that cannot see the site is still a run
+      # that told you nothing. What parity is about is what the public sees, and
+      # the public sees the alias.
       - name: Check deployment against the design references
         env:
-          PARITY_URL: ${{ github.event.inputs.url || github.event.deployment_status.target_url }}
+          PARITY_URL: ${{ github.event.inputs.url || vars.PRODUCTION_URL || 'https://company-profile-with-cms-web.vercel.app' }}
         run: bun run parity-report --skip-local --prod "$PARITY_URL"
 
       - name: Upload parity report
