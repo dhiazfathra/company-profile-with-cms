@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { buildConfig, type CollectionConfig } from 'payload'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -549,4 +550,32 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
+  // Uploads land on local disk by default, in apps/web/media/ — correct
+  // locally, and the second thing after DATABASE_URI that a serverless host
+  // breaks without failing the build: the media *rows* live in the remote
+  // database and survive, while the *files* stay on whichever machine ran the
+  // seed. Every <img> on the page then 500s from /api/media/file/... on a
+  // deployment whose build was green. Blob storage moves the files off the
+  // filesystem, so it is required in production for the same reason
+  // PAYLOAD_SECRET is: a deployment that would serve broken images should
+  // fail to build instead.
+  plugins: [
+    ...(process.env.BLOB_READ_WRITE_TOKEN
+      ? [
+          vercelBlobStorage({
+            collections: { [Media.slug]: true },
+            token: process.env.BLOB_READ_WRITE_TOKEN,
+          }),
+        ]
+      : (() => {
+          if (process.env.NODE_ENV === 'production') {
+            throw new Error(
+              'BLOB_READ_WRITE_TOKEN must be set in production — without it uploaded ' +
+                'media files are written to a filesystem the deployment does not keep, ' +
+                'and every image 500s while the build stays green.',
+            )
+          }
+          return []
+        })()),
+  ],
 })
