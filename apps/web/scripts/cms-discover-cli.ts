@@ -22,13 +22,14 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const sections = await renderedSections(path.resolve(here, '../components/sections'))
 const inventory = await buildInventory(config, sections)
 
-// The runner is plain JavaScript and cannot import the TypeScript generator, so
-// the case count is written into the inventory here. Without it the report
-// cannot tell a field with no case template from a field whose first case failed
-// before it could log anything.
+// The generator's output, written into the inventory so its consumers do not
+// have to call it. `scripts/cms-e2e.mjs` and the `cms-to-qa` artefacts are plain
+// JavaScript outside this workspace; the spec imports the generator directly and
+// does not read these back. The inventory is therefore the one place a case list
+// exists for everything downstream, run or not.
 for (const page of inventory.pages) {
   for (const field of page.fields) {
-    field.caseCount = casesFor(field).length
+    field.cases = casesFor(field)
   }
 }
 

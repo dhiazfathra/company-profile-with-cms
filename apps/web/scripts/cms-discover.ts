@@ -52,12 +52,21 @@ export type FieldInfo = {
   /** Probe values the validator accepted, for the matrix's happy path. */
   acceptsRelative?: boolean
   /**
-   * How many cases `casesFor` generated. Written into `inventory.json` so the
-   * report can tell "no case template for this field type" apart from "the
-   * field's first case failed, so it logged nothing" — the two used to be
-   * indistinguishable, and the report printed the first explanation for both.
+   * The cases `casesFor` generated, written into `inventory.json` by
+   * `cms-discover-cli.ts`.
+   *
+   * Two consumers need them and neither can call the generator. The report has
+   * to tell "no case template for this field type" apart from "the field's first
+   * case failed, so it logged nothing" — the two used to be indistinguishable,
+   * and it printed the first explanation for both. And the QA artefacts
+   * (`cms-to-qa`) describe every case, run or not, so the scenario sheet's
+   * denominator is the whole matrix rather than the part that executed.
+   *
+   * The full case — value included — rather than a count or a summary. A second,
+   * shorter description of the test data beside it is a description that can
+   * drift from the value the browser actually types.
    */
-  caseCount?: number
+  cases?: Case[]
 }
 
 export type PageInfo = {

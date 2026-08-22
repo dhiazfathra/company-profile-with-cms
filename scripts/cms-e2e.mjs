@@ -20,8 +20,10 @@
  *   page: a bundle with nine reports out of ten looks complete.
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { buildScenarios, renderReport, summarise, writeWorkbook } from 'cms-to-qa'
+import { REPORT_CSS } from './report-style.mjs'
 
 const WEB = path.resolve(import.meta.dir, '../apps/web')
 const ARG = process.argv.slice(2)
@@ -98,28 +100,47 @@ for (const page of pages) {
   }
 }
 
-/** Reads the run's own record: Playwright's JSON report plus the case log. */
+/**
+ * Reads the run's own record: Playwright's JSON report plus the case log.
+ *
+ * The suite path is carried down, not just the test title. The spec nests a
+ * describe per field inside one per page, and a case id repeats across fields —
+ * every field has a `happy`. Keyed on the title alone, `Header.headline`'s result
+ * would be indistinguishable from `Header.subhead`'s, and the QA sheet would
+ * attribute one field's failure to another.
+ */
 function collect(dir) {
   const reportPath = path.join(dir, 'logs', 'results.json')
   if (!existsSync(reportPath)) return null
   const report = JSON.parse(readFileSync(reportPath, 'utf8'))
   const tests = []
-  const walk = (suite) => {
+  const walk = (suite, trail) => {
+    const here = suite.title ? [...trail, suite.title] : trail
     for (const spec of suite.specs ?? []) {
       for (const t of spec.tests ?? []) {
         const result = t.results?.[t.results.length - 1]
+        const attachments = result?.attachments ?? []
         tests.push({
           title: spec.title,
+          // The innermost describe is the field name; the case id is the leading
+          // token of the test title, which the spec builds as
+          // `${kase.id} (${kase.kind}) — ${kase.why}`.
+          field: here[here.length - 1] ?? null,
+          caseId: spec.title.split(' ')[0],
           status: result?.status ?? 'unknown',
           expected: t.expectedStatus,
           error: result?.error?.message ?? null,
-          attachments: (result?.attachments ?? []).map((a) => a.name),
+          attachments: attachments.map((a) => a.name),
+          videoSource: attachments.find((a) => a.name === 'video')?.path ?? null,
         })
       }
     }
-    for (const child of suite.suites ?? []) walk(child)
+    for (const child of suite.suites ?? []) walk(child, here)
   }
-  for (const suite of report.suites ?? []) walk(suite)
+  // The outermost suite's title is the spec's file path rather than a describe.
+  // It joins the trail like any other, which is harmless: only the innermost
+  // entry is ever read, and that is the field.
+  for (const suite of report.suites ?? []) walk(suite, [])
 
   const logPath = path.join(dir, 'logs', 'cases.jsonl')
   const log = existsSync(logPath)
@@ -252,7 +273,7 @@ function pageReport(page, dir, collected, exitCode) {
     '## Fields with no case template',
     '',
     (() => {
-      const none = info.fields.filter((f) => !f.caseCount)
+      const none = info.fields.filter((f) => !f.cases?.length)
       return none.length
         ? none
             .map(
@@ -281,12 +302,12 @@ function pageReport(page, dir, collected, exitCode) {
     '',
     (() => {
       const logged = new Set(collected.log.filter((l) => l.event === 'case').map((l) => l.field))
-      const silent = info.fields.filter((f) => f.caseCount && !f.hidden && !logged.has(f.name))
+      const silent = info.fields.filter((f) => f.cases?.length && !f.hidden && !logged.has(f.name))
       return silent.length
         ? silent
             .map(
               (f) =>
-                `- \`${f.name}\` (${f.type}) — ${f.caseCount} cases were generated and none completed. Its first case failed, or the run stopped before reaching it. See the failures above.`,
+                `- \`${f.name}\` (${f.type}) — ${f.cases.length} cases were generated and none completed. Its first case failed, or the run stopped before reaching it. See the failures above.`,
             )
             .join('\n')
         : '- none'
@@ -322,6 +343,30 @@ function pageReport(page, dir, collected, exitCode) {
   return lines.join('\n')
 }
 
+/**
+ * Playwright names a video after a hash of the test, inside a directory named
+ * after the test, and both are unreadable. A tester opening `videos/` should see
+ * the field and the case; the workbook links to these paths and the HTML report
+ * embeds them, so they have to be stable and relative to the bundle root.
+ *
+ * Moved rather than copied: the same recording in two places doubles a directory
+ * that is already the largest thing in the pack.
+ */
+function normaliseVideos(page, dir, collected) {
+  if (!collected) return
+  const out = path.join(dir, 'videos')
+  mkdirSync(out, { recursive: true })
+  for (const t of collected.tests) {
+    t.video = null
+    if (!t.videoSource || !existsSync(t.videoSource)) continue
+    const safe = (s) => String(s ?? 'unknown').replace(/[^A-Za-z0-9._-]+/g, '-')
+    const name = `${safe(t.field)}--${safe(t.caseId)}${path.extname(t.videoSource) || '.webm'}`
+    renameSync(t.videoSource, path.join(out, name))
+    // Relative to the run root, where report.html and the workbook both sit.
+    t.video = `${page}/videos/${name}`
+  }
+}
+
 const results = []
 for (const page of DISCOVER_ONLY ? [] : pages) {
   const dir = path.join(ROOT, page)
@@ -337,6 +382,7 @@ for (const page of DISCOVER_ONLY ? [] : pages) {
     PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(dir, 'logs', 'results.json'),
   })
   const collected = collect(dir)
+  normaliseVideos(page, dir, collected)
   writeFileSync(path.join(dir, 'report.md'), pageReport(page, dir, collected, proc.status ?? -1))
   results.push({ page, exit: proc.status ?? -1, collected })
 }
@@ -374,7 +420,59 @@ rollupLines.push(
 )
 writeFileSync(path.join(ROOT, 'rollup.md'), rollupLines.join('\n'))
 
+/**
+ * The three artefacts a manual tester signs SIT off with, all rendered from one
+ * row set (`cms-to-qa`) so they cannot disagree about the same run:
+ *
+ *   report.html          the matrix with each case's recording embedded
+ *   test-scenarios.xlsx  the scenario sheet, filterable and signable
+ *   <page>/videos/       the recordings themselves
+ *
+ * Written for a single-page run too, not only for `--all`. A tester handed the
+ * bundle for the one page a change touched needs the same thing in the same
+ * shape, and an artefact that only exists on the long run is one nobody has read
+ * by the time it matters.
+ */
+const resultsByPage = new Map(results.map((r) => [r.page, r.collected]))
+const exitByPage = new Map(results.map((r) => [r.page, r.exit]))
+const reproduce =
+  `# from the repository root\n` +
+  `bun run cms:e2e ${ALL ? '--all' : pages.join(' ')}\n` +
+  `# prerequisites: apps/web/.env with E2E_USER_EMAIL and E2E_USER_PASSWORD,\n` +
+  `# a seeded database (bun run --cwd apps/web seed), and chromium\n` +
+  `bunx playwright install chromium`
+const rows = buildScenarios(inventory, resultsByPage)
+
+writeFileSync(
+  path.join(ROOT, 'report.html'),
+  renderReport({
+    css: REPORT_CSS,
+    runId: RUN_ID,
+    inventory,
+    resultsByPage,
+    exitByPage,
+    rows,
+    reproduce,
+  }),
+)
+await writeWorkbook(path.join(ROOT, 'test-scenarios.xlsx'), {
+  runId: RUN_ID,
+  reproduce,
+  inventory,
+  rows,
+  ranPages: results.length,
+})
+
+const totals = summarise(rows)
 console.log(`\nEvidence: ${path.relative(process.cwd(), ROOT)}`)
+console.log(
+  `  report.html          ${totals.total} rows, ${totals.pass} passed, ${totals.fail} failed, ` +
+    `${totals.notRun} never ran, ${totals.notExecuted} not executable`,
+)
+console.log(`  test-scenarios.xlsx  Summary, Test Scenarios, Traceability, Not Covered`)
+console.log(
+  `  <page>/videos/       one recording per executed case (${rows.filter((r) => r.evidence).length} in total)`,
+)
 console.log(rollupLines.slice(4).join('\n'))
 
 const bad = results.filter((r) => r.exit !== 0 || !r.collected)

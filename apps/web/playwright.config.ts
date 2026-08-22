@@ -64,12 +64,29 @@ export default defineConfig({
       ? [
           {
             name: 'cms-fields',
-            use: { ...devices['Desktop Chrome'] },
             testMatch: CMS_FIELDS,
             // No retries, unlike every other project here. A case that passes on
             // the second attempt is a case whose result the pack cannot report
             // honestly: the run either observed the behaviour or it did not.
             retries: 0,
+            use: {
+              ...devices['Desktop Chrome'],
+              // Recorded on a pass too, and only in this project. The rest of
+              // the suite keeps `retain-on-failure` for the reason in `use`
+              // above — a video per passing test is disk nobody reads.
+              //
+              // Here it is the deliverable. A manual tester signing SIT off
+              // cannot verify a tick in a table; they need to watch the value
+              // being typed into the panel and the panel accepting or refusing
+              // it. That recording only exists if it is made while the case
+              // passes, which is exactly when `retain-on-failure` discards it.
+              // Roughly 100KB per case, in a directory that is gitignored.
+              //
+              // `as const` because this object is inside a conditional array
+              // spread, which has no contextual type — TypeScript widens the
+              // literal to `string` and `next build`'s type check rejects it.
+              video: 'on' as const,
+            },
             // No `dependencies` either. The matrix is run on its own against one
             // page; dragging the whole read-only suite in first would double the
             // wall clock and prove nothing about the fields under test.
