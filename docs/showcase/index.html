@@ -1,0 +1,2899 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Figma → CMS, with receipts — company-profile-with-cms</title>
+    <meta
+      name="description"
+      content="A Figma design became a CMS-backed, deployed Next.js site in two days, across eleven pull requests. Every claim on this page carries the command that produced it."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ───────────────────────────────────────────────────────────────
+         Tokens. The palette is the site's own: apps/web/app/globals.css
+         defines --color-accent-1 #485c11 and --color-accent-2 #dfecc6
+         against a white page. This document inverts that ground, so the
+         olive is lifted to --moss-lift for legibility on ink; the source
+         value stays as --moss for fills on paper.
+         ─────────────────────────────────────────────────────────────── */
+      :root {
+        --ink: #0b0c08;
+        --ink-2: #101208;
+        --ink-3: #171a10;
+        --ink-4: #1f2317;
+
+        --paper: #f5f4ec;
+        --paper-2: #e9e7d9;
+
+        --fg: #f3f4ea;
+        --fg-muted: #a8ac99;
+        --fg-dim: #74795f;
+
+        --moss: #485c11;
+        --moss-lift: #bcd873;
+        --moss-deep: #2b3609;
+        --pale: #dfecc6;
+        --rust: #c2703a;
+
+        --line: rgba(223, 236, 198, 0.13);
+        --line-strong: rgba(223, 236, 198, 0.26);
+        --line-paper: rgba(11, 12, 8, 0.14);
+
+        --display: 'Crimson Text', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+        --sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        --mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+        --s1: 8px;
+        --s2: 16px;
+        --s3: 24px;
+        --s4: 40px;
+        --s5: 64px;
+        --s6: 96px;
+        --s7: 136px;
+
+        --measure: 64ch;
+        --page: 1180px;
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+        scroll-padding-top: 96px;
+      }
+
+      body {
+        margin: 0;
+        background: var(--ink);
+        color: var(--fg);
+        font-family: var(--sans);
+        font-weight: 300;
+        font-size: 17px;
+        line-height: 1.62;
+        letter-spacing: -0.01em;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      /* Ambient wash. Two soft radial fields, no animation: the page is long
+         and a moving background under 4,000 words of documentation is noise. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(58rem 40rem at 82% -8%, rgba(72, 92, 17, 0.5), transparent 62%),
+          radial-gradient(46rem 34rem at 4% 6%, rgba(143, 163, 92, 0.13), transparent 60%);
+      }
+
+      main,
+      header,
+      footer {
+        position: relative;
+        z-index: 1;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      ::selection {
+        background: var(--moss-lift);
+        color: var(--ink);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--moss-lift);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+
+      .skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--moss-lift);
+        color: var(--ink);
+        padding: 10px 16px;
+        font-family: var(--mono);
+        font-size: 12px;
+        z-index: 99;
+      }
+      .skip:focus {
+        left: 12px;
+        top: 12px;
+      }
+
+      /* ─── Typography ─────────────────────────────────────────────── */
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: var(--display);
+        font-weight: 400;
+        letter-spacing: -0.022em;
+        line-height: 1.04;
+        margin: 0;
+      }
+
+      .display {
+        font-size: clamp(2.75rem, 7.2vw, 5.9rem);
+        line-height: 0.94;
+        letter-spacing: -0.035em;
+      }
+      .display em {
+        font-style: italic;
+        color: var(--pale);
+      }
+
+      h2 {
+        font-size: clamp(2rem, 4vw, 3.1rem);
+      }
+      h3 {
+        font-size: clamp(1.35rem, 2vw, 1.75rem);
+        line-height: 1.14;
+      }
+      h4 {
+        font-family: var(--sans);
+        font-weight: 500;
+        font-size: 1rem;
+        letter-spacing: -0.01em;
+      }
+
+      p {
+        margin: 0 0 var(--s2);
+        max-width: var(--measure);
+      }
+      p:last-child {
+        margin-bottom: 0;
+      }
+
+      .lede {
+        font-size: clamp(1.1rem, 1.7vw, 1.32rem);
+        line-height: 1.5;
+        color: var(--pale);
+        font-weight: 300;
+      }
+
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        font-weight: 500;
+        letter-spacing: 0.19em;
+        text-transform: uppercase;
+        color: var(--moss-lift);
+        margin: 0 0 var(--s2);
+        display: block;
+      }
+
+      .muted {
+        color: var(--fg-muted);
+      }
+      .dim {
+        color: var(--fg-dim);
+      }
+
+      strong {
+        font-weight: 500;
+        color: #fff;
+      }
+
+      code,
+      kbd {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: rgba(223, 236, 198, 0.08);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        padding: 0.1em 0.38em;
+        color: var(--pale);
+      }
+
+      pre {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.75;
+        background: var(--ink-2);
+        border: 1px solid var(--line);
+        border-left: 2px solid var(--moss-lift);
+        border-radius: 0 6px 6px 0;
+        padding: var(--s3);
+        overflow-x: auto;
+        margin: 0 0 var(--s3);
+        color: var(--pale);
+        letter-spacing: 0;
+        -webkit-overflow-scrolling: touch;
+      }
+      pre code {
+        background: none;
+        border: 0;
+        padding: 0;
+        font-size: inherit;
+        color: inherit;
+      }
+      pre .c {
+        color: var(--fg-dim);
+      }
+      pre .ok {
+        color: var(--moss-lift);
+      }
+      pre .bad {
+        color: var(--rust);
+      }
+
+      /* ─── Layout ─────────────────────────────────────────────────── */
+      .wrap {
+        width: 100%;
+        max-width: var(--page);
+        margin-inline: auto;
+        padding-inline: clamp(20px, 5vw, 48px);
+      }
+
+      section.band {
+        padding-block: var(--s7);
+        border-top: 1px solid var(--line);
+      }
+      section.band:first-of-type {
+        border-top: 0;
+      }
+
+      .band-head {
+        display: grid;
+        gap: var(--s2);
+        margin-bottom: var(--s5);
+        max-width: 46rem;
+      }
+
+      .cols {
+        display: grid;
+        gap: var(--s4);
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+      }
+
+      .rule {
+        height: 1px;
+        background: var(--line);
+        border: 0;
+        margin: var(--s5) 0;
+      }
+
+      /* ─── Header ─────────────────────────────────────────────────── */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: saturate(140%) blur(14px);
+        -webkit-backdrop-filter: saturate(140%) blur(14px);
+        background: rgba(11, 12, 8, 0.78);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+        justify-content: space-between;
+        min-height: 68px;
+        padding-block: 12px;
+        flex-wrap: wrap;
+      }
+
+      .mark {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--fg);
+        white-space: nowrap;
+      }
+      .mark .glyph {
+        width: 26px;
+        height: 26px;
+        flex: none;
+      }
+      .mark .sub {
+        color: var(--fg-dim);
+      }
+
+      .switch {
+        display: inline-flex;
+        padding: 3px;
+        gap: 2px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: rgba(223, 236, 198, 0.04);
+      }
+      .switch button {
+        appearance: none;
+        border: 0;
+        background: none;
+        color: var(--fg-muted);
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        padding: 8px 15px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition:
+          color 0.2s var(--ease),
+          background 0.2s var(--ease);
+        min-height: 34px;
+      }
+      .switch button:hover {
+        color: var(--fg);
+      }
+      .switch button[aria-selected='true'] {
+        background: var(--moss-lift);
+        color: var(--ink);
+      }
+
+      .bar-links {
+        display: flex;
+        gap: var(--s3);
+        align-items: center;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .bar-links a {
+        color: var(--fg-muted);
+        text-decoration: none;
+        transition: color 0.2s var(--ease);
+        white-space: nowrap;
+      }
+      .bar-links a:hover {
+        color: var(--moss-lift);
+      }
+
+      /* ─── Buttons ────────────────────────────────────────────────── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 48px;
+        padding: 13px 24px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-family: var(--mono);
+        font-size: 12px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        cursor: pointer;
+        border: 1px solid var(--line-strong);
+        color: var(--fg);
+        background: none;
+        transition:
+          transform 0.22s var(--ease),
+          background 0.22s var(--ease),
+          border-color 0.22s var(--ease),
+          color 0.22s var(--ease);
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        border-color: var(--moss-lift);
+        color: var(--moss-lift);
+      }
+      .btn-primary {
+        background: var(--moss-lift);
+        border-color: var(--moss-lift);
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .btn-primary:hover {
+        background: var(--pale);
+        border-color: var(--pale);
+        color: var(--ink);
+      }
+      .btn svg {
+        width: 14px;
+        height: 14px;
+        flex: none;
+      }
+
+      /* ─── Hero ──────────────────────────────────────────────────── */
+      .hero {
+        padding-top: clamp(var(--s5), 9vw, 150px);
+        padding-bottom: var(--s6);
+      }
+      .hero .display {
+        max-width: 22ch;
+      }
+      .hero .lede {
+        margin-top: var(--s3);
+        max-width: 54ch;
+      }
+      .hero-actions {
+        display: flex;
+        gap: var(--s2);
+        flex-wrap: wrap;
+        margin-top: var(--s4);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+        gap: 1px;
+        margin-top: var(--s6);
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .stat {
+        background: var(--ink-2);
+        padding: var(--s3);
+      }
+      .stat b {
+        display: block;
+        font-family: var(--display);
+        font-weight: 400;
+        font-size: clamp(2rem, 3.4vw, 2.9rem);
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: #fff;
+      }
+      .stat span {
+        display: block;
+        margin-top: 10px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+      }
+
+      /* ─── Failure cards ─────────────────────────────────────────── */
+      .fail {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: linear-gradient(180deg, var(--ink-3), var(--ink-2));
+        padding: var(--s4) var(--s3) var(--s3);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: var(--s2);
+      }
+      .fail .n {
+        position: absolute;
+        top: -14px;
+        left: var(--s3);
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        background: var(--ink);
+        border: 1px solid var(--line-strong);
+        color: var(--moss-lift);
+        padding: 5px 11px;
+        border-radius: 999px;
+      }
+      .fail h3 {
+        max-width: 24ch;
+      }
+      .fail p {
+        font-size: 15.5px;
+        color: var(--fg-muted);
+      }
+      .fail .rule-out {
+        margin-top: auto;
+        border-top: 1px solid var(--line);
+        padding-top: var(--s2);
+        font-family: var(--display);
+        font-size: 1.16rem;
+        font-style: italic;
+        color: var(--pale);
+        max-width: none;
+      }
+
+      .green-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 10px;
+      }
+      .green-check::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--moss-lift);
+      }
+      .green-check.was-wrong::before {
+        background: var(--rust);
+      }
+
+      /* ─── Paper band ────────────────────────────────────────────── */
+      .paper {
+        background: var(--paper);
+        color: #14160e;
+        border-top: 1px solid var(--line);
+      }
+      .paper .eyebrow {
+        color: var(--moss);
+      }
+      .paper h2,
+      .paper h3 {
+        color: #0c0e07;
+      }
+      .paper .lede {
+        color: #33381f;
+      }
+      .paper .muted {
+        color: #4c5137;
+      }
+      .paper strong {
+        color: #000;
+      }
+      .paper pre {
+        background: #fff;
+        color: #24280f;
+        border-color: var(--line-paper);
+        border-left-color: var(--moss);
+      }
+      .paper pre .c {
+        color: #6c7154;
+      }
+      .paper pre .ok {
+        color: #3c5108;
+      }
+      .paper code {
+        background: rgba(11, 12, 8, 0.05);
+        border-color: var(--line-paper);
+        color: #2d3312;
+      }
+      .paper .btn {
+        border-color: rgba(11, 12, 8, 0.28);
+        color: #14160e;
+      }
+      .paper .btn:hover {
+        border-color: var(--moss);
+        color: var(--moss);
+      }
+      .paper .btn-primary {
+        background: var(--moss);
+        border-color: var(--moss);
+        color: #fff;
+      }
+      .paper .btn-primary:hover {
+        background: #2b3609;
+        border-color: #2b3609;
+        color: #fff;
+      }
+      .paper .facts {
+        border-color: var(--line-paper);
+        background: var(--paper-2);
+      }
+      .paper .facts > div {
+        border-color: var(--line-paper);
+      }
+      .paper .facts dt {
+        color: #545943;
+      }
+      .paper .facts dd a {
+        color: var(--moss);
+      }
+
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 0 0 var(--s4);
+      }
+      .facts > div {
+        padding: var(--s3);
+        border-right: 1px solid var(--line);
+      }
+      .facts > div:last-child {
+        border-right: 0;
+      }
+      .facts dt {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+        margin-bottom: 8px;
+      }
+      .facts dd {
+        margin: 0;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+      .facts dd a {
+        color: var(--moss-lift);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
+      /* ─── Workspace cards ───────────────────────────────────────── */
+      .ws {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: var(--s3);
+        background: var(--ink-2);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        transition:
+          border-color 0.25s var(--ease),
+          transform 0.25s var(--ease);
+      }
+      .ws:hover {
+        border-color: var(--line-strong);
+        transform: translateY(-3px);
+      }
+      .ws .path {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--moss-lift);
+        letter-spacing: 0;
+      }
+      .ws p {
+        font-size: 15px;
+        color: var(--fg-muted);
+        margin: 0;
+      }
+      .ws ul {
+        margin: 0;
+        padding-left: 1.1em;
+        font-size: 14.5px;
+        color: var(--fg-muted);
+      }
+      .ws li + li {
+        margin-top: 5px;
+      }
+      .ws .tag {
+        margin-top: auto;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+      }
+
+      /* ─── Diagram ───────────────────────────────────────────────── */
+      figure {
+        margin: 0 0 var(--s4);
+      }
+      .diagram {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--ink-2);
+        padding: var(--s3);
+        overflow-x: auto;
+      }
+      .diagram svg {
+        display: block;
+        min-width: 720px;
+        width: 100%;
+        height: auto;
+      }
+      figcaption {
+        font-size: 14px;
+        color: var(--fg-dim);
+        margin-top: 12px;
+        max-width: var(--measure);
+      }
+
+      /* ─── Timeline ──────────────────────────────────────────────── */
+      .timeline {
+        border-left: 1px solid var(--line-strong);
+        margin-left: 6px;
+        padding-left: clamp(18px, 4vw, 36px);
+        display: grid;
+        gap: var(--s3);
+      }
+      .pr {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--ink-2);
+        position: relative;
+      }
+      .pr::before {
+        content: '';
+        position: absolute;
+        left: calc(-1 * clamp(18px, 4vw, 36px) - 5px);
+        top: 27px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--moss-lift);
+        box-shadow: 0 0 0 4px var(--ink);
+      }
+      .pr[data-state='open']::before {
+        background: var(--rust);
+      }
+      .pr > summary {
+        cursor: pointer;
+        list-style: none;
+        padding: var(--s3);
+        display: grid;
+        gap: 10px;
+      }
+      .pr > summary::-webkit-details-marker {
+        display: none;
+      }
+      .pr > summary:hover .pr-title {
+        color: var(--moss-lift);
+      }
+      .pr-meta {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        flex-wrap: wrap;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+      }
+      .pr-meta .num {
+        color: var(--moss-lift);
+      }
+      .pr-meta .add {
+        color: var(--moss-lift);
+      }
+      .pr-meta .del {
+        color: var(--rust);
+      }
+      .pr-title {
+        font-family: var(--display);
+        font-size: clamp(1.2rem, 2vw, 1.55rem);
+        line-height: 1.16;
+        transition: color 0.2s var(--ease);
+        max-width: 46ch;
+      }
+      .pr-oneline {
+        font-size: 15px;
+        color: var(--fg-muted);
+        max-width: 62ch;
+      }
+      .pr-body {
+        padding: 0 var(--s3) var(--s3);
+        border-top: 1px solid var(--line);
+        margin-top: 0;
+        padding-top: var(--s3);
+      }
+      .pr-body h4 {
+        margin: var(--s3) 0 10px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--moss-lift);
+      }
+      .pr-body h4:first-child {
+        margin-top: 0;
+      }
+      .pr-body ul {
+        margin: 0;
+        padding-left: 1.15em;
+        font-size: 15px;
+        color: var(--fg-muted);
+        max-width: var(--measure);
+      }
+      .pr-body li + li {
+        margin-top: 6px;
+      }
+      .pr-body .lesson {
+        border-left: 2px solid var(--moss-lift);
+        padding: 10px 0 10px 16px;
+        margin-top: var(--s3);
+        font-family: var(--display);
+        font-style: italic;
+        font-size: 1.12rem;
+        color: var(--pale);
+        max-width: 58ch;
+      }
+      .chip {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 9px;
+        color: var(--fg-muted);
+      }
+      .chip.merged {
+        border-color: rgba(188, 216, 115, 0.45);
+        color: var(--moss-lift);
+      }
+      .chip.open {
+        border-color: rgba(194, 112, 58, 0.5);
+        color: var(--rust);
+      }
+
+      /* ─── Tables ────────────────────────────────────────────────── */
+      .table-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 34rem;
+        font-size: 15px;
+      }
+      caption {
+        text-align: left;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+        padding: 0 0 12px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 13px var(--s2);
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      thead th {
+        font-family: var(--mono);
+        font-weight: 500;
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--fg-dim);
+        background: var(--ink-3);
+        white-space: nowrap;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover td {
+        background: rgba(223, 236, 198, 0.03);
+      }
+      td.adr {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--moss-lift);
+        white-space: nowrap;
+      }
+      td.cmd {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--pale);
+        white-space: nowrap;
+      }
+
+      /* ─── Blind spots ───────────────────────────────────────────── */
+      .blind {
+        border: 1px solid rgba(194, 112, 58, 0.34);
+        border-radius: 10px;
+        background: linear-gradient(180deg, rgba(194, 112, 58, 0.09), rgba(194, 112, 58, 0.02));
+        padding: var(--s4) var(--s3);
+      }
+      .blind ul {
+        margin: 0;
+        padding-left: 1.15em;
+        max-width: var(--measure);
+        color: var(--fg-muted);
+        font-size: 15.5px;
+      }
+      .blind li + li {
+        margin-top: 10px;
+      }
+
+      /* ─── Footer ────────────────────────────────────────────────── */
+      footer {
+        border-top: 1px solid var(--line);
+        padding-block: var(--s5);
+        font-size: 14px;
+        color: var(--fg-dim);
+      }
+      footer .cols {
+        gap: var(--s3);
+      }
+      footer a {
+        color: var(--fg-muted);
+        text-decoration: none;
+      }
+      footer a:hover {
+        color: var(--moss-lift);
+        text-decoration: underline;
+      }
+      footer ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      footer li + li {
+        margin-top: 7px;
+      }
+      footer .fmark {
+        font-family: var(--display);
+        font-size: 1.5rem;
+        color: var(--fg);
+      }
+
+      /* ─── View toggle ───────────────────────────────────────────── */
+      body[data-view='story'] [data-part='docs'],
+      body[data-view='docs'] [data-part='story'] {
+        display: none;
+      }
+
+      /* ─── Reveal ────────────────────────────────────────────────── */
+      .js-reveal .rev {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      .rev.in {
+        opacity: 1;
+        transform: none;
+        transition:
+          opacity 0.6s var(--ease),
+          transform 0.6s var(--ease);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .js-reveal .rev,
+        .rev.in {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+        .btn:hover,
+        .ws:hover {
+          transform: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          font-size: 16px;
+        }
+        section.band {
+          padding-block: var(--s6);
+        }
+        .bar {
+          justify-content: flex-start;
+        }
+        .bar-links {
+          display: none;
+        }
+      }
+
+      @media print {
+        body[data-view] [data-part],
+        body[data-view] [data-part][hidden] {
+          display: block !important;
+        }
+        body,
+        .paper {
+          background: #fff;
+          color: #000;
+        }
+        body::before,
+        header,
+        .switch {
+          display: none;
+        }
+        .pr-body {
+          display: block !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body data-view="story">
+    <script>
+      // Reveal-on-scroll is progressive enhancement: the hidden state is only
+      // ever applied when there is something here to un-apply it.
+      if (
+        'IntersectionObserver' in window &&
+        !matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        document.documentElement.classList.add('js-reveal')
+      }
+    </script>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header>
+      <div class="wrap bar">
+        <a class="mark" href="#top">
+          <svg class="glyph" viewBox="0 0 32 32" aria-hidden="true">
+            <rect
+              x="1"
+              y="1"
+              width="30"
+              height="30"
+              rx="7"
+              fill="none"
+              stroke="#bcd873"
+              stroke-width="1.4"
+            />
+            <path
+              d="M9 22.5 16 9l7 13.5"
+              fill="none"
+              stroke="#bcd873"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+            />
+            <path d="M12.2 18.4h7.6" stroke="#dfecc6" stroke-width="1.4" />
+          </svg>
+          <span>Area <span class="sub">/ build log</span></span>
+        </a>
+
+        <div class="switch" role="tablist" aria-label="Page view">
+          <button
+            id="tab-story"
+            role="tab"
+            aria-selected="true"
+            tabindex="0"
+            aria-controls="view-story"
+            data-view-btn="story"
+          >
+            Story
+          </button>
+          <button
+            id="tab-docs"
+            role="tab"
+            aria-selected="false"
+            tabindex="-1"
+            aria-controls="view-docs"
+            data-view-btn="docs"
+          >
+            Documentation
+          </button>
+        </div>
+
+        <nav class="bar-links" aria-label="Quick links">
+          <a href="#architecture">Architecture</a>
+          <a href="#process">Process</a>
+          <a href="#decisions">Decisions</a>
+          <a href="https://company-profile-with-cms-web.vercel.app/" rel="noreferrer noopener"
+            >Live site ↗</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <span id="top"></span>
+
+      <!-- ══════════════════════════════════════════════════════════
+           STORY
+           ══════════════════════════════════════════════════════════ -->
+      <div
+        id="view-story"
+        data-part="story"
+        role="tabpanel"
+        tabindex="0"
+        aria-labelledby="tab-story"
+      >
+        <section class="wrap hero">
+          <span class="eyebrow">Case study · 21–22 August 2026 · 11 pull requests</span>
+          <h1 class="display">
+            A Figma file became a CMS-backed site. <em>The proof shipped with it.</em>
+          </h1>
+          <p class="lede">
+            Two days, eleven pull requests, one deployed Next.js + Payload site — and three skills
+            extracted from the four times a green check mark lied. Every number on this page names
+            the command that produced it.
+          </p>
+          <div class="hero-actions">
+            <a
+              class="btn btn-primary"
+              href="https://company-profile-with-cms-web.vercel.app/"
+              rel="noreferrer noopener"
+            >
+              View the live site
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M7 17 17 7M17 7H9m8 0v8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </a>
+            <button class="btn" data-view-btn="docs">
+              Read the documentation
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <dl class="stats rev">
+            <div class="stat"><b>18</b><span>manifest sections</span></div>
+            <div class="stat"><b>250</b><span>unit tests, 4 workspaces</span></div>
+            <div class="stat"><b>29</b><span>eval cases, 3 skills</span></div>
+            <div class="stat"><b>16</b><span>decision records</span></div>
+            <div class="stat"><b>0</b><span>parity disagreements</span></div>
+          </dl>
+        </section>
+
+        <section class="band wrap">
+          <div class="band-head rev">
+            <span class="eyebrow">Why it matters</span>
+            <h2>Four times everything was green and the page was wrong.</h2>
+            <p class="lede">
+              This repository is not a template. It is the record of a pipeline that shipped defects
+              behind passing checks four times, and of the guardrail added each time so the same
+              class of defect cannot pass again.
+            </p>
+          </div>
+
+          <div class="cols">
+            <article class="fail rev">
+              <span class="n">01 · shipped</span>
+              <h3>A green band nested inside another green band</h3>
+              <span class="green-check was-wrong">18 sections validated · build ✓ · tests ✓</span>
+              <p>
+                Figma assets were cropped by declaring each node's size. Two declared sizes were
+                wrong, so the crop returned a different region of canvas and shipped it as the
+                asset. The manifest validated, the unit tests passed, the static export succeeded —
+                nothing compared a browser render against the design.
+              </p>
+              <p class="rule-out">“Verify the render, not the diff.”</p>
+            </article>
+
+            <article class="fail rev">
+              <span class="n">02 · near miss</span>
+              <h3>A CMS migration that would have been green while disconnected</h3>
+              <span class="green-check was-wrong">131 unit · 23 e2e · 11 fidelity ✓</span>
+              <p>
+                Phase 2 moved every string into Payload and finished green. But the seed wrote into
+                the database exactly the strings the components had hardcoded, so each check
+                compared one source against an identical copy of the other. The claim the migration
+                existed to make had no check behind it at all.
+              </p>
+              <p class="rule-out">“Prove the seam, not the render.”</p>
+            </article>
+
+            <article class="fail rev">
+              <span class="n">03 · shipped to production</span>
+              <h3>Thirty-four images, all 500, behind four green checks</h3>
+              <span class="green-check was-wrong">local build ✓ · CI ✓ · evidence pack ✓</span>
+              <p>
+                Payload's media collection had no storage adapter, so uploads landed on the runner's
+                gitignored disk. The media rows survived in the remote database; the files did not
+                survive the deploy. Every existing check ran on the machine that held the files, so
+                none of them could see it.
+              </p>
+              <p class="rule-out">“A check that cannot confirm what it looked at says so, once.”</p>
+            </article>
+
+            <article class="fail rev">
+              <span class="n">04 · shipped to production</span>
+              <h3>An admin panel that returned 200 and rendered nothing</h3>
+              <span class="green-check was-wrong">GET /admin ✓ 200 · title ✓ · CI ✓</span>
+              <p>
+                The blob storage plugin from 03 was registered only when its token was set, so the
+                committed <code>importMap.js</code> — generated on machines without one — omitted
+                the client upload handler that production then asked for. Every check that had ever
+                looked at <code>/admin</code> had asked for a status code, and a blank React root is
+                a 200.
+              </p>
+              <p class="rule-out">
+                “A generated file committed from one environment is a claim about all of them.”
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="band paper" id="outcome">
+          <div class="wrap">
+            <div class="band-head rev">
+              <span class="eyebrow">The outcome</span>
+              <h2>Deployed, and checked against the deployment.</h2>
+              <p class="lede">
+                The last gap closed on 22 August: media served from blob storage, an admin panel
+                that renders rather than merely answering, and the three-way parity report agreeing
+                across the Figma references, the local render and production.
+              </p>
+            </div>
+
+            <dl class="facts rev">
+              <div>
+                <dt>Live site</dt>
+                <dd>
+                  <a
+                    href="https://company-profile-with-cms-web.vercel.app/"
+                    rel="noreferrer noopener"
+                    >company-profile-with-cms-web.vercel.app</a
+                  >
+                </dd>
+              </div>
+              <div>
+                <dt>Admin</dt>
+                <dd>
+                  <a
+                    href="https://company-profile-with-cms-web.vercel.app/admin"
+                    rel="noreferrer noopener"
+                    >/admin — Payload, generated from the manifest</a
+                  >
+                </dd>
+              </div>
+              <div>
+                <dt>Database</dt>
+                <dd>Turso libSQL, <code>company-profile-cms</code></dd>
+              </div>
+              <div>
+                <dt>Media</dt>
+                <dd>Vercel Blob — a production build without its token fails</dd>
+              </div>
+            </dl>
+
+            <pre
+              class="rev"
+            ><code><span class="c"># PR #9, verified against the running production deployment</span>
+GET /api/media/file/header-30.png <span class="ok">-> 200</span>
+GET /api/media/file/logo-190.png  <span class="ok">-> 200</span>
+GET /api/media/file/check-33.svg  <span class="ok">-> 200</span>
+GET /admin                        <span class="ok">-> 200</span>
+homepage                          <span class="ok">-> 18 distinct media URLs, all resolving</span>
+
+$ bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
+                                  <span class="ok">-> 0 disagreement(s)</span></code></pre>
+
+            <p class="muted">
+              <strong>The <code>/admin -&gt; 200</code> line above is the one that lied.</strong> It
+              was true and the panel was blank: the status code says the route answered, not that it
+              rendered. #11 replaced it with a check on the committed import map itself — ADR-0016.
+            </p>
+
+            <p class="muted">
+              <strong>Point it at production, not a preview.</strong> Preview deployments are
+              protected, so a preview URL answers with a login page. The report detects that and
+              declines to grade the sections rather than reporting all of them as missing —
+              ADR-0015.
+            </p>
+          </div>
+        </section>
+
+        <section class="band wrap" id="what">
+          <div class="band-head rev">
+            <span class="eyebrow">What was built</span>
+            <h2>One piece of work, four outputs.</h2>
+            <p class="lede">
+              The site is the instance. The three skills are the transferable part, and each exists
+              because of a failure the site had already shipped or nearly shipped.
+            </p>
+          </div>
+
+          <div class="cols">
+            <article class="ws rev">
+              <span class="path">apps/web</span>
+              <h4>The site</h4>
+              <p>
+                A Figma design built as a manifest-driven Next.js site, now backed by Payload CMS,
+                with no copy rework between phases.
+              </p>
+              <ul>
+                <li>18 manifest sections, 11 section components</li>
+                <li>
+                  Payload <code>/admin</code>, REST and GraphQL routes generated from the manifest
+                </li>
+                <li>61 unit tests, plus the e2e and fidelity suites</li>
+              </ul>
+              <span class="tag">Next.js · Tailwind v4 · Payload · libSQL</span>
+            </article>
+
+            <article class="ws rev">
+              <span class="path">packages/figma-to-site</span>
+              <h4>Step one, as a skill</h4>
+              <p>
+                Capture a Figma file by screenshot with no paid seat, and prove the render matches.
+              </p>
+              <ul>
+                <li>Crop, stroke healing, Figma-chrome detection, two-axis comparison</li>
+                <li>3 binaries: capture, verify-design, check-assets</li>
+                <li>95 unit tests · 10 eval cases</li>
+              </ul>
+              <span class="tag">Verify the render, not the diff</span>
+            </article>
+
+            <article class="ws rev">
+              <span class="path">packages/site-to-cms</span>
+              <h4>Step two, as a skill</h4>
+              <p>Move that page's content into a CMS, and prove the page actually reads from it.</p>
+              <ul>
+                <li>No <code>src/</code> — the judgement is the deliverable (ADR-0012)</li>
+                <li>12 eval cases, each with one deterministic and one LLM grader</li>
+                <li>62 structural tests over the suite itself</li>
+              </ul>
+              <span class="tag">Prove the seam, not the render</span>
+            </article>
+
+            <article class="ws rev">
+              <span class="path">packages/deploy-to-vercel</span>
+              <h4>Step three, as a skill</h4>
+              <p>
+                Deploy to Vercel from a fresh machine and verify the deployment, rather than
+                stopping at a green build.
+              </p>
+              <ul>
+                <li>7 steps, written from this repository's own live deploy</li>
+                <li>7 eval cases anchored to real error strings from the incident</li>
+                <li>30 structural tests</li>
+              </ul>
+              <span class="tag">The user logs in; the agent never holds the token</span>
+            </article>
+          </div>
+
+          <hr class="rule" />
+
+          <div class="band-head rev" style="margin-bottom: var(--s3)">
+            <h3>The whole record is one click away.</h3>
+            <p class="muted">
+              Architecture, the four checks, all eleven pull requests, sixteen decision records, and
+              what the checks still cannot see.
+            </p>
+          </div>
+          <button class="btn btn-primary" data-view-btn="docs">
+            Open the documentation
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </section>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════
+           DOCUMENTATION
+           ══════════════════════════════════════════════════════════ -->
+      <div
+        id="view-docs"
+        data-part="docs"
+        role="tabpanel"
+        tabindex="0"
+        aria-labelledby="tab-docs"
+        hidden
+      >
+        <section class="wrap hero" style="padding-bottom: var(--s5)">
+          <span class="eyebrow">Documentation · v0.1.0</span>
+          <h1 class="display" style="font-size: clamp(2.4rem, 5vw, 4rem); max-width: 30ch">
+            How it was built, in the order it happened.
+          </h1>
+          <p class="lede">
+            A monorepo on Bun: one site, three skills. Sections below mirror the repository —
+            architecture, the four checks, the pull requests, the decision records, how to reproduce
+            it, and the blind spots that remain.
+          </p>
+        </section>
+
+        <section class="band wrap" id="architecture">
+          <div class="band-head rev">
+            <span class="eyebrow">01 · Architecture</span>
+            <h2>One manifest, three derived artefacts.</h2>
+            <p>
+              <code>site.manifest.json</code> is human-reviewed and load-bearing: the React section
+              components, the Phase 1 content seed and the Payload config all derive from it. No
+              content model is authored twice, and <code>check:cms-drift</code> fails CI if the
+              committed config stops matching the manifest.
+            </p>
+          </div>
+
+          <figure class="rev">
+            <div class="diagram">
+              <svg viewBox="0 0 980 400" role="img" aria-labelledby="diag-title diag-desc">
+                <title id="diag-title">
+                  Pipeline from Figma to the rendered page, with the two checks
+                </title>
+                <desc id="diag-desc">
+                  Figma is captured by screenshot into reference PNGs and public images, and
+                  extracted into site.manifest.json after human review. The manifest generates the
+                  Payload config, the content seed and the section components. Content flows through
+                  lib/content.ts into the page. Two checks sit on the output: a two-axis
+                  design-fidelity comparison between the browser render and the Figma reference, and
+                  a CMS round-trip that writes a value from the admin UI that exists nowhere in the
+                  repository and requires it in the server's HTML.
+                </desc>
+                <defs>
+                  <marker
+                    id="ar"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="7"
+                    markerHeight="7"
+                    orient="auto"
+                  >
+                    <path d="M0 0 10 5 0 10z" fill="#8b9575" />
+                  </marker>
+                  <marker
+                    id="ar-lift"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="7"
+                    markerHeight="7"
+                    orient="auto"
+                  >
+                    <path d="M0 0 10 5 0 10z" fill="#bcd873" />
+                  </marker>
+                </defs>
+                <g
+                  font-family="Roboto Mono, monospace"
+                  font-size="11.5"
+                  fill="#dfecc6"
+                  stroke="none"
+                  text-anchor="middle"
+                >
+                  <!-- row 1: source → manifest → artefacts -->
+                  <rect
+                    x="14"
+                    y="26"
+                    width="140"
+                    height="58"
+                    rx="7"
+                    fill="#1f2317"
+                    stroke="#bcd873"
+                  />
+                  <text x="84" y="50">Figma file</text>
+                  <text x="84" y="68" fill="#8b9575">v7Zzmwg…Ae7V</text>
+
+                  <rect
+                    x="212"
+                    y="26"
+                    width="168"
+                    height="58"
+                    rx="7"
+                    fill="#171a10"
+                    stroke="#3f4a2c"
+                  />
+                  <text x="296" y="50">capture (screenshot)</text>
+                  <text x="296" y="68" fill="#8b9575">12 targets · free plan</text>
+
+                  <rect
+                    x="440"
+                    y="18"
+                    width="196"
+                    height="74"
+                    rx="7"
+                    fill="#252b18"
+                    stroke="#bcd873"
+                  />
+                  <text x="538" y="44">site.manifest.json</text>
+                  <text x="538" y="62" fill="#8b9575">18 sections · zod-validated</text>
+                  <text x="538" y="80" fill="#c2703a">human reviews</text>
+
+                  <rect
+                    x="700"
+                    y="8"
+                    width="266"
+                    height="40"
+                    rx="7"
+                    fill="#171a10"
+                    stroke="#3f4a2c"
+                  />
+                  <text x="833" y="33">payload.config.ts · /admin</text>
+
+                  <rect
+                    x="700"
+                    y="58"
+                    width="266"
+                    height="40"
+                    rx="7"
+                    fill="#171a10"
+                    stroke="#3f4a2c"
+                  />
+                  <text x="833" y="83">content/*.json — the seed</text>
+
+                  <rect
+                    x="700"
+                    y="108"
+                    width="266"
+                    height="40"
+                    rx="7"
+                    fill="#171a10"
+                    stroke="#3f4a2c"
+                  />
+                  <text x="833" y="133">11 section components</text>
+
+                  <!-- row 2: refs + render -->
+                  <rect
+                    x="14"
+                    y="146"
+                    width="330"
+                    height="56"
+                    rx="7"
+                    fill="#171a10"
+                    stroke="#3f4a2c"
+                  />
+                  <text x="179" y="170">design/refs/*.png + public/img/*.png</text>
+                  <text x="179" y="188" fill="#8b9575">refs.json vouches for each reference</text>
+
+                  <rect
+                    x="440"
+                    y="212"
+                    width="196"
+                    height="58"
+                    rx="7"
+                    fill="#171a10"
+                    stroke="#3f4a2c"
+                  />
+                  <text x="538" y="236">lib/content.ts</text>
+                  <text x="538" y="254" fill="#8b9575">the phase seam</text>
+
+                  <rect
+                    x="700"
+                    y="212"
+                    width="266"
+                    height="58"
+                    rx="7"
+                    fill="#1f2317"
+                    stroke="#bcd873"
+                  />
+                  <text x="833" y="236">browser render</text>
+                  <text x="833" y="254" fill="#8b9575">next start · the deployment</text>
+
+                  <!-- checks -->
+                  <rect
+                    x="14"
+                    y="236"
+                    width="330"
+                    height="76"
+                    rx="7"
+                    fill="rgba(188,216,115,.07)"
+                    stroke="#bcd873"
+                    stroke-dasharray="4 3"
+                  />
+                  <text x="179" y="260" fill="#bcd873">check 1 · design fidelity</text>
+                  <text x="179" y="278" fill="#8b9575">aspect vs a number off the design</text>
+                  <text x="179" y="296" fill="#8b9575">block colour vs a vouched reference</text>
+
+                  <rect
+                    x="440"
+                    y="308"
+                    width="526"
+                    height="72"
+                    rx="7"
+                    fill="rgba(188,216,115,.07)"
+                    stroke="#bcd873"
+                    stroke-dasharray="4 3"
+                  />
+                  <text x="703" y="332" fill="#bcd873">check 2 · CMS round trip</text>
+                  <text x="703" y="350" fill="#8b9575">
+                    admin writes a value no fixture contains →
+                  </text>
+                  <text x="703" y="368" fill="#8b9575">
+                    required on the page and in the server's HTML
+                  </text>
+                </g>
+                <g fill="none" stroke="#8b9575" stroke-width="1.3">
+                  <path d="M154 55h34" marker-end="url(#ar)" />
+                  <path d="M396 55h36" marker-end="url(#ar)" />
+                  <path d="M296 84v62h20" marker-end="url(#ar)" />
+                  <path d="M636 45h56" marker-end="url(#ar)" />
+                  <path d="M636 55q34 0 34 22h20" marker-end="url(#ar)" />
+                  <path d="M636 70q40 0 40 58h20" marker-end="url(#ar)" />
+                  <path d="M833 148v56" marker-end="url(#ar)" />
+                  <path d="M636 241h56" marker-end="url(#ar)" />
+                  <path d="M538 92v112" marker-end="url(#ar)" />
+                </g>
+                <g fill="none" stroke="#bcd873" stroke-width="1.3" stroke-dasharray="5 4">
+                  <path d="M344 174h96v34" marker-end="url(#ar-lift)" />
+                  <path d="M179 202v30" marker-end="url(#ar-lift)" />
+                  <path d="M344 278H742v-6" marker-end="url(#ar-lift)" />
+                  <path d="M833 270v34" marker-end="url(#ar-lift)" />
+                </g>
+              </svg>
+            </div>
+            <figcaption>
+              Solid arrows are generation. Dashed arrows are verification: check 1 compares the
+              render against the design, check 2 proves the copy on the page came out of the
+              database.
+            </figcaption>
+          </figure>
+
+          <div class="cols">
+            <div>
+              <h3>Stack</h3>
+              <p class="muted">
+                Next.js App Router with Tailwind v4, Payload CMS in the same repository (ADR-0001),
+                SQLite locally and Turso libSQL in production, Bun as package manager and script
+                runner with Node.js as the runtime (ADR-0006). Node is pinned to
+                <code>&gt;=20.9.0</code>.
+              </p>
+            </div>
+            <div>
+              <h3>The phase seam</h3>
+              <p class="muted">
+                <code>getGlobal</code> / <code>getCollection</code> in
+                <code>lib/content.ts</code> return locale-resolved, unsuffixed objects, so
+                components never learn which backend serves them. Phase 2 replaced those two
+                function bodies and deleted the JSON reader — no component changed.
+              </p>
+            </div>
+            <div>
+              <h3>Localization</h3>
+              <p class="muted">
+                Payload's native localization, with the <code>_en</code> suffix used only as an
+                interchange format in the seed files (ADR-0005). <code>fallbackLocale: 'en'</code>,
+                and the manifest schema rejects field names that already carry a locale suffix.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="band wrap" id="checks">
+          <div class="band-head rev">
+            <span class="eyebrow">02 · The four checks</span>
+            <h2>Each is verified in the failing direction.</h2>
+            <p>
+              A detector that has only ever seen clean input is not known to detect anything. Each
+              check below is proven by breaking the thing it watches and requiring red.
+            </p>
+          </div>
+
+          <h3>Check 1 — design fidelity, on two axes</h3>
+          <p class="muted">
+            Not a pixel diff and not a screenshot baseline: both of those grade the render against a
+            previous render. One axis compares each section's rendered aspect ratio against a number
+            taken off the design; the other compares coarse block colour against a reference PNG
+            that <code>refs.json</code> explicitly vouches for. A reference nobody vouched for
+            withholds the content axis and keeps the aspect axis — ADR-0008.
+          </p>
+          <pre><code>$ bun run verify:design      <span class="c"># needs a dev server</span>
+$ bun run e2e                <span class="c"># one fidelity test per section, in Playwright</span>
+$ bun run --cwd apps/web check:assets
+                             <span class="c"># the chrome detector, applied to committed images</span></code></pre>
+
+          <h3>Check 2 — the CMS round trip</h3>
+          <p class="muted">
+            <code>apps/web/e2e/cms-round-trip.spec.ts</code> writes through the admin UI a value
+            that exists nowhere in the repository, then requires it both on the rendered page and in
+            the server's HTML. It is the only check that can tell a database read from a string
+            literal. Hardcode the headline back into the component and it must go red.
+          </p>
+          <pre><code>admin UI ──writes a value no fixture contains──> Payload ──> lib/content.ts ──> page
+                                                                                │
+                        required on the page and in the server's HTML ───────────┘</code></pre>
+
+          <h3>Check 3 — the deployment, after the fact</h3>
+          <p class="muted">
+            <code>bun run evidence</code> runs entirely on your machine, so it cannot see a
+            difference that exists only on the host — which is exactly how the media defect shipped
+            behind four green checks. <code>bun run parity-report</code> asks the Figma references,
+            the local server and the deployment the same questions over HTTP and writes
+            <code>parity-report/report.html</code>: each section's reference, local render and
+            deployed render side by side, plus what loaded and what did not. It exits non-zero on a
+            disagreement.
+          </p>
+          <p class="muted">
+            <code>.github/workflows/parity.yml</code> runs it manually and on a schedule —
+            deliberately <em>not</em> on push, because a run against a URL that has not been
+            redeployed yet would report the previous deployment's state as this commit's.
+          </p>
+
+          <h3>Check 4 — the generated files, against their generators</h3>
+          <p class="muted">
+            Two files in <code>apps/web</code> are generated and committed, and no build step
+            rewrites them: <code>payload.config.ts</code> from the manifest, and
+            <code>app/(payload)/admin/importMap.js</code> from that config — the map through which
+            Payload resolves every admin component. Each check regenerates its file and fails on a
+            difference. That is the only way the repository can notice that a committed copy was
+            produced somewhere the running environment does not resemble, which is not hypothetical:
+            it is how <code>/admin</code> came to serve a <code>200</code> and a blank page —
+            ADR-0016.
+          </p>
+          <pre><code>$ bun run --cwd apps/web check:cms-drift
+                             <span class="c"># config vs site.manifest.json</span>
+$ bun run --cwd apps/web check:importmap
+                             <span class="c"># import map vs payload.config.ts</span></code></pre>
+          <p class="muted">
+            The generator has to be environment-independent for this to mean anything. A config that
+            branches on <code>process.env</code> produces a different map per machine, and then the
+            check only proves the committed map matches whoever ran it last. So the drift gate is
+            paired with an assertion about the result:
+            <code>apps/web/e2e/admin.spec.ts</code> requires the login form's own fields, which only
+            a mounted panel draws — a <code>200</code> and a <code>&lt;title&gt;</code> are what the
+            blank version also served.
+          </p>
+        </section>
+
+        <section class="band wrap" id="process">
+          <div class="band-head rev">
+            <span class="eyebrow">03 · Process</span>
+            <h2>Eleven pull requests.</h2>
+            <p>
+              +19,828 / −1,303 lines across 21–22 August 2026. Ten merged, one open. Every entry
+              expands; the italic line is what the pull request cost to learn.
+            </p>
+          </div>
+
+          <div class="timeline">
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#1</span><span class="chip merged">merged</span
+                  ><span>21 Aug</span> <span class="add">+3,949</span><span class="del">−1</span
+                  ><span>50 files</span>
+                </div>
+                <div class="pr-title">
+                  Scaffold phase-1 static site with manifest schema and content loader
+                </div>
+                <p class="pr-oneline">
+                  The design, six ADRs, and the seam that let Phase 2 arrive without touching a
+                  component.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    Full pipeline spec, an implementation plan, and six ADRs each recording rejected
+                    alternatives
+                  </li>
+                  <li>
+                    Next.js App Router + Tailwind v4 + Vitest scaffold on Bun, Node pinned
+                    <code>&gt;=20.9.0</code>
+                  </li>
+                  <li>
+                    <code>schemas/manifest.ts</code> (Zod) and <code>validate-manifest</code>:
+                    <code>en</code> enforced as default locale, unique section and field names,
+                    locale-suffixed field names rejected
+                  </li>
+                  <li><code>lib/content.ts</code> — the phase seam. 17 tests passing.</li>
+                </ul>
+                <h4>Halted deliberately</h4>
+                <ul>
+                  <li>
+                    Tasks 4–6 blocked: the Figma MCP reported no edit access and the URL was a Figma
+                    Sites file. Stopped rather than fabricating a manifest.
+                  </li>
+                </ul>
+                <h4>Review found</h4>
+                <ul>
+                  <li>
+                    <code>content/*.json</code> was documented as the recovery path — wrong and
+                    dangerous, since editor changes in Payload make it stale. Now described as the
+                    bootstrap seed only, with database backups as the recovery mechanism.
+                  </li>
+                  <li>
+                    <code>validate-manifest</code> threw before its error handling ran, so a missing
+                    manifest produced a raw stack trace instead of the formatted output.
+                  </li>
+                </ul>
+                <p class="lesson">
+                  Design the seam before you need it, and refuse to invent the input you were
+                  blocked on.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#2</span><span class="chip merged">merged</span
+                  ><span>21 Aug</span> <span class="add">+2,746</span><span class="del">−132</span
+                  ><span>104 files</span>
+                </div>
+                <div class="pr-title">
+                  Figma extraction, section components, static export — Phase 1 complete
+                </div>
+                <p class="pr-oneline">
+                  The pull request that shipped the green-band-inside-a-green-band, then built the
+                  check that catches it.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    Figma extraction into <code>site.manifest.json</code> — 18 sections — plus
+                    <code>content/*.json</code>
+                  </li>
+                  <li>
+                    11 manifest-driven section components, zero hardcoded copy, asserted by test
+                  </li>
+                  <li>
+                    Static export, CI workflow, 23 e2e tests including one fidelity test per section
+                  </li>
+                  <li>10 placeholder assets repointed to real captured Figma PNGs</li>
+                </ul>
+                <h4>Defects caught here</h4>
+                <ul>
+                  <li>
+                    Two capture targets had wrong declared sizes, so their crops were the wrong
+                    region of canvas
+                  </li>
+                  <li>
+                    <code>output: 'export'</code> forced static-only rendering on
+                    <em>all</em> routes even under <code>next dev</code>, breaking the seam page's
+                    dynamic <code>searchParams</code> read — scoped to production builds
+                  </li>
+                  <li>
+                    CI hardened after review: least-privilege permissions, concurrency,
+                    <code>persist-credentials: false</code>, actions pinned to commit SHAs
+                  </li>
+                </ul>
+                <h4>Rulings recorded, not guessed</h4>
+                <ul>
+                  <li>
+                    Footer copyright, year and rights collapsed into one translatable field for
+                    localization safety
+                  </li>
+                  <li>
+                    The Figma file's three responsive frames are one page, not three — no manifest
+                    triplication
+                  </li>
+                  <li>
+                    Vercel deploy deferred: it needs human account access, so the README said “TBD”
+                    rather than implying a deployment
+                  </li>
+                </ul>
+                <p class="lesson">
+                  A green suite proves the code does what the code does. Nothing is verified until
+                  something compares a render to the design.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#3</span><span class="chip merged">merged</span
+                  ><span>21 Aug</span> <span class="add">+2,440</span><span class="del">−464</span
+                  ><span>139 files</span>
+                </div>
+                <div class="pr-title">
+                  Monorepo split, with the Figma pipeline extracted as the figma-to-site skill
+                </div>
+                <p class="pr-oneline">
+                  The method separated from the instance, with every failure mode from #2 reproduced
+                  as a test.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>The package</h4>
+                <ul>
+                  <li>
+                    <code>figma-crop.mjs</code> — selection-outline detection, cropping, stroke
+                    healing, Figma-chrome detection
+                  </li>
+                  <li>
+                    <code>capture.mjs</code> — drives the Figma web viewer and captures each target
+                  </li>
+                  <li>
+                    <code>design-check.mjs</code> — the two-axis comparison and the trust-manifest
+                    loader
+                  </li>
+                  <li>
+                    <code>scan-assets.mjs</code> — the chrome detector applied to committed images
+                  </li>
+                  <li>Three binaries, and 42 tests reproducing every failure that shipped in #2</li>
+                </ul>
+                <h4>Boundary</h4>
+                <ul>
+                  <li>
+                    Project-specific values left the code: capture targets now live in
+                    <code>apps/web/design/figma.targets.json</code>, reference provenance in
+                    <code>design/refs/refs.json</code>. The package knows nothing about this site.
+                  </li>
+                  <li>
+                    Root commands delegate to the owning workspace, so every script name still works
+                    from the root.
+                  </li>
+                </ul>
+                <p class="lesson">
+                  Extract the method only once it has failed concretely — the tests write themselves
+                  from the incident.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#4</span><span class="chip merged">merged</span
+                  ><span>21 Aug</span> <span class="add">+1,741</span><span class="del">−48</span
+                  ><span>52 files</span>
+                </div>
+                <div class="pr-title">Eval the skill's judgement, not only its code</div>
+                <p class="pr-oneline">
+                  48 tests proved the code behaves. Nothing proved the skill's decisions were right.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>Ten reasoning cases</h4>
+                <ul>
+                  <li>
+                    Every guardrail in <code>src/</code> exists because a judgement went wrong
+                    first: a size believed because a crop succeeded; a Figma dimension badge painted
+                    out instead of read as evidence; a wrong-shaped section diagnosed as a bad
+                    capture when it was a padding bug; a CSS <code>max-width</code> mistaken for the
+                    design's rendered width
+                  </li>
+                  <li>
+                    All cases are pure reasoning — <code>allowed_tools: []</code>, no network, no
+                    Figma seat — and carry the real node ids and numbers, so generic design advice
+                    cannot satisfy them
+                  </li>
+                  <li>
+                    Every case carries at least one deterministic grader beside its LLM judge, so no
+                    case rests on a vote on prose
+                  </li>
+                </ul>
+                <h4>The suite is checked even though it cannot be run here</h4>
+                <ul>
+                  <li>
+                    <code>claude plugin eval</code> is early access, so on this machine it exits
+                    before reading a case. 24 structural tests assert instead that every prompt
+                    loads, every grader is well-formed, every regex compiles, no case is judge-only,
+                    and an empty suite fails.
+                  </li>
+                </ul>
+                <p class="lesson">
+                  A suite that cannot run is not coverage. Test the suite until it can.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#5</span><span class="chip merged">merged</span
+                  ><span>21 Aug</span> <span class="add">+2,964</span><span class="del">−425</span
+                  ><span>45 files</span>
+                </div>
+                <div class="pr-title">
+                  Migrate site content to Payload CMS with generated admin routes
+                </div>
+                <p class="pr-oneline">Phase 2. Two function bodies changed; no component did.</p>
+              </summary>
+              <div class="pr-body">
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    <code>gen-cms.ts</code>: manifest → <code>payload.config.ts</code>, idempotent,
+                    refuses silent <code>translatable</code> flips
+                  </li>
+                  <li>
+                    <code>check-cms-drift.ts</code>: CI fails if the committed config drifts from
+                    the manifest
+                  </li>
+                  <li>
+                    <code>seed.ts</code>: upserts <code>content/*.json</code> by locale, no
+                    duplicates on rerun
+                  </li>
+                  <li>
+                    <code>lib/content.ts</code> flipped to Payload's local API with
+                    <code>fallbackLocale: 'en'</code>; <code>strip()</code> and the JSON reader
+                    deleted
+                  </li>
+                  <li>
+                    <code>/admin</code>, REST and GraphQL routes via Payload's app-router
+                    integration
+                  </li>
+                </ul>
+                <h4>Caught in review</h4>
+                <ul>
+                  <li>
+                    <code>PAYLOAD_SECRET</code> fell back to a development default in production.
+                    Now it throws — with a test that imports the real config under three env
+                    combinations rather than asserting on source text.
+                  </li>
+                </ul>
+                <p class="lesson">
+                  The migration finished green, and green meant nothing yet — see #6.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#6</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+2,386</span><span class="del">−38</span
+                  ><span>54 files</span>
+                </div>
+                <div class="pr-title">
+                  The CMS step as a second skill, with evals for its judgements
+                </div>
+                <p class="pr-oneline">
+                  131 unit tests, 23 e2e tests, 11 fidelity comparisons — every one of them green
+                  with the CMS disconnected.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>The argument</h4>
+                <ul>
+                  <li>
+                    A fidelity defect is visible; a broken CMS seam is indistinguishable from
+                    success. The page renders the right words whether it read them from the database
+                    or from a string literal three lines above.
+                  </li>
+                  <li>
+                    The seed wrote into Payload exactly the strings Phase 1 had hardcoded, so every
+                    check compared one source to an identical copy of the other.
+                  </li>
+                </ul>
+                <h4>Eleven eval cases, from eleven real incidents</h4>
+                <ul>
+                  <li>
+                    A hydration mismatch on <code>/admin</code> dismissed because the panel worked
+                  </li>
+                  <li>A <code>translatable</code> flip that is really a data migration</li>
+                  <li>A secret that fell back silently in production</li>
+                  <li>The round trip racing the fidelity suite it was added to</li>
+                  <li>
+                    An evidence pack that remembered “static export” after the export was removed
+                  </li>
+                  <li>A format gate blamed for a violation it was correctly reporting</li>
+                </ul>
+                <h4>Grader design</h4>
+                <ul>
+                  <li>
+                    A keyword match cannot read polarity — <code>contains: collection</code> is
+                    satisfied by “use a collection” and by “a collection is overkill” alike. So
+                    deterministic graders assert positive evidence of the right decision, and every
+                    requirement that turns on direction is carried by the judged grader. The
+                    structural test requires both kinds on every case.
+                  </li>
+                  <li>
+                    Four cases put a <em>correct</em> artefact to the agent and grade what it fails
+                    to say — the hardest to grade and the likeliest to be passed by an agreeable
+                    answer.
+                  </li>
+                  <li>
+                    No <code>src/</code>: the code here would be project-specific, so the skill
+                    ships judgement only (ADR-0012).
+                  </li>
+                </ul>
+                <p class="lesson">
+                  Only a value that exists nowhere in the repository can tell a database read from a
+                  string literal.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#7</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+841</span><span class="del">−5</span
+                  ><span>27 files</span>
+                </div>
+                <div class="pr-title">Fresh-machine Vercel deployment skill with evals</div>
+                <p class="pr-oneline">
+                  Written from the live deploy, including the part where a green build proved
+                  nothing.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>Seven steps</h4>
+                <ul>
+                  <li>
+                    Install and authenticate the CLIs — the user does the interactive login; the
+                    agent never receives a token
+                  </li>
+                  <li>
+                    Link the project; provision and <em>check</em> the hosted database — a newly
+                    created one has zero tables, so push schema and seed before trusting it
+                  </li>
+                  <li>
+                    Set env vars, then <code>vercel deploy --prod</code> rather than a stale
+                    <code>vercel redeploy</code>
+                  </li>
+                  <li>
+                    Verify with curl <em>and</em> a database-backed row count, then write down what
+                    was learned
+                  </li>
+                </ul>
+                <h4>Six eval cases, each from a real error in this repository's own incident</h4>
+                <ul>
+                  <li>A blank env var treated as harmless; a green build treated as proof</li>
+                  <li>
+                    A stale redeploy after changing env vars; “point it at the bundled file to go
+                    green”
+                  </li>
+                  <li>Handing an agent a raw token; declaring an empty remote database live</li>
+                </ul>
+                <p class="lesson">
+                  A deployment is verified when something outside your machine answers a question
+                  you did not cache.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#8</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+2,154</span><span class="del">−73</span
+                  ><span>27 files</span>
+                </div>
+                <div class="pr-title">
+                  Guard media on Vercel Blob storage and add a three-way parity check
+                </div>
+                <p class="pr-oneline">
+                  Both environments returned byte-identical section markup. All 34 images on the
+                  deployment returned 500.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>Root cause</h4>
+                <ul>
+                  <li>
+                    Payload's media collection used <code>upload: true</code> with no storage
+                    adapter, writing binaries to the gitignored <code>apps/web/media/</code>. Rows
+                    survived in the remote Turso database; the files stayed on the machine that ran
+                    the seed — invisible to every existing check, because they all run on that
+                    machine.
+                  </li>
+                </ul>
+                <h4>Decisions, taken deliberately</h4>
+                <ul>
+                  <li>
+                    <code>@payloadcms/storage-vercel-blob</code> over committing
+                    <code>media/</code> or reverting to static <code>public/</code> paths — the CMS
+                    must be able to replace an image
+                  </li>
+                  <li>
+                    A production build without <code>BLOB_READ_WRITE_TOKEN</code> now throws,
+                    mirroring <code>PAYLOAD_SECRET</code>, so a deployment that would serve broken
+                    images fails to build instead
+                  </li>
+                  <li>
+                    CI and the evidence pack therefore pass a placeholder token — honest for a build
+                    that never uploads a file, and the resulting blind spot is written into the
+                    evidence pack's own “what this does not cover” section rather than hidden
+                  </li>
+                  <li>
+                    <code>parity-report</code> is deliberately separate from
+                    <code>evidence</code> and fetches the deployment over HTTP; its workflow is not
+                    on push, because a URL that has not been redeployed yet reports the previous
+                    deployment's state as this commit's
+                  </li>
+                  <li>
+                    The report shows screenshots of all three sources side by side, because a status
+                    table only knows whether things loaded — a row can pass every check and still
+                    look wrong
+                  </li>
+                  <li>
+                    The duplicate media rows are deferred with the reason recorded, and the
+                    mechanism labelled undiagnosed rather than guessed at
+                  </li>
+                </ul>
+                <p class="lesson">
+                  Setting the token does not repair existing rows: <code>uploadImage</code> reuses a
+                  row it finds by <code>sourcePath</code>, so the pre-blob rows are exactly the ones
+                  a reseed skips. Clear the collection first.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#9</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+20</span><span class="del">−12</span
+                  ><span>2 files</span>
+                </div>
+                <div class="pr-title">The deployment serves its media; parity-report is clean</div>
+                <p class="pr-oneline">
+                  Docs only. The claim in #8 was pending a merge; this records the verified end
+                  state.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>Verified against production</h4>
+                <ul>
+                  <li>
+                    Three media routes and <code>/admin</code> all 200; the homepage's 18 distinct
+                    media URLs all resolve
+                  </li>
+                  <li><code>parity-report --skip-local --prod …</code> reports 0 disagreements</li>
+                  <li>
+                    The 500s observed between the reseed and the deploy were the expected
+                    intermediate state — rows pointing at blob storage while the running build still
+                    resolved on disk — and are now recorded as such rather than as a second defect
+                  </li>
+                </ul>
+                <p class="lesson">
+                  “Fixed, pending a deploy” is a different claim from “fixed”. Write down which one
+                  you have.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="merged">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#11</span><span class="chip merged">merged</span
+                  ><span>22 Aug</span> <span class="add">+587</span><span class="del">−105</span
+                  ><span>23 files</span>
+                </div>
+                <div class="pr-title">
+                  Keep the blob plugin in the import map so <code>/admin</code> is not blank
+                </div>
+                <p class="pr-oneline">
+                  The fix in #8 shipped its own defect: a generated file, committed from a machine
+                  that could not see production's configuration.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>The defect</h4>
+                <ul>
+                  <li>
+                    Payload resolves admin components through the committed
+                    <code>app/(payload)/admin/importMap.js</code>. #8 registered
+                    <code>vercelBlobStorage</code> only when <code>BLOB_READ_WRITE_TOKEN</code> was
+                    set, so every machine that generated the map dropped the plugin — and its client
+                    upload handler — out of it
+                  </li>
+                  <li>
+                    Production, where the token <em>is</em> set, then asked for a component nobody
+                    had written into the map:
+                    <code
+                      >getFromImportMap: PayloadComponent not found in importMap { key:
+                      '@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler' }</code
+                    >
+                  </li>
+                  <li>
+                    <code>/admin</code> answered <code>200</code> with a correct
+                    <code>&lt;title&gt;</code> and an empty React root. Nothing in four green checks
+                    asks a page whether it rendered
+                  </li>
+                </ul>
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    <code>vercelBlobStorage</code> is now registered unconditionally with
+                    <code>enabled: Boolean(token)</code>, so the client handler is always in
+                    <code>admin.dependencies</code> and one committed map is correct in both
+                    environments; the production guard becomes a module-level throw above
+                    <code>buildConfig</code>
+                  </li>
+                  <li>
+                    <code>scripts/gen-importmap.ts</code> — <code>gen:importmap</code> and
+                    <code>check:importmap</code> — with the check running in CI beside
+                    <code>check:cms-drift</code>, so a map that drifts from the config fails the
+                    build rather than the panel
+                  </li>
+                  <li>
+                    The script calls the generator under Bun rather than the upstream Payload CLI,
+                    which cannot load this config (<code>ERR_REQUIRE_ASYNC_MODULE</code> via
+                    <code>richtext-lexical</code>), then formats its output so the commit gate never
+                    meets an unformattable generated file
+                  </li>
+                  <li>
+                    An e2e test that asserts the panel <em>mounts</em> — the login form's own fields
+                    — because the drift gate proves the map matches the config, not that the result
+                    renders
+                  </li>
+                  <li>
+                    CI is given a format-valid placeholder token, since the adapter now parses it on
+                    every build
+                  </li>
+                </ul>
+                <p class="lesson">
+                  A generated file committed from one environment is a claim about every environment
+                  that will read it. Either the generator is environment-independent, or a check
+                  regenerates it and compares — ADR-0016.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="open">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#10</span><span class="chip open">open</span><span>22 Aug</span>
+                  <span class="add">+2,910</span><span class="del">−12</span><span>5 files</span>
+                </div>
+                <div class="pr-title">
+                  Single-file build log — landing page and technical record
+                </div>
+                <p class="pr-oneline">
+                  This page. Rebased onto #9 and #11 after both merged, its own figures regenerated
+                  rather than carried over.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    <code>docs/showcase/index.html</code> — this single self-contained page: the
+                    story, the architecture, all four checks, every pull request, every decision
+                    record, and the reproduction guide, none of it requiring a build step to read
+                  </li>
+                  <li>
+                    Declared <code>prettier</code> in <code>apps/web</code> directly instead of
+                    relying on Bun hoisting from the repo root — <code>gen-importmap.ts</code>
+                    imports it, and a worktree without the root link failed
+                    <code>bun run evidence</code> with <code>TS2307</code>
+                  </li>
+                  <li>
+                    <code>docs/reproduce.md</code> and <code>README.md</code> brought current with
+                    #9 and #11: the import-map generator, its third trap, and every recomputed count
+                  </li>
+                </ul>
+                <p class="lesson">
+                  A page that reports on the repository's own checks has to be regenerated with
+                  them, not edited alongside them — the numbers came from running the gates on this
+                  commit, not from incrementing the ones already on the page.
+                </p>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="band wrap" id="decisions">
+          <div class="band-head rev">
+            <span class="eyebrow">04 · Decisions</span>
+            <h2>Sixteen records, each with its rejected alternatives.</h2>
+            <p>
+              <code>docs/decisions/</code> in the repository. Superseded, never rewritten — the
+              record of what was believed at the time is the point.
+            </p>
+          </div>
+
+          <div class="table-scroll rev">
+            <table>
+              <caption>
+                Architecture decision records
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">ADR</th>
+                  <th scope="col">Decision</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="adr">0001</td>
+                  <td>Next.js + Payload CMS in a single repository</td>
+                </tr>
+                <tr>
+                  <td class="adr">0002</td>
+                  <td>Generate components, seed content and CMS schema from one manifest</td>
+                </tr>
+                <tr>
+                  <td class="adr">0003</td>
+                  <td>Rebuild Figma designs as semantic sections, not pixel-faithful codegen</td>
+                </tr>
+                <tr>
+                  <td class="adr">0004</td>
+                  <td>Store Phase 1 content as JSON already in the CMS's shape</td>
+                </tr>
+                <tr>
+                  <td class="adr">0005</td>
+                  <td>
+                    Payload native localization, with the <code>_en</code> suffix as interchange
+                    format
+                  </td>
+                </tr>
+                <tr>
+                  <td class="adr">0006</td>
+                  <td>Bun as package manager and script runner; Node.js as the runtime</td>
+                </tr>
+                <tr>
+                  <td class="adr">0007</td>
+                  <td>
+                    Capture Figma assets by cropping viewer screenshots, not by MCP asset calls
+                  </td>
+                </tr>
+                <tr>
+                  <td class="adr">0008</td>
+                  <td>Gate design fidelity on an automated render-versus-reference check</td>
+                </tr>
+                <tr>
+                  <td class="adr">0009</td>
+                  <td>
+                    Split the repository into a monorepo, with the Figma pipeline as a package
+                  </td>
+                </tr>
+                <tr>
+                  <td class="adr">0010</td>
+                  <td>
+                    Evaluate the skill's judgement behaviourally, and validate the suite
+                    structurally
+                  </td>
+                </tr>
+                <tr>
+                  <td class="adr">0011</td>
+                  <td>Every pull request carries a generated evidence pack</td>
+                </tr>
+                <tr>
+                  <td class="adr">0012</td>
+                  <td>Ship the CMS step as a second skill, evals only, no extracted code</td>
+                </tr>
+                <tr>
+                  <td class="adr">0013</td>
+                  <td>
+                    Deployment config lives in repository secrets and variables; sqlite does not
+                    survive serverless
+                  </td>
+                </tr>
+                <tr>
+                  <td class="adr">0014</td>
+                  <td>
+                    Uploaded media lives in blob storage, and a production build without it fails
+                  </td>
+                </tr>
+                <tr>
+                  <td class="adr">0015</td>
+                  <td>A checker must prove it looked at the right thing</td>
+                </tr>
+                <tr>
+                  <td class="adr">0016</td>
+                  <td>The admin import map must not depend on the environment that generated it</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="band wrap" id="reproduce">
+          <div class="band-head rev">
+            <span class="eyebrow">05 · Reproduce</span>
+            <h2>Clone to running site.</h2>
+            <p>
+              Every root command delegates to the workspace that owns it, so the names work from
+              either place.
+              <code>docs/reproduce.md</code> is the long version, one section per skill in the order
+              they were run, including which steps cannot run in CI and why.
+            </p>
+          </div>
+
+          <p class="muted">
+            <strong>250 unit tests</strong> is the root <code>bun run test</code>: 63 in
+            <code>apps/web</code>, 95 in <code>figma-to-site</code>, 62 in <code>site-to-cms</code>,
+            30 in <code>deploy-to-vercel</code>. The evidence pack on a pull request reports 156 —
+            it counts only the two workspaces a change to the site can break. Neither figure is the
+            other's correction.
+          </p>
+
+          <pre class="rev"><code>bun install          <span class="c"># links every workspace</span>
+bun run dev          <span class="c"># the site at http://localhost:3000, /admin included</span>
+bun run test         <span class="c"># the site's suite and all three skills' suites</span>
+
+bun run --cwd apps/web gen:cms   <span class="c"># payload.config.ts from site.manifest.json</span>
+bun run --cwd apps/web seed      <span class="c"># content/*.json into Payload</span></code></pre>
+
+          <div class="table-scroll rev">
+            <table>
+              <caption>
+                Gates and evidence
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Command</th>
+                  <th scope="col">What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cmd">bun run validate:manifest</td>
+                  <td>Validates <code>site.manifest.json</code> against its Zod schema</td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run lint</td>
+                  <td>Lints the site</td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run build</td>
+                  <td>
+                    Production build — Payload's <code>/admin</code> and API routes are
+                    server-rendered, not exported
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run verify:design</td>
+                  <td>
+                    Compares the running page against the Figma references — needs a dev server
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run e2e</td>
+                  <td>
+                    End-to-end tests, including one design-fidelity test per section and the CMS
+                    round trip
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run evidence</td>
+                  <td>
+                    Runs every gate and writes the PR evidence pack to <code>e2e-evidence/</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run --cwd apps/web check:importmap</td>
+                  <td>
+                    Regenerates <code>app/(payload)/admin/importMap.js</code> and fails on a
+                    difference — the committed map is what <code>/admin</code> renders from
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run parity-report</td>
+                  <td>Figma vs local vs deployment, side by side; non-zero on a disagreement</td>
+                </tr>
+                <tr>
+                  <td class="cmd">bun run capture:figma</td>
+                  <td>Re-captures assets from Figma — opens a real Chrome window, so local only</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="muted" style="margin-top: var(--s3)">
+            <code>capture:figma</code> is deliberately not a CI step: Figma's CDN returns 403 to
+            headless Chromium, so capture needs a visible browser. What CI runs is the
+            <em>verification</em> — the design-fidelity suite and the committed-asset scan — neither
+            of which touches Figma.
+          </p>
+
+          <h3 style="margin-top: var(--s5)">Deployment variables</h3>
+          <div class="table-scroll rev">
+            <table>
+              <caption>
+                Four variables, four traps
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Failure mode if wrong</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cmd">PAYLOAD_SECRET</td>
+                  <td>Fails the build loudly. The safe one.</td>
+                </tr>
+                <tr>
+                  <td class="cmd">DATABASE_URI</td>
+                  <td>
+                    Left on its <code>file:</code> default it builds green and loses every editor
+                    save
+                  </td>
+                </tr>
+                <tr>
+                  <td class="cmd">DATABASE_AUTH_TOKEN</td>
+                  <td>Refuses to authenticate — visible immediately</td>
+                </tr>
+                <tr>
+                  <td class="cmd">BLOB_READ_WRITE_TOKEN</td>
+                  <td>
+                    Now required in production: without it, media rows survive in the remote
+                    database while the files stay on the machine that ran the seed, and every image
+                    500s behind a green build. Its <em>presence</em> is the second trap — the
+                    storage plugin must be registered whether or not the token is set, or the
+                    generated import map differs per machine and <code>/admin</code> renders blank
+                    where the token exists (ADR-0016)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="band wrap" id="blind-spots">
+          <div class="band-head rev">
+            <span class="eyebrow">06 · Blind spots</span>
+            <h2>What these checks cannot see.</h2>
+            <p>
+              Kept because deleting it turns a pass into a claim nobody made. If you add a check to
+              this repository, add its blind spot too — ADR-0011.
+            </p>
+          </div>
+
+          <div class="blind rev">
+            <ul>
+              <li>
+                <strong>Typography, spacing and colour beyond coarse blocks.</strong> The fidelity
+                axes are aspect ratio and block colour. A wrong font weight, a 4px padding error, or
+                a slightly wrong shade passes. <code>apps/web/TOKEN-GAPS.md</code> lists the
+                literals not bound to a Figma variable.
+              </li>
+              <li>
+                <strong>Anything that only exists on the host.</strong>
+                <code>bun run evidence</code> runs on your machine. The media defect shipped because
+                of exactly this, and only <code>parity-report</code> against the production URL
+                closes it.
+              </li>
+              <li>
+                <strong>Blob uploads in CI.</strong> CI and the evidence pack pass a placeholder
+                <code>BLOB_READ_WRITE_TOKEN</code>. That is honest for a build that never uploads a
+                file, and it means CI never exercises a real upload.
+              </li>
+              <li>
+                <strong>The eval suites' own execution.</strong> <code>claude plugin eval</code> is
+                early access, so what runs in CI is the suites' <em>structure</em>: every prompt
+                loads, every grader is well-formed, no case is judge-only. Whether an agent passes
+                them is not asserted here.
+              </li>
+              <li>
+                <strong>Duplicate media rows.</strong> Two rows (<code>header-30.png</code> and
+                <code>logo-190.png</code>) are deferred with the mechanism labelled undiagnosed
+                rather than guessed at.
+              </li>
+              <li>
+                <strong>The deployed admin panel, rendered.</strong>
+                <code>apps/web/e2e/admin.spec.ts</code> does assert the panel mounts rather than
+                merely answering — it requires the login form's own fields — but it runs against the
+                dev server, in the one configuration where the blob token is unset. That is the
+                configuration whose import map was always correct. Nothing opens the
+                <em>deployed</em> <code>/admin</code> and asserts a control only the mounted panel
+                draws; <code>parity-report</code> asks production for a status code.
+              </li>
+              <li>
+                <strong>This page.</strong> It is a static document generated from the pull
+                requests, the ADRs and a test run — not a live dashboard. The numbers are true as of
+                22 August 2026 at <code>eaea98f</code> plus the open #10.
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap cols">
+        <div>
+          <p class="fmark">Area</p>
+          <p class="muted" style="font-size: 14px">
+            company-profile-with-cms · v0.1.0 · a Figma-to-site-with-CMS proof of concept, built
+            21–22 August 2026.
+          </p>
+        </div>
+        <div>
+          <h4 style="margin-bottom: 10px">The site</h4>
+          <ul>
+            <li>
+              <a href="https://company-profile-with-cms-web.vercel.app/" rel="noreferrer noopener"
+                >Live deployment</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://company-profile-with-cms-web.vercel.app/admin"
+                rel="noreferrer noopener"
+                >Payload admin</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms"
+                rel="noreferrer noopener"
+                >Repository</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="margin-bottom: 10px">The skills</h4>
+          <ul>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms/blob/main/packages/figma-to-site/SKILL.md"
+                rel="noreferrer noopener"
+                >figma-to-site</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms/blob/main/packages/site-to-cms/SKILL.md"
+                rel="noreferrer noopener"
+                >site-to-cms</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms/blob/main/packages/deploy-to-vercel/SKILL.md"
+                rel="noreferrer noopener"
+                >deploy-to-vercel</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="margin-bottom: 10px">The record</h4>
+          <ul>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms/pulls?q=is%3Apr"
+                rel="noreferrer noopener"
+                >All eleven pull requests</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms/tree/main/docs/decisions"
+                rel="noreferrer noopener"
+                >Decision records</a
+              >
+            </li>
+            <li>
+              <a
+                href="https://github.com/dhiazfathra/company-profile-with-cms/blob/main/docs/reproduce.md"
+                rel="noreferrer noopener"
+                >Reproduce it</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // ── View toggle. Two tabpanels, one hash space: a link to #process from
+      //    the story view has to switch views before the browser scrolls.
+      const DOC_IDS = new Set([
+        'architecture',
+        'checks',
+        'process',
+        'decisions',
+        'reproduce',
+        'blind-spots',
+        'view-docs',
+      ])
+      const panels = {
+        story: document.getElementById('view-story'),
+        docs: document.getElementById('view-docs'),
+      }
+      const tabs = {
+        story: document.getElementById('tab-story'),
+        docs: document.getElementById('tab-docs'),
+      }
+
+      function setView(view, { scrollTop = true } = {}) {
+        if (!panels[view]) return
+        document.body.dataset.view = view
+        for (const key of Object.keys(panels)) {
+          panels[key].hidden = key !== view
+          tabs[key].setAttribute('aria-selected', String(key === view))
+          tabs[key].tabIndex = key === view ? 0 : -1
+        }
+        if (scrollTop) window.scrollTo({ top: 0, behavior: 'auto' })
+        reveal()
+      }
+
+      document.querySelectorAll('[data-view-btn]').forEach((el) => {
+        el.addEventListener('click', () => setView(el.dataset.viewBtn))
+      })
+
+      // 'top' deliberately excluded: the header logo links to #top from either
+      // view, and it must not force story when read from documentation.
+      const STORY_IDS = new Set(['outcome', 'what'])
+
+      function viewForHash(hash) {
+        const id = hash.replace(/^#/, '')
+        if (!id) return null
+        if (DOC_IDS.has(id)) return 'docs'
+        // An unrecognised fragment (a stale bookmark, an external link) keeps
+        // whichever view is already open rather than forcing story.
+        return STORY_IDS.has(id) ? 'story' : null
+      }
+
+      function syncFromHash() {
+        const view = viewForHash(location.hash)
+        if (view) setView(view, { scrollTop: false })
+        const target = document.getElementById(location.hash.slice(1))
+        if (target) target.scrollIntoView({ block: 'start' })
+      }
+
+      window.addEventListener('hashchange', syncFromHash)
+      syncFromHash()
+
+      // ── Scroll reveal. Elements are visible without JS (the .in class is
+      //    only ever added), and the observer is skipped under reduced motion.
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      let io = null
+
+      function reveal() {
+        const items = document.querySelectorAll('.rev:not(.in)')
+        if (reduced || !('IntersectionObserver' in window)) {
+          items.forEach((el) => el.classList.add('in'))
+          return
+        }
+        if (!io) {
+          io = new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                if (!entry.isIntersecting) continue
+                entry.target.classList.add('in')
+                io.unobserve(entry.target)
+              }
+            },
+            { rootMargin: '0px 0px -8% 0px', threshold: 0.06 },
+          )
+        }
+        items.forEach((el) => io.observe(el))
+      }
+
+      reveal()
+
+      setTimeout(() => {
+        document.querySelectorAll('.rev:not(.in)').forEach((el) => el.classList.add('in'))
+      }, 4000)
+
+      window.addEventListener('beforeprint', () =>
+        document.querySelectorAll('.rev:not(.in)').forEach((el) => el.classList.add('in')),
+      )
+
+      // ── Keyboard: left/right/home/end between the two tabs, as a tablist should.
+      Object.values(tabs).forEach((tab) => {
+        tab.addEventListener('keydown', (event) => {
+          let next
+          if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            next = tab === tabs.story ? tabs.docs : tabs.story
+          } else if (event.key === 'Home') {
+            next = tabs.story
+          } else if (event.key === 'End') {
+            next = tabs.docs
+          } else {
+            return
+          }
+          event.preventDefault()
+          setView(next.dataset.viewBtn)
+          next.focus()
+        })
+      })
+    </script>
+  </body>
+</html>
