@@ -40,7 +40,7 @@ table below is what changes when it is not local.
 
 ## Deploying
 
-Three variables, and two of them are traps a green build says nothing about.
+Four variables, and two of them are traps a green build says nothing about.
 Rationale for the first two in
 [ADR-0013](../../docs/decisions/0013-deployment-configuration.md); for the
 third in [ADR-0014](../../docs/decisions/0014-media-on-blob-storage.md).

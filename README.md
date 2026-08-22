@@ -104,7 +104,10 @@ the component and it must go red.
 
 ## Deploying
 
-Three variables, and two of them are traps a green build says nothing about.
+Three of the four deployment variables have a failure mode worth naming here
+(the fourth, `DATABASE_AUTH_TOKEN`, just refuses to authenticate — see
+[`apps/web/README.md`](apps/web/README.md) for the full table). Two of the
+three below are traps a green build says nothing about.
 `PAYLOAD_SECRET` fails the build loudly. `DATABASE_URI` left on its `file:`
 default builds green and loses every editor save. `BLOB_READ_WRITE_TOKEN` is now
 required in production too — without it, uploaded media goes to a filesystem the

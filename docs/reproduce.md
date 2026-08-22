@@ -13,9 +13,13 @@ the reason. Pretending a pipeline is fully automated when part of it needs a hum
 at a real Chrome window is the sort of quiet inaccuracy this repository's ADRs
 keep objecting to.
 
-**A local run needs no accounts, no secrets and no external services.** Every
-environment variable can be left blank for local development. The deployment is
-where they start mattering, and where the two traps live.
+**A local run needs no accounts, no secrets and no external services.**
+`bun run dev` itself needs every variable left blank. `bun run seed` and the CMS
+round-trip e2e test are the exception: they require `E2E_USER_EMAIL` and
+`E2E_USER_PASSWORD` (the `.env.example` defaults are fine locally, and are not
+secrets — see the file for why), and that test refuses to run rather than skip
+when they are missing. Set them before step 2. The other variables only start
+mattering at deployment, where the two traps live.
 
 ## 0. Install
 
@@ -199,8 +203,13 @@ _files_ stayed on the machine that ran the seed, and every image on the deployed
 homepage returned 500 from `/api/media/file/…` behind a green build. Create a
 Vercel Blob store, link it to the project so Vercel injects
 `BLOB_READ_WRITE_TOKEN` into its builds, and **reseed** — setting the token does
-not backfill rows that point at files which were never on the host.
-[ADR-0014](decisions/0014-media-on-blob-storage.md) has the full account.
+not backfill rows that point at files which were never on the host. Reseeding a
+database that already has duplicate rows for the same asset is not
+deterministic: `uploadImage`'s lookup takes the first matching row without a
+defined order, so it can bind a section to whichever duplicate the query happens
+to return. Start from a fresh database, or delete the duplicates first, rather
+than reseed in place. [ADR-0014](decisions/0014-media-on-blob-storage.md) has
+the full account.
 
 Set every variable `apps/web/.env.example` documents, pipe secret values in from
 a file rather than typing them, then deploy and verify the running app rather than

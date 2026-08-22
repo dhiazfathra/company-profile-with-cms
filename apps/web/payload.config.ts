@@ -565,6 +565,12 @@ export default buildConfig({
           vercelBlobStorage({
             collections: { [Media.slug]: true },
             token: process.env.BLOB_READ_WRITE_TOKEN,
+            // A server-routed upload goes through a Vercel serverless
+            // function, capped at 4.5MB — one seeded asset (showcase.png,
+            // ~8MB) is already over that on its own. clientUploads sends the
+            // file straight from the browser to Blob storage instead, so an
+            // editor's upload is not bounded by the function body limit.
+            clientUploads: true,
           }),
         ]
       : (() => {
