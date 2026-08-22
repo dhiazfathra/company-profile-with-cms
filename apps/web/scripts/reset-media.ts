@@ -74,6 +74,11 @@ export function assertUsableBlobToken(token = process.env.BLOB_READ_WRITE_TOKEN)
  * the loop proves the loop it wrote, not the one that runs against production.
  */
 export async function resetMedia(payload: Payload) {
+  // Names the database before deleting from it. `DATABASE_URI` unset is a valid
+  // configuration meaning "local payload.db", so credentials written to the
+  // wrong .env produce a successful run against the wrong database rather than
+  // an error — the one failure mode this script cannot detect for you.
+  console.log(`Target: ${process.env.DATABASE_URI ?? 'file:./payload.db (DATABASE_URI unset)'}`)
   const existing = await payload.find({ collection: 'media', limit: 0 })
   console.log(`Deleting ${existing.totalDocs} media row(s)...`)
   for (const doc of existing.docs) {

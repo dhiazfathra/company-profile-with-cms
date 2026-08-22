@@ -95,6 +95,14 @@ Run once, against production, after this PR merges and Vercel redeploys `main`.
 three credentials come from where they were created (the Turso dashboard, and the
 Blob store's own page), not from a pull:
 
+**Where the values go matters.** Put them in `apps/web/.env` (which Bun loads for
+every `apps/web` script) or export them in the shell, as below. A repo-root
+`.env` is **not** read by `bun run --cwd apps/web reset-media`: the script starts
+with an empty `DATABASE_URI`, talks to the local `payload.db` instead of
+production, and reports a perfectly successful run against the wrong database.
+That happened once on this work — the credentials were written to the worktree
+root, and the file the script actually reads was still empty.
+
 ```bash
 cd apps/web
 export DATABASE_URI='libsql://<your-db>.turso.io'

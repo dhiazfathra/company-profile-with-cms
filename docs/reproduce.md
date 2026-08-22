@@ -211,6 +211,12 @@ bun run --cwd apps/web reset-media    # refuses without a real blob token
 bun run --cwd apps/web seed
 ```
 
+Both read their credentials from `apps/web/.env` or the exported environment —
+**not** from a repo-root `.env`. Putting production values in the wrong file
+leaves `DATABASE_URI` empty, which is a valid configuration meaning "local
+`payload.db`", so the reseed succeeds loudly against the wrong database and
+production is untouched.
+
 A plain reseed is not enough, and deleting only the visible duplicates is not
 enough either. `uploadImage` finds a row by `sourcePath` and reuses it, so any
 surviving pre-blob row is silently kept — exactly the row that has no file
