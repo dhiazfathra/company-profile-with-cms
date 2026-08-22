@@ -151,9 +151,10 @@ gitignored — correct here, and the subject of step 3's second trap.
 `app/(payload)/admin/importMap.js` is generated too, by
 `bun run --cwd apps/web gen:importmap`, and no build step writes it: Payload
 resolves every admin component through the committed copy, so
-`bun run --cwd apps/web check:importmap` regenerates and diffs it in CI. Both
-generators must produce the same output on every machine — a config that branches
-on an environment variable breaks that, which is trap three in step 3 and
+`bun run --cwd apps/web check:importmap` regenerates and diffs it in CI. Each of
+`gen:cms` and `gen:importmap` must independently produce identical output on
+every machine — a config that branches on an environment variable breaks that
+for whichever one it touches, which is trap three in step 3 and
 [ADR-0016](decisions/0016-the-import-map-must-not-depend-on-the-environment.md).
 
 Then the checks:
@@ -279,7 +280,7 @@ Local, with `bun run dev` running:
 - Every `<img>` src on the homepage resolves **200, not 500**. These are
   `/api/media/file/<name>` routes served by Payload out of the media collection,
   not static files, so a 500 here is the ADR-0014 failure and not a typo.
-- `bun run test` runs the four unit suites — 250 across the tree — and
+- `bun run test` runs the four unit-test suites — 250 across the tree — and
   `bun run lint` is clean.
 - `bun run e2e` passes, including the CMS round trip and one fidelity comparison
   per section.

@@ -1120,7 +1120,7 @@
         aria-labelledby="tab-story"
       >
         <section class="wrap hero">
-          <span class="eyebrow">Case study · 21–22 August 2026 · 9 pull requests</span>
+          <span class="eyebrow">Case study · 21–22 August 2026 · 11 pull requests</span>
           <h1 class="display">
             A Figma file became a CMS-backed site. <em>The proof shipped with it.</em>
           </h1>
@@ -2336,6 +2336,47 @@ $ bun run --cwd apps/web check:importmap
                   A generated file committed from one environment is a claim about every environment
                   that will read it. Either the generator is environment-independent, or a check
                   regenerates it and compares — ADR-0016.
+                </p>
+              </div>
+            </details>
+
+            <details class="pr rev" data-state="open">
+              <summary>
+                <div class="pr-meta">
+                  <span class="num">#10</span><span class="chip open">open</span><span>22 Aug</span>
+                  <span class="add">+2,910</span><span class="del">−12</span><span>5 files</span>
+                </div>
+                <div class="pr-title">
+                  Single-file build log — landing page and technical record
+                </div>
+                <p class="pr-oneline">
+                  This page. Rebased onto #9 and #11 after both merged, its own figures regenerated
+                  rather than carried over.
+                </p>
+              </summary>
+              <div class="pr-body">
+                <h4>What shipped</h4>
+                <ul>
+                  <li>
+                    <code>docs/showcase/index.html</code> — this single self-contained page: the
+                    story, the architecture, all four checks, every pull request, every decision
+                    record, and the reproduction guide, none of it requiring a build step to read
+                  </li>
+                  <li>
+                    Declared <code>prettier</code> in <code>apps/web</code> directly instead of
+                    relying on Bun hoisting from the repo root — <code>gen-importmap.ts</code>
+                    imports it, and a worktree without the root link failed
+                    <code>bun run evidence</code> with <code>TS2307</code>
+                  </li>
+                  <li>
+                    <code>docs/reproduce.md</code> and <code>README.md</code> brought current with
+                    #9 and #11: the import-map generator, its third trap, and every recomputed count
+                  </li>
+                </ul>
+                <p class="lesson">
+                  A page that reports on the repository's own checks has to be regenerated with
+                  them, not edited alongside them — the numbers came from running the gates on this
+                  commit, not from incrementing the ones already on the page.
                 </p>
               </div>
             </details>
