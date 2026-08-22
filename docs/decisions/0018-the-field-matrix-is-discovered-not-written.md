@@ -87,7 +87,8 @@ Three decisions inside that, each of which cost a failing run to learn:
 
 ## Consequences
 
-- Running is per page and opt-in: `bun scripts/cms-e2e.mjs <Page>`. The project
+- Running is per page and opt-in: `bun run cms:e2e <Page>`, from the repository
+  root — `bun run` does not resolve a root script from inside a workspace. The project
   is _added to_ the Playwright config only when `CMS_E2E_PAGE` is set, rather
   than being skipped when it is not — a skipped test renders as a row nobody ran,
   which reads like coverage. `bun run e2e` is unchanged.

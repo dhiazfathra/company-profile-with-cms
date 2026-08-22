@@ -1,6 +1,12 @@
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { test, expect, type Page, type APIRequestContext } from '@playwright/test'
+import {
+  test,
+  expect,
+  request as playwrightRequest,
+  type Page,
+  type APIRequestContext,
+} from '@playwright/test'
 import { casesFor, type Inventory, type PageInfo } from '../scripts/cms-discover'
 
 /**
@@ -59,21 +65,32 @@ function record(entry: Record<string, unknown>) {
 /**
  * Whether a saved value reached the served HTML.
  *
- * Not a plain `includes`. React escapes everything it interpolates — `&`, `<`,
- * `>`, `"` and `'` — in text nodes and in attributes alike, so a value
- * containing any of them is *correctly* absent from the HTML in its raw form. A
- * check that only looked for the raw string reported the special-characters case
- * of every field as "not rendered", which is exactly the kind of false alarm
- * that gets a whole section of a report skipped.
+ * Not a plain `includes`. React escapes what it interpolates, so a value
+ * containing `&`, `<`, `"` or `'` is *correctly* absent from the HTML in raw
+ * form; the first version of this check reported the special-characters case of
+ * every field as "not rendered", and the report concluded no component rendered
+ * the field.
+ *
+ * The fix decodes the HTML rather than re-encoding the value. Encoding the value
+ * only works if this function's escaping rules match the renderer's exactly —
+ * and the `special` case value carries `&`, `"`, `'`, `<` and `>` at once, so a
+ * renderer that escapes a *subset* of them matches neither form and produces the
+ * same false finding one layer down.
  */
+function decodeEntities(html: string): string {
+  return (
+    html
+      .replace(/&(?:#x27|#39|apos);/g, "'")
+      .replace(/&(?:quot|#34);/g, '"')
+      .replace(/&(?:lt|#60);/g, '<')
+      .replace(/&(?:gt|#62);/g, '>')
+      // Ampersand last: decoding it first would turn `&amp;lt;` into `<`.
+      .replace(/&(?:amp|#38);/g, '&')
+  )
+}
+
 function appearsIn(html: string, value: string): boolean {
-  const escaped = value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-  return html.includes(value) || html.includes(escaped)
+  return html.includes(value) || decodeEntities(html).includes(value)
 }
 
 async function login(page: Page) {
@@ -98,7 +115,11 @@ async function documentUrl(page: Page, info: PageInfo): Promise<string> {
     first,
     `${info.adminUrl} lists no rows — run \`bun run seed\` before testing a collection`,
   ).toBeVisible()
-  return (await first.getAttribute('href')) as string
+  const href = await first.getAttribute('href')
+  // Asserted here rather than left to fail at the first `page.goto`, where the
+  // message would be about an invalid URL and point away from the list markup.
+  expect(href, `the first row of ${info.adminUrl} has no href to follow`).toBeTruthy()
+  return href as string
 }
 
 /** REST endpoint that can write the field back without going through the form. */
@@ -115,13 +136,17 @@ async function restore(
   value: string,
 ) {
   const url = restoreUrl(info, docUrl)
-  const response = await request.patch(url, { data: { [field]: value } })
-  // POST is how Payload writes a global; PATCH is how it writes a collection row.
-  const ok =
-    response.status() < 400 ? response : await request.post(url, { data: { [field]: value } })
-  expect(ok.status(), `restoring ${info.page}.${field} failed: ${await ok.text()}`).toBeLessThan(
-    400,
-  )
+  // POST for a global, PATCH for a collection row — Payload's REST API offers a
+  // global exactly two operations, GET and POST, so trying PATCH first spent a
+  // request learning something the config already knew.
+  const response =
+    info.kind === 'global'
+      ? await request.post(url, { data: { [field]: value } })
+      : await request.patch(url, { data: { [field]: value } })
+  expect(
+    response.status(),
+    `restoring ${info.page}.${field} failed: ${await response.text()}`,
+  ).toBeLessThan(400)
 }
 
 /**
@@ -140,7 +165,15 @@ async function save(page: Page, info: PageInfo): Promise<{ status: number; body:
   return { status: response.status(), body: await response.text() }
 }
 
-const fields = target.fields.filter((f) => casesFor(f).length > 0)
+/**
+ * Hidden fields are excluded, and the report says so rather than counting them.
+ * `admin.hidden` means the panel renders no input at all — `_seedIndex` is the
+ * generator's row identity, not an editor's field — so every case for one fails
+ * on a missing `#field-…` locator and reports nothing about the CMS. Driving
+ * them would need the REST API, which is not the journey this suite exists to
+ * show.
+ */
+const fields = target.fields.filter((f) => !f.hidden && casesFor(f).length > 0)
 
 test.describe.configure({ mode: 'serial' })
 
@@ -149,8 +182,8 @@ test.describe(`CMS fields — ${target.page}`, () => {
     test.describe(field.name, () => {
       // Shared across this field's cases: one login, one original value, one
       // restore. A per-case login would triple the run for no extra coverage.
-      let docUrl: string
-      let original: string
+      let docUrl: string | undefined
+      let original: string | undefined
 
       test.beforeAll(async ({ browser }) => {
         const page = await browser.newPage()
@@ -163,6 +196,18 @@ test.describe(`CMS fields — ${target.page}`, () => {
       })
 
       test.afterAll(async ({ browser }) => {
+        // Playwright runs afterAll even when beforeAll threw. Restoring with
+        // `original === undefined` sends `{field: undefined}`, JSON.stringify
+        // drops the key, Payload answers 200, and the database keeps the last
+        // case's value — a silent end to the re-runnability the header promises.
+        record({ event: 'restore', field: field.name, attempted: original !== undefined })
+        if (docUrl === undefined || original === undefined) {
+          throw new Error(
+            `${target.page}.${field.name}: setup failed before the original value was read, so ` +
+              'nothing was restored. The field still holds whatever the last case wrote — ' +
+              'run `bun run --cwd apps/web seed` before trusting this database again.',
+          )
+        }
         const page = await browser.newPage()
         await login(page)
         await restore(page.request, target, docUrl, field.name, original)
@@ -171,8 +216,9 @@ test.describe(`CMS fields — ${target.page}`, () => {
 
       for (const kase of casesFor(field)) {
         test(`${kase.id} (${kase.kind}) — ${kase.why}`, async ({ page }) => {
+          expect(docUrl, 'setup did not resolve a document to edit').toBeTruthy()
           await login(page)
-          await page.goto(docUrl)
+          await page.goto(docUrl as string)
           const input = page.locator(`#field-${field.name}`)
           await expect(input, `${docUrl} has no input for ${field.name}`).toBeVisible()
 
@@ -227,10 +273,17 @@ test.describe(`CMS fields — ${target.page}`, () => {
 
           // Persistence, second half: what the public page serves. Read from the
           // HTTP response rather than the DOM, so a value the client assembled
-          // cannot pass for one the server rendered.
+          // cannot pass for one the server rendered — and from a context with no
+          // cookies, because `page.request` carries the admin session this test
+          // logged in with. A value only an authenticated user can see is not
+          // evidence about the public page, which is what the report calls it.
           let rendered: boolean | null = null
           if (target.section && kase.value.trim().length > 0) {
-            const html = await (await page.request.get('/')).text()
+            const anonymous = await playwrightRequest.newContext({
+              baseURL: page.url().replace(/(^https?:\/\/[^/]+).*/, '$1'),
+            })
+            const html = await (await anonymous.get('/')).text()
+            await anonymous.dispose()
             rendered = appearsIn(html, kase.value)
             if (kase.kind === 'injection') {
               // The value must reach the page as data, not as markup. Checked in

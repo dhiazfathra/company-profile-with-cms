@@ -49,7 +49,17 @@ function dotenv() {
       .filter((line) => line && !line.startsWith('#') && line.includes('='))
       .map((line) => {
         const at = line.indexOf('=')
-        return [line.slice(0, at), line.slice(at + 1).replace(/^["']|["']$/g, '')]
+        // `export FOO=…` is a line developers write, and keeping the prefix in
+        // the key produces a variable the spec never reads — surfacing as a
+        // login failure that says nothing about `.env`. Quotes are stripped only
+        // as a matched pair: the old independent strip turned `"secret` into
+        // `secret` and ate a trailing apostrophe from a value that wanted one.
+        const key = line
+          .slice(0, at)
+          .replace(/^export\s+/, '')
+          .trim()
+        const raw = line.slice(at + 1).trim()
+        return [key, /^(["']).*\1$/s.test(raw) ? raw.slice(1, -1) : raw]
       }),
   )
 }
@@ -233,16 +243,50 @@ function pageReport(page, dir, collected, exitCode) {
           .join('\n')
       : '- none',
     '',
-    '## Fields with no cases at all',
+    // Two different facts, and the first version of this report printed the
+    // first explanation for both. `record()` runs after the assertions, so a
+    // failing case logs nothing — a field whose first case failed produced zero
+    // `case` lines and was reported as having no case template, which is the
+    // opposite of what the run observed. The case count comes from the inventory
+    // (written by cms-discover-cli.ts), so the two are distinguishable.
+    '## Fields with no case template',
     '',
     (() => {
-      const tested = new Set(collected.log.filter((l) => l.event === 'case').map((l) => l.field))
-      const untested = info.fields.filter((f) => !tested.has(f.name))
-      return untested.length
-        ? untested
+      const none = info.fields.filter((f) => !f.caseCount)
+      return none.length
+        ? none
             .map(
               (f) =>
                 `- \`${f.name}\` (${f.type}) — no case template exists for this field type, so nothing about it was checked.`,
+            )
+            .join('\n')
+        : '- none'
+    })(),
+    '',
+    '## Fields hidden from the admin form',
+    '',
+    (() => {
+      const hidden = info.fields.filter((f) => f.hidden)
+      return hidden.length
+        ? hidden
+            .map(
+              (f) =>
+                `- \`${f.name}\` (${f.type}) — \`admin.hidden\` is set, so the panel renders no input and this suite cannot drive it through the form. Not covered.`,
+            )
+            .join('\n')
+        : '- none'
+    })(),
+    '',
+    '## Fields with a template that logged no case',
+    '',
+    (() => {
+      const logged = new Set(collected.log.filter((l) => l.event === 'case').map((l) => l.field))
+      const silent = info.fields.filter((f) => f.caseCount && !f.hidden && !logged.has(f.name))
+      return silent.length
+        ? silent
+            .map(
+              (f) =>
+                `- \`${f.name}\` (${f.type}) — ${f.caseCount} cases were generated and none completed. Its first case failed, or the run stopped before reaching it. See the failures above.`,
             )
             .join('\n')
         : '- none'
@@ -255,7 +299,19 @@ function pageReport(page, dir, collected, exitCode) {
     `- **Multi-locale.** Locales configured: ${inventory.locales.join(', ')}. ${inventory.locales.length > 1 ? 'Only the default locale is exercised.' : 'With one locale, a localized field has one value and localization cannot be shown to work.'}`,
     '- **Concurrent editors.** One browser context, one session. Two admins saving the same field at once is not exercised.',
     '- **Unsaved-changes warnings.** Every case saves; navigating away with a dirty form is not exercised.',
-    '- **Uploads.** File type and size limits are not exercised: no `mimeTypes` or `filesize` limit is configured on the `media` collection, and the upload fields select existing media rather than posting a file.',
+    // Read from the inventory rather than stated. This line used to assert as
+    // fact that `media` configures no limits — a claim nothing in the run
+    // checked, and one that would have survived somebody adding one.
+    `- **Uploads.** The upload fields select existing media rather than posting a file, so no limit is exercised. Configured limits: ${
+      inventory.uploads?.length
+        ? inventory.uploads
+            .map(
+              (u) =>
+                `\`${u.collection}\` (mimeTypes: ${u.mimeTypes ? u.mimeTypes.join(', ') : 'none'}, filesize: ${u.filesize ?? 'none'})`,
+            )
+            .join('; ')
+        : 'no upload collection in this config'
+    }.`,
     '- **Layout.** A value that saves and renders can still break the design. `bun run verify:design` is the check for that, and it is not run here.',
     '',
     '## Field matrix',

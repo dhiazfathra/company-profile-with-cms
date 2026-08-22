@@ -17,11 +17,16 @@
  */
 import type { Field, SanitizedConfig } from 'payload'
 
-/** Payload writes these itself; an editor never types into them. */
-const AUTO = new Set([
-  'id',
-  'createdAt',
-  'updatedAt',
+/** Payload writes these on every document, whatever the collection is. */
+const AUTO = new Set(['id', 'createdAt', 'updatedAt'])
+
+/**
+ * Written by Payload's upload handling — but only on a collection that declares
+ * `upload`. Dropping them everywhere would silently delete an editor's own
+ * field from the matrix for the crime of being called `url`, and a field the
+ * matrix never heard of is a field the report claims nothing about.
+ */
+const UPLOAD_MANAGED = new Set([
   'filename',
   'mimeType',
   'filesize',
@@ -46,6 +51,13 @@ export type FieldInfo = {
   formatRule?: string
   /** Probe values the validator accepted, for the matrix's happy path. */
   acceptsRelative?: boolean
+  /**
+   * How many cases `casesFor` generated. Written into `inventory.json` so the
+   * report can tell "no case template for this field type" apart from "the
+   * field's first case failed, so it logged nothing" — the two used to be
+   * indistinguishable, and the report printed the first explanation for both.
+   */
+  caseCount?: number
 }
 
 export type PageInfo = {
@@ -63,6 +75,13 @@ export type Inventory = {
   versions: string[]
   /** Fields on the auth collection that could gate per-role access. Empty means no roles exist. */
   roleFields: string[]
+  /**
+   * Every upload collection and the limits it declares. Read rather than
+   * assumed: the report used to state as fact that `media` configures no
+   * `mimeTypes` or `filesize`, which would have stayed in the report after
+   * somebody added one.
+   */
+  uploads: { collection: string; mimeTypes: string[] | null; filesize: number | null }[]
   pages: PageInfo[]
 }
 
@@ -87,9 +106,10 @@ async function probe(field: Field, value: unknown): Promise<string | null> {
   }
 }
 
-async function describeField(field: Field): Promise<FieldInfo | null> {
+async function describeField(field: Field, isUpload: boolean): Promise<FieldInfo | null> {
   const name = (field as { name?: string }).name
   if (!name || AUTO.has(name)) return null
+  if (isUpload && UPLOAD_MANAGED.has(name)) return null
   const f = field as Record<string, unknown>
   const info: FieldInfo = {
     name,
@@ -111,13 +131,14 @@ async function describeField(field: Field): Promise<FieldInfo | null> {
 }
 
 async function describe(
-  entity: { slug: string; fields: Field[] },
+  entity: { slug: string; fields: Field[]; upload?: unknown },
   kind: 'global' | 'collection',
   sections: Set<string>,
 ): Promise<PageInfo> {
-  const fields = (await Promise.all(entity.fields.map(describeField))).filter(
-    (f): f is FieldInfo => f !== null,
-  )
+  const isUpload = Boolean(entity.upload)
+  const fields = (
+    await Promise.all(entity.fields.map((field) => describeField(field, isUpload)))
+  ).filter((f): f is FieldInfo => f !== null)
   return {
     page: entity.slug,
     kind,
@@ -144,7 +165,23 @@ export async function buildInventory(
     locales: (config.localization && 'locales' in config.localization
       ? config.localization.locales.map((l) => (typeof l === 'string' ? l : l.code))
       : ['en']) as string[],
-    versions: config.globals.filter((g) => g.versions).map((g) => g.slug),
+    // Globals *and* collections. The report says "no global or collection in
+    // this config enables versions" whenever this is empty, and a claim that
+    // only looked at half the config would be a false one.
+    versions: [
+      ...config.globals.filter((g) => g.versions).map((g) => g.slug),
+      ...config.collections.filter((c) => c.versions).map((c) => c.slug),
+    ],
+    uploads: config.collections
+      .filter((c) => c.upload)
+      .map((c) => {
+        const upload = c.upload as { mimeTypes?: string[]; filesize?: number }
+        return {
+          collection: c.slug,
+          mimeTypes: upload?.mimeTypes ?? null,
+          filesize: typeof upload?.filesize === 'number' ? upload.filesize : null,
+        }
+      }),
     roleFields: (auth?.fields ?? [])
       .map((f) => f as { name?: string; type: string })
       .filter((f) => f.name && !AUTO.has(f.name) && (f.type === 'select' || /role/i.test(f.name)))
@@ -167,19 +204,33 @@ export async function buildInventory(
   }
 }
 
-/** Sections the frontend renders, read off the components that render them. */
+/**
+ * Sections the frontend renders, read off the components that render them.
+ *
+ * Walks subdirectories by hand rather than passing `recursive` to `readdirSync`:
+ * that option arrived in Node 20.1 and was removed again in Node 25, and this
+ * repository's `engines` allows both. A component moved one directory down would
+ * otherwise drop out of the scan, and the page it renders would be reported as
+ * having no public section at all.
+ */
 export async function renderedSections(dir: string): Promise<Set<string>> {
   const { readdirSync, readFileSync } = await import('node:fs')
   const path = await import('node:path')
   const found = new Set<string>()
-  for (const file of readdirSync(dir)) {
-    if (!file.endsWith('.tsx')) continue
-    for (const m of readFileSync(path.join(dir, file), 'utf8').matchAll(
-      /data-section="([^"]+)"/g,
-    )) {
-      found.add(m[1])
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+        continue
+      }
+      if (!entry.name.endsWith('.tsx')) continue
+      for (const m of readFileSync(full, 'utf8').matchAll(/data-section="([^"]+)"/g)) {
+        found.add(m[1])
+      }
     }
   }
+  walk(dir)
   return found
 }
 
@@ -225,6 +276,21 @@ export function casesFor(field: FieldInfo): Case[] {
         why: 'no lower bound is configured, so -1 must save rather than fail silently',
         expect: 'saves',
       },
+      // The text branch has always covered these two; the number branch did not,
+      // so a required number field got no rejection case and still read as
+      // fully covered in the matrix — three cases, no gap visible.
+      {
+        id: 'empty',
+        kind: 'boundary',
+        value: '',
+        why: field.required
+          ? 'the field is required, so an empty value must be refused'
+          : 'the field is optional, so an empty value must save rather than error',
+        expect: field.required ? 'rejected' : 'saves',
+      },
+      // No "text in a number field" case: the admin renders `input[type=number]`
+      // and Playwright's `fill` refuses to type letters into one, so the case
+      // would fail on the tool rather than on the CMS.
     ]
   }
   if (field.type !== 'text') return []
@@ -278,7 +344,11 @@ export function casesFor(field: FieldInfo): Case[] {
       id: 'long',
       kind: 'boundary',
       value: field.formatRule ? `/${LONG}` : LONG,
-      why: 'no maxLength is configured, so 5000 characters must either save whole or be refused — never truncated silently',
+      // States only what the case asserts. The `why` is quoted into the test
+      // title and into the failure message, and the old wording ("or be
+      // refused") told a reader that a refusal was acceptable directly beside an
+      // assertion that treated the refusal as the defect.
+      why: 'no maxLength is configured, so 5000 characters must save whole — never truncated, never refused',
       expect: 'saves',
     },
     {
@@ -345,6 +415,14 @@ export function fieldMatrixMarkdown(page: PageInfo): string {
     const cases = casesFor(field)
     if (!cases.length) {
       skipped.push(`\`${field.name}\` (${field.type}) — no case template for this field type`)
+      continue
+    }
+    if (field.hidden) {
+      // `admin.hidden` means the panel renders no input, so a form-driven case
+      // fails on a missing locator and says nothing about the CMS.
+      skipped.push(
+        `\`${field.name}\` (${field.type}) — hidden from the admin form (\`admin.hidden\`), so it cannot be driven through the panel`,
+      )
       continue
     }
     for (const c of cases) {

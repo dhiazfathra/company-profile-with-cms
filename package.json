@@ -21,6 +21,7 @@
     "e2e": "bun run --cwd apps/web e2e",
     "e2e:report": "bun run --cwd apps/web e2e:report",
     "evidence": "bun scripts/e2e-evidence.mjs",
+    "cms:e2e": "bun scripts/cms-e2e.mjs",
     "parity-report": "bun scripts/parity-report.mjs"
   },
   "packageManager": "bun@1.3.11",

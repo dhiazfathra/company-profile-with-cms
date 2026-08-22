@@ -22,6 +22,16 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const sections = await renderedSections(path.resolve(here, '../components/sections'))
 const inventory = await buildInventory(config, sections)
 
+// The runner is plain JavaScript and cannot import the TypeScript generator, so
+// the case count is written into the inventory here. Without it the report
+// cannot tell a field with no case template from a field whose first case failed
+// before it could log anything.
+for (const page of inventory.pages) {
+  for (const field of page.fields) {
+    field.caseCount = casesFor(field).length
+  }
+}
+
 mkdirSync(out, { recursive: true })
 writeFileSync(path.join(out, 'inventory.json'), JSON.stringify(inventory, null, 2) + '\n')
 for (const page of inventory.pages) {

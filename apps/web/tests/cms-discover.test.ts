@@ -1,9 +1,13 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Field, SanitizedConfig } from 'payload'
 import {
   buildInventory,
   casesFor,
   fieldMatrixMarkdown,
+  renderedSections,
   type FieldInfo,
 } from '../scripts/cms-discover'
 
@@ -63,11 +67,39 @@ describe('casesFor', () => {
 
   it('covers zero for a number field, because falsy is not absent', () => {
     const ids = [...byId(text({ type: 'number' })).keys()]
-    expect(ids).toEqual(['happy', 'zero', 'negative'])
+    expect(ids).toEqual(['happy', 'zero', 'negative', 'empty'])
+  })
+
+  it('gives a required number field a rejection case, as the text branch always did', () => {
+    // The gap this closes was invisible in the report: three cases looked like
+    // full coverage for a field with no empty-input check at all.
+    expect(byId(text({ type: 'number' })).get('empty')?.expect).toBe('saves')
+    expect(byId(text({ type: 'number', required: true })).get('empty')?.expect).toBe('rejected')
+  })
+
+  it('states only the asserted behaviour in the long case reason', () => {
+    // The `why` is quoted into the test title and the failure message, so wording
+    // that allows a refusal beside an assertion that fails on one misleads twice.
+    const long = byId(text()).get('long')
+    expect(long?.expect).toBe('saves')
+    expect(long?.why).not.toContain('or be refused')
   })
 
   it('generates nothing for a field type with no template, rather than a fake case', () => {
     expect(casesFor(text({ type: 'upload', relationTo: 'media' }))).toEqual([])
+  })
+})
+
+describe('renderedSections', () => {
+  it('finds a section in a nested directory, so a moved component is not reported as unrendered', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'sections-'))
+    mkdirSync(path.join(dir, 'hero'), { recursive: true })
+    writeFileSync(path.join(dir, 'Footer.tsx'), '<section data-section="Footer">')
+    writeFileSync(path.join(dir, 'hero', 'Header.tsx'), '<section data-section="Header">')
+    writeFileSync(path.join(dir, 'notes.md'), 'data-section="NotAComponent"')
+    // `recursive: true` on readdirSync is not an option here: it landed in Node
+    // 20.1 and was removed in Node 25, and `engines` allows both.
+    await expect(renderedSections(dir)).resolves.toEqual(new Set(['Footer', 'Header']))
   })
 })
 
@@ -139,6 +171,67 @@ describe('buildInventory', () => {
     const field = inventory.pages[0].fields[0]
     expect(field.formatRule).toBe('Must be a relative path')
     expect(field.acceptsRelative).toBe(true)
+  })
+
+  it('keeps an editor-authored field named like an upload field when the collection is not an upload', async () => {
+    // `url`, `sizes`, `filename` and friends are Payload's only on a collection
+    // that declares `upload`. Dropping them everywhere deleted a real field from
+    // the matrix, and a field the matrix never heard of is one the report makes
+    // no claim about either way.
+    const withUrl = {
+      ...config,
+      globals: [{ slug: 'Header', fields: [{ name: 'url', type: 'text' }] }],
+    } as unknown as SanitizedConfig
+    const inventory = await buildInventory(withUrl, new Set(['Header']))
+    expect(inventory.pages[0].fields.map((f) => f.name)).toEqual(['url'])
+  })
+
+  it('drops upload-managed fields on a collection that does declare upload', async () => {
+    const withUpload = {
+      ...config,
+      globals: [],
+      collections: [
+        { slug: 'users', auth: true, fields: [] },
+        {
+          slug: 'Attachments',
+          upload: { mimeTypes: ['image/png'], filesize: 1024 },
+          fields: [
+            { name: 'url', type: 'text' },
+            { name: 'caption', type: 'text' },
+          ],
+        },
+      ],
+    } as unknown as SanitizedConfig
+    const inventory = await buildInventory(withUpload, new Set())
+    expect(inventory.pages[0].fields.map((f) => f.name)).toEqual(['caption'])
+  })
+
+  it('reads the upload limits instead of letting the report assert there are none', async () => {
+    const withUpload = {
+      ...config,
+      collections: [
+        { slug: 'users', auth: true, fields: [] },
+        { slug: 'media', upload: { mimeTypes: ['image/png'], filesize: 4096 }, fields: [] },
+      ],
+    } as unknown as SanitizedConfig
+    const inventory = await buildInventory(withUpload, new Set(['Header']))
+    expect(inventory.uploads).toEqual([
+      { collection: 'media', mimeTypes: ['image/png'], filesize: 4096 },
+    ])
+  })
+
+  it('finds versions on a collection, not only on a global', async () => {
+    // The report says "no global or collection enables versions" when this is
+    // empty, so a scan of half the config would put a false claim in evidence.
+    const withVersions = {
+      ...config,
+      collections: [
+        { slug: 'users', auth: true, fields: [] },
+        { slug: 'Posts', versions: { drafts: true }, fields: [{ name: 'title', type: 'text' }] },
+      ],
+    } as unknown as SanitizedConfig
+    const inventory = await buildInventory(withVersions, new Set())
+    expect(inventory.versions).toEqual(['Posts'])
   })
 
   it('drops the fields Payload writes itself, which no editor types into', async () => {

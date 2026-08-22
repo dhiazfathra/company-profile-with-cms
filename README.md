@@ -69,21 +69,21 @@ for the site's own detail.
 Each root command delegates to the workspace that owns it, so the names work from
 either place.
 
-| Command                          | Description                                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `bun install`                    | Install and link all workspaces                                                                  |
-| `bun run dev`                    | Start the site's development server                                                              |
-| `bun run build`                  | Production build (Payload's `/admin` and API routes are server-rendered, not exported)           |
-| `bun run start`                  | Serve the production build (`next start`)                                                        |
-| `bun run test`                   | Unit tests for the site and both skills, plus each eval suite's structure                        |
-| `bun run lint`                   | Lint the site                                                                                    |
-| `bun run validate:manifest`      | Validate `site.manifest.json` against its schema                                                 |
-| `bun run verify:design`          | Compare the running page against the Figma references (needs a dev server)                       |
-| `bun run capture:figma`          | Re-capture assets and references from Figma — opens a real Chrome window, so local only          |
-| `bun run e2e`                    | End-to-end tests, including one design-fidelity test per section                                 |
-| `bun run e2e:report`             | Open the e2e HTML report (traces and videos for failures)                                        |
-| `bun run evidence`               | Run every gate and write the PR evidence pack to `e2e-evidence/`                                 |
-| `bun scripts/cms-e2e.mjs <Page>` | Field-by-field CMS matrix for one page, with an evidence bundle ([below](#the-cms-field-matrix)) |
+| Command                     | Description                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------ |
+| `bun install`               | Install and link all workspaces                                                                  |
+| `bun run dev`               | Start the site's development server                                                              |
+| `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)           |
+| `bun run start`             | Serve the production build (`next start`)                                                        |
+| `bun run test`              | Unit tests for the site and both skills, plus each eval suite's structure                        |
+| `bun run lint`              | Lint the site                                                                                    |
+| `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                                 |
+| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                       |
+| `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only          |
+| `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                                 |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                        |
+| `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                                 |
+| `bun run cms:e2e <Page>`    | Field-by-field CMS matrix for one page, with an evidence bundle ([below](#the-cms-field-matrix)) |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
 Chromium, so capture needs a visible browser. What CI runs is the _verification_ —
@@ -123,7 +123,7 @@ the component and it must go red.
 
 ### The CMS field matrix
 
-The round trip proves one field. `bun scripts/cms-e2e.mjs <Page>` does it for every
+The round trip proves one field. `bun run cms:e2e <Page>` does it for every
 field on a page, with the cases an editor finds on their own eventually — unicode,
 quotes, whitespace, 5000 characters, script tags — and both halves of persistence:
 the value re-read from the database, and the value in the HTML the server sent.
@@ -135,10 +135,13 @@ to every field and its presence therefore says nothing. Add a section to
 `site.manifest.json` and its cases exist
 ([ADR-0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)).
 
+Run these **from the repository root**: the script lives there, and `bun run` does
+not walk up to the root's `package.json` from inside a workspace.
+
 ```bash
-bun scripts/cms-e2e.mjs --discover-only   # inventory and per-page matrices, no browser
-bun scripts/cms-e2e.mjs Header            # one page, 1–3 minutes
-bun scripts/cms-e2e.mjs --all             # every page, around half an hour
+bun run cms:e2e --discover-only   # inventory and per-page matrices, no browser
+bun run cms:e2e Header            # one page, 1–3 minutes
+bun run cms:e2e --all             # every page, around half an hour
 ```
 
 Evidence lands in `apps/web/test-evidence/<run-id>/`, gitignored: a `rollup.md`, and
