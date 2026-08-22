@@ -48,6 +48,7 @@
     "eslint-config-next": "16.3.1",
     "figma-to-site": "workspace:*",
     "happy-dom": "^20.11.6",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5",
