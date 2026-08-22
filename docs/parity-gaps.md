@@ -57,24 +57,43 @@ collection was missing anywhere — which is worth stating plainly, because "the
 deployment is missing features" was the starting hypothesis and it was wrong.
 The features were all there; their images were not.
 
-## Deferred, with the reason
+## Closed, with a manual step
 
-**Duplicate media rows in the remote database.** The deployed filenames carry
-collision suffixes — `header-30.png`, `logo-190.png`, `earth-32.png` — which
-implies roughly one row per seed run rather than the one row per asset that
-`seed.ts`'s `sourcePath` lookup is supposed to produce. The mechanism is not
-diagnosed: that lookup should have found the existing row whether or not its file
-was present, so this is recorded as an observation, not an explained one.
+**The Vercel Blob store is provisioned and linked.** Created via the dashboard
+(needed a human — not something this work could do on its own), and
+`BLOB_READ_WRITE_TOKEN` set for both Production and Preview through
+`vercel env add`. The PR's own `Vercel` check went from failing on the guard's
+error to a successful build on the next deploy, confirming the token reaches
+the build.
 
-Deferred because the honest fix is a fresh database or a manual delete once blob
-storage is configured, and a cleanup migration for a one-off condition in one
-database is a script nobody will ever run twice. It matters only for the rows
-that already exist; `uploadImage`'s `limit: 1` will bind a section to whichever
-duplicate the query returns first, which is not a property anything guarantees.
+**The stale and duplicate media rows need one manual reseed.** The rows that
+existed before blob storage was configured — including the ones with collision
+suffixes (`header-30.png`, `logo-190.png`, `earth-32.png`, roughly one row per
+seed run rather than the one row per asset `seed.ts`'s `sourcePath` lookup is
+supposed to produce) — point at files that were never on the deployment's host.
+Simply running `seed` again does not touch them: `uploadImage` finds a row by
+`sourcePath` and reuses it, which is right for an ordinary re-seed and wrong for
+rows created under the old disk-storage config.
+[`apps/web/scripts/reset-media.ts`](../apps/web/scripts/reset-media.ts) is the
+fix — delete the whole collection once, then reseed, so every row is created
+fresh through blob storage and duplicates cannot survive (verified locally:
+18 rows → 0 → 18, no duplicate `sourcePath`, covered by
+`apps/web/tests/reset-media.test.ts`). It refuses to run in production without
+`BLOB_READ_WRITE_TOKEN` set, for the same reason `payload.config.ts` does.
 
-**The deployment is still broken until someone provisions the store.** The code
-fix cannot take effect on its own. A Vercel Blob store has to be created and
-linked to the project — which needs the dashboard, and is not something this
-work could do — and the database then needs a reseed, because the existing rows
-point at files that were never on the host. Until both happen,
-`bun run parity-report` will keep reporting these eight sections, correctly.
+Run once, against production, after this PR merges and Vercel redeploys `main`:
+
+```bash
+vercel env pull --environment production apps/web/.env.production.local
+bun run --env-file=.env.production.local --cwd apps/web reset-media
+bun run --env-file=.env.production.local --cwd apps/web seed
+rm apps/web/.env.production.local
+bun run parity-report --skip-local --prod https://company-profile-with-cms-web.vercel.app
+```
+
+Not run against production by this work directly: the credential only reached
+a script safely through `vercel env add`'s own stdin, the channel already
+proven for setting the token; pulling it back down into a file for a script to
+consume did not carry the real value through cleanly in this environment, so
+the safer and more useful thing was a tested, committed script the account
+owner runs once with their own shell.

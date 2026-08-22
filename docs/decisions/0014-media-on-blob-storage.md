@@ -144,17 +144,18 @@ message.
   `BLOB_READ_WRITE_TOKEN` alongside the secret, with a comment saying why. Worth
   recording rather than silently repairing, because it is the shape of thing a
   fail-closed guard does to a suite that was written before it.
-- **Every existing media row in the remote database is stale.** Those rows point
-  at files that were never on the host. Setting the token does not backfill them:
-  the database needs a reseed once the token is in place, and until that happens
-  the images stay broken.
-- **The duplicate rows are not cleaned up.** `header-30.png` and its siblings
-  remain, and `uploadImage`'s `limit: 1` lookup will bind a section to whichever
-  of them the query returns first, which is not a property anything guarantees.
-  This is left as it is deliberately, rather than adding a
-  cleanup script for a one-off condition in one database; the honest fix is a
-  fresh database or a manual delete, and pretending otherwise would mean shipping
-  a migration nobody will ever run twice.
+- **Every existing media row in the remote database is stale, including the
+  duplicates, and both need one manual reseed.** Rows created under the old
+  disk-storage config point at files that were never on the host; setting the
+  token does not backfill them, and a plain `bun run seed` reuses them by
+  `sourcePath` instead of recreating them. That reuse is also why the
+  duplicates (`header-30.png` and siblings) survive a re-seed as-is.
+  [`apps/web/scripts/reset-media.ts`](../../apps/web/scripts/reset-media.ts)
+  deletes the collection so the next seed creates every row fresh, through blob
+  storage, with no duplicates — verified locally (18 rows → 0 → 18, one row per
+  `sourcePath`) and covered by `apps/web/tests/reset-media.test.ts`. It is a
+  one-off migration, not a pipeline step, and refuses to run in production
+  without the token for the same reason the config does.
 - **The throw is not a proof that the images resolve.** It makes the
   _misconfiguration_ impossible to deploy, which is a different claim. The gate
   that closes the remaining gap is `bun run parity-report`: it fetches every

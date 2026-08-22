@@ -16,9 +16,12 @@ seed` loads `content/*.json` into it, and `/admin` is live under `bun run dev`.
 The site is no longer a static export — content is read from Payload at
 request time (see "Adding a language" below for why).
 
-Deployed URL: https://company-profile-with-cms-web.vercel.app/ — media on this
-deployment is broken until a Vercel Blob store is provisioned and the database
-reseeded; see [docs/parity-gaps.md](../../docs/parity-gaps.md).
+Deployed URL: https://company-profile-with-cms-web.vercel.app/ — the Vercel
+Blob store is provisioned and `BLOB_READ_WRITE_TOKEN` is set (PR #8's build
+went green on it); media on this deployment stays broken until that PR merges
+and `apps/web/scripts/reset-media.ts` is run once against production, because
+the existing rows predate blob storage. See
+[docs/parity-gaps.md](../../docs/parity-gaps.md).
 
 See [`TOKEN-GAPS.md`](TOKEN-GAPS.md) for design-token literals not bound to a
 Figma variable.

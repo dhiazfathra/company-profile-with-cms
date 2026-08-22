@@ -15,6 +15,7 @@
     "gen:cms": "tsx scripts/gen-cms.ts",
     "check:cms-drift": "tsx scripts/check-cms-drift.ts",
     "seed": "bun scripts/seed.ts",
+    "reset-media": "bun scripts/reset-media.ts",
     "verify:design": "figma-verify-design",
     "capture:figma": "figma-capture",
     "e2e": "playwright test",
