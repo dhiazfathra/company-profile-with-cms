@@ -147,15 +147,19 @@ export function visibleText(fragment) {
  * covers.
  */
 async function capture(baseUrl, sections) {
-  const { chromium } = await import('@playwright/test')
-  const browser = await chromium.launch()
   const shots = new Map()
+  let browser
   try {
+    const { chromium } = await import('@playwright/test')
+    browser = await chromium.launch()
     const page = await browser.newPage({
       viewport: { width: refs.designWidth, height: 900 },
       deviceScaleFactor: 2,
     })
-    await page.goto(baseUrl + '/', { waitUntil: 'networkidle' })
+    // An explicit timeout, rather than Playwright's default of however long
+    // the runner lets a step run: a deployment that hangs should return an
+    // empty set of shots quickly, not stall the whole report.
+    await page.goto(baseUrl + '/', { waitUntil: 'networkidle', timeout: 30_000 })
     for (const name of sections) {
       const el = page.locator(`[data-section="${name}"]`).first()
       if ((await el.count()) === 0) continue
@@ -168,8 +172,13 @@ async function capture(baseUrl, sections) {
         // rendered, and losing the whole report over one image is worse.
       }
     }
+  } catch {
+    // chromium.launch, newPage or goto failing loses the screenshots, not the
+    // report: verdict() already covers reachability and image status from
+    // plain fetches, and a browser failure should not take the rest of the
+    // report down with it.
   } finally {
-    await browser.close()
+    await browser?.close()
   }
   return shots
 }
