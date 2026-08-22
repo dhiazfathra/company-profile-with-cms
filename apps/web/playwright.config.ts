@@ -1,6 +1,18 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const ROUND_TRIP = '**/cms-round-trip.spec.ts'
+const CMS_FIELDS = '**/cms-fields.spec.ts'
+
+/**
+ * The field matrix is per-page and writes to the database on every case, so it
+ * is not part of a plain `bun run e2e`: one page is minutes of saves, and the
+ * whole CMS is far more than a push should carry. `scripts/cms-e2e.mjs` sets
+ * CMS_E2E_PAGE, which is what adds the project below.
+ *
+ * The project is added rather than skipped. A `test.skip` would render in the
+ * HTML report as rows nobody ran, which reads like coverage.
+ */
+const cmsFieldsPage = process.env.CMS_E2E_PAGE
 
 export default defineConfig({
   testDir: 'e2e',
@@ -37,7 +49,7 @@ export default defineConfig({
       // design-fidelity.spec.ts is comparing that section's render against the
       // Figma reference — a different string is a different layout, so the block
       // comparison would fail for a reason that has nothing to do with fidelity.
-      testIgnore: ROUND_TRIP,
+      testIgnore: [ROUND_TRIP, CMS_FIELDS],
     },
     {
       // Runs alone, after everything else has finished reading the seeded state.
@@ -48,6 +60,27 @@ export default defineConfig({
       testMatch: ROUND_TRIP,
       dependencies: ['chromium'],
     },
+    ...(cmsFieldsPage
+      ? [
+          {
+            name: 'cms-fields',
+            use: { ...devices['Desktop Chrome'] },
+            testMatch: CMS_FIELDS,
+            // No retries, unlike every other project here. A case that passes on
+            // the second attempt is a case whose result the pack cannot report
+            // honestly: the run either observed the behaviour or it did not.
+            retries: 0,
+            // No `dependencies` either. The matrix is run on its own against one
+            // page; dragging the whole read-only suite in first would double the
+            // wall clock and prove nothing about the fields under test.
+            // Failure artefacts land in the page's own evidence directory so the
+            // pack is self-contained.
+            outputDir: process.env.CMS_E2E_EVIDENCE
+              ? `${process.env.CMS_E2E_EVIDENCE}/traces`
+              : 'e2e-results/artifacts',
+          },
+        ]
+      : []),
   ],
   webServer: {
     command: 'bun run dev -- --port 3100',

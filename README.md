@@ -69,20 +69,21 @@ for the site's own detail.
 Each root command delegates to the workspace that owns it, so the names work from
 either place.
 
-| Command                     | Description                                                                             |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| `bun install`               | Install and link all workspaces                                                         |
-| `bun run dev`               | Start the site's development server                                                     |
-| `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)  |
-| `bun run start`             | Serve the production build (`next start`)                                               |
-| `bun run test`              | Unit tests for the site and both skills, plus each eval suite's structure               |
-| `bun run lint`              | Lint the site                                                                           |
-| `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                        |
-| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
-| `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
-| `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                        |
-| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                               |
-| `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                        |
+| Command                          | Description                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `bun install`                    | Install and link all workspaces                                                                  |
+| `bun run dev`                    | Start the site's development server                                                              |
+| `bun run build`                  | Production build (Payload's `/admin` and API routes are server-rendered, not exported)           |
+| `bun run start`                  | Serve the production build (`next start`)                                                        |
+| `bun run test`                   | Unit tests for the site and both skills, plus each eval suite's structure                        |
+| `bun run lint`                   | Lint the site                                                                                    |
+| `bun run validate:manifest`      | Validate `site.manifest.json` against its schema                                                 |
+| `bun run verify:design`          | Compare the running page against the Figma references (needs a dev server)                       |
+| `bun run capture:figma`          | Re-capture assets and references from Figma — opens a real Chrome window, so local only          |
+| `bun run e2e`                    | End-to-end tests, including one design-fidelity test per section                                 |
+| `bun run e2e:report`             | Open the e2e HTML report (traces and videos for failures)                                        |
+| `bun run evidence`               | Run every gate and write the PR evidence pack to `e2e-evidence/`                                 |
+| `bun scripts/cms-e2e.mjs <Page>` | Field-by-field CMS matrix for one page, with an evidence bundle ([below](#the-cms-field-matrix)) |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
 Chromium, so capture needs a visible browser. What CI runs is the _verification_ —
@@ -119,6 +120,39 @@ admin UI ──writes a value no fixture contains──> Payload ──> lib/con
 **Prove the seam, not the render.** `apps/web/e2e/cms-round-trip.spec.ts` is that
 proof, and it is verified in the failing direction: hardcode the headline back into
 the component and it must go red.
+
+### The CMS field matrix
+
+The round trip proves one field. `bun scripts/cms-e2e.mjs <Page>` does it for every
+field on a page, with the cases an editor finds on their own eventually — unicode,
+quotes, whitespace, 5000 characters, script tags — and both halves of persistence:
+the value re-read from the database, and the value in the HTML the server sent.
+
+Nothing in the repository lists the fields. The runner imports
+`apps/web/payload.config.ts`, walks it, and calls each field's own validator with a
+bad value to learn what it rejects, because Payload attaches a `validate` function
+to every field and its presence therefore says nothing. Add a section to
+`site.manifest.json` and its cases exist
+([ADR-0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)).
+
+```bash
+bun scripts/cms-e2e.mjs --discover-only   # inventory and per-page matrices, no browser
+bun scripts/cms-e2e.mjs Header            # one page, 1–3 minutes
+bun scripts/cms-e2e.mjs --all             # every page, around half an hour
+```
+
+Evidence lands in `apps/web/test-evidence/<run-id>/`, gitignored: a `rollup.md`, and
+per page a `field-matrix.md`, a `report.md`, Playwright's JSON report, a line per
+case, and traces on failure. Every figure in a report is read from the JSON, never
+from terminal output — same rule as `bun run evidence`, same reason
+([ADR-0011](docs/decisions/0011-evidence-pack-on-every-pr.md)).
+
+Read three sections of `report.md` that a pass does not cover: **saved but not
+observed on the public page** (round-tripped through the database and absent from
+the HTML — the bug class this exists for), **cases that never ran** (a failure
+abandons the rest of that field), and **what this run does not cover**. Needs
+`apps/web/.env` with `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` and a seeded local
+database; it writes to every row it tests, so it is local-only.
 
 ## Deploying
 
@@ -189,6 +223,7 @@ grade the sections, rather than reporting every section as missing
 | [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)   | A check that cannot confirm what it looked at says so, once                 |
 | [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md) | The admin import map must not depend on the environment that generated it   |
 | [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)         | A second design language for the showcase, as a second file                 |
+| [0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)        | The CMS field matrix is discovered from the config, not written down        |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
