@@ -49,6 +49,15 @@ and what the checks still cannot see) behind a toggle. Its figures come from the
 gates named in this README; regenerate them there and update the page rather
 than editing a number into it.
 
+[`docs/showcase/v2.html`](docs/showcase/v2.html) is that same document in a
+second design language — paper ground, one accent, hairlines instead of card
+fills, a light/dark toggle and a table of contents alongside the technical
+record. The shared prose, figures, tables, pull-request entries and SVGs are
+byte-for-byte those of `index.html`; what `v2.html` adds is its own theme
+control and table of contents. So a correction to the content has to be made in
+both files, and nothing checks that it was
+([ADR-0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)).
+
 The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
 `bun run --cwd apps/web gen:cms` generates its config from
 `apps/web/site.manifest.json`; `bun run --cwd apps/web seed` loads
@@ -179,6 +188,7 @@ grade the sections, rather than reporting every section as missing
 | [0014](docs/decisions/0014-media-on-blob-storage.md)                             | Uploaded media on blob storage; a production build without it fails         |
 | [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)   | A check that cannot confirm what it looked at says so, once                 |
 | [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md) | The admin import map must not depend on the environment that generated it   |
+| [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)         | A second design language for the showcase, as a second file                 |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).
