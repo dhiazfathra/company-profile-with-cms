@@ -52,9 +52,11 @@ than editing a number into it.
 [`docs/showcase/v2.html`](docs/showcase/v2.html) is that same document in a
 second design language — paper ground, one accent, hairlines instead of card
 fills, a light/dark toggle and a table of contents alongside the technical
-record. The prose, the figures and the elements are byte-for-byte those of
-`index.html`; only the presentation differs, so a correction to one has to be
-made in both.
+record. The shared prose, figures, tables, pull-request entries and SVGs are
+byte-for-byte those of `index.html`; what `v2.html` adds is its own theme
+control and table of contents. So a correction to the content has to be made in
+both files, and nothing checks that it was
+([ADR-0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)).
 
 The CMS admin route is live at `/admin` (`bun run dev`, backed by Payload).
 `bun run --cwd apps/web gen:cms` generates its config from
