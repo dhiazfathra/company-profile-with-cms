@@ -128,14 +128,22 @@ message.
   runs `gen:cms`, `seed` and `dev` with disk uploads, and needs no token.
   Requiring an account to run the site locally would have been too high a price
   for this.
-- **One existing test was left red by the throw.** `bun run test` now fails
-  the "uses PAYLOAD_SECRET when set, even in production" case in
-  `apps/web/tests/payload-secret.test.ts`: it stubs `NODE_ENV=production` with no
-  blob token, so the new guard fires before the assertion it was written for. The guard is right and the
-  test's fixture is now incomplete — it needs `BLOB_READ_WRITE_TOKEN` stubbed
-  alongside the secret. Recorded rather than quietly fixed, because a red suite
-  arriving with the commit that closed a production defect is exactly the thing
-  this repository refuses to let a green check mark hide.
+- **Every production build now needs a value for it, including builds that
+  never upload anything.** The throw fires from `next build`, which sets
+  `NODE_ENV=production`, so CI and `bun run evidence` pass a placeholder the
+  same way they already pass a throwaway `PAYLOAD_SECRET`. That is honest for a
+  build that only compiles and collects page data, and it has a consequence
+  worth naming: a green build proves nothing about whether blob storage is
+  configured where it matters. `bun run parity-report` is what asks the
+  deployment.
+- **One existing test was left red by the throw, and fixed.** The "uses
+  PAYLOAD_SECRET when set, even in production" case in
+  `apps/web/tests/payload-secret.test.ts` stubs `NODE_ENV=production` with no
+  blob token, so the new guard fired before the assertion it was written for.
+  The guard was right and the fixture was incomplete: it now stubs
+  `BLOB_READ_WRITE_TOKEN` alongside the secret, with a comment saying why. Worth
+  recording rather than silently repairing, because it is the shape of thing a
+  fail-closed guard does to a suite that was written before it.
 - **Every existing media row in the remote database is stale.** Those rows point
   at files that were never on the host. Setting the token does not backfill them:
   the database needs a reseed once the token is in place, and until that happens
@@ -147,8 +155,11 @@ message.
   cleanup script for a one-off condition in one database; the honest fix is a
   fresh database or a manual delete, and pretending otherwise would mean shipping
   a migration nobody will ever run twice.
-- **This class of failure still has no automated gate.** Nothing in CI fetches an
-  upload from a deployment. The throw makes the _misconfiguration_ impossible to
-  deploy, which is not the same as proving the images resolve. A check that curls
-  the deployed page's `<img>` srcs after a production deploy would close the
-  remaining gap and does not exist yet.
+- **The throw is not a proof that the images resolve.** It makes the
+  _misconfiguration_ impossible to deploy, which is a different claim. The gate
+  that closes the remaining gap is `bun run parity-report`: it fetches every
+  `<img>` src from the deployment and from the local server and fails when they
+  disagree, and `.github/workflows/parity.yml` runs it against a deployment URL.
+  That workflow is deliberately not on `push` — a run against a URL that has not
+  been redeployed yet would report the previous deployment's state as this
+  commit's, which is worse than no check.

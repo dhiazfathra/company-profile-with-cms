@@ -152,12 +152,13 @@ bun run lint
 bun run e2e     # Playwright, including one design-fidelity test per section
 ```
 
-`bun run test` is honest about the current state of the tree: as of this writing
-it fails one case in `apps/web/tests/payload-secret.test.ts`, left red by the
-production guard added in [ADR-0014](decisions/0014-media-on-blob-storage.md).
-The other counts, run individually: 95 in `packages/figma-to-site`, 57 in
-`packages/site-to-cms`, 26 in `packages/deploy-to-vercel`, and 39 in `apps/web` of
-which 38 pass.
+Counts, run individually: 52 in `apps/web`, 95 in `packages/figma-to-site`, 57 in
+`packages/site-to-cms` and 26 in `packages/deploy-to-vercel` — 230 across the
+tree. The production guard added in
+[ADR-0014](decisions/0014-media-on-blob-storage.md) briefly left one case in
+`apps/web/tests/payload-secret.test.ts` red, because that case stubs
+`NODE_ENV=production` and the new guard fired before its assertion; its fixture
+now stubs `BLOB_READ_WRITE_TOKEN` too.
 
 `bun run e2e` includes `apps/web/e2e/cms-round-trip.spec.ts`, which is the seam
 proof: it signs into `/admin`, writes a value that exists nowhere in the
@@ -225,16 +226,18 @@ Local, with `bun run dev` running:
 - Every `<img>` src on the homepage resolves **200, not 500**. These are
   `/api/media/file/<name>` routes served by Payload out of the media collection,
   not static files, so a 500 here is the ADR-0014 failure and not a typo.
-- `bun run test` runs the four unit suites — 26 of them in
-  `packages/deploy-to-vercel` alone, 217 across the tree — and `bun run lint` is
-  clean. One `apps/web` case is currently red; see step 2.
+- `bun run test` runs the four unit suites — 230 across the tree — and
+  `bun run lint` is clean.
 - `bun run e2e` passes, including the CMS round trip and one fidelity comparison
   per section.
 
-On a deployment, the same three signals with `curl -sL -o /dev/null -w '%{http_code}\n'`
-against `/`, `/admin`, and one `/api/media/file/…` URL taken from the deployed
-page's own HTML. A 200 on `/` is necessary and not sufficient: it renders from
-rows, and rows exist whether or not the bytes behind them do.
+On a deployment, do not check these by hand — `bun run parity-report` asks all
+three sources the same questions and writes `parity-report/report.html` with the
+design reference, the local render and the deployed render of each section beside
+one another. It exits non-zero when they disagree, and
+`.github/workflows/parity.yml` runs it against a deployment URL. A 200 on `/` is
+necessary and not sufficient: the page renders from rows, and rows exist whether
+or not the bytes behind them do.
 
 Before opening a pull request, `bun run evidence` runs every gate and writes the
 block to append to the description — see [ADR-0011](decisions/0011-evidence-pack-on-every-pr.md)

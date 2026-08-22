@@ -116,6 +116,17 @@ is the account. Setting the token does not repair existing rows — reseed.
 Details in [`apps/web/README.md`](apps/web/README.md), the sequence in
 [`packages/deploy-to-vercel/SKILL.md`](packages/deploy-to-vercel/SKILL.md).
 
+**After deploying, check the deployment.** `bun run evidence` runs entirely on
+your machine, so it cannot see a difference that only exists on the host — which
+is how the media defect above shipped behind four green checks.
+`bun run parity-report` asks the Figma references, the local server and the
+deployment the same questions and writes `parity-report/report.html`: each
+section's design reference, local render and deployed render side by side, plus
+what loaded and what did not. It exits non-zero on a disagreement, and
+`.github/workflows/parity.yml` runs it against a deployment URL.
+[`docs/parity-gaps.md`](docs/parity-gaps.md) is the gap list it was built from —
+what differed, why, and what was deferred.
+
 ## Decisions
 
 | ADR                                                                   | Decision                                                                    |
