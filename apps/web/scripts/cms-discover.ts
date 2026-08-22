@@ -254,14 +254,41 @@ export type Case = {
   why: string
 }
 
-const LONG = 'L'.repeat(5000)
+/**
+ * A token unique to one field, mixed into every value whose arrival on the
+ * public page the run checks.
+ *
+ * Without it the values are module constants — `'Happy path value'` for every
+ * text field of every page — and the public-page check is
+ * `html.includes(value)` against the whole document served for `/`. Two pages
+ * running at once therefore let page B find page A's identical string and record
+ * `renderedOnPublicPage: true` for a field that renders nothing: a false pass on
+ * the one check this suite exists for. It is also worth having in a sequential
+ * run, where a value that appears in `/` is now unambiguously *this* field's
+ * rather than any field that happens to share its text.
+ *
+ * Lower-case and hyphenated so it stays valid inside a path or an anchor, which
+ * is what the format-validated fields need.
+ */
+const salt = (scope: string, field: string) =>
+  `${scope}-${field}`.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase()
+
+/** 5000 characters exactly, with the field's own token at the front. */
+const longValue = (token: string) => {
+  const head = `${token}-`
+  return head + 'L'.repeat(Math.max(0, 5000 - head.length))
+}
 
 /**
  * The edge-case checklist, applied to every field the inventory found. It is a
  * function of the field's discovered shape rather than a list per page, so a
  * field added to the manifest tomorrow is covered without anyone editing this.
  */
-export function casesFor(field: FieldInfo): Case[] {
+export function casesFor(field: FieldInfo, scope = ''): Case[] {
+  // Defaults to the field name alone so an existing single-page caller still
+  // gets unique-per-field values; `--concurrency` needs the page too, which is
+  // why every call site in the suite passes it.
+  const token = salt(scope, field.name)
   if (field.type === 'number') {
     return [
       {
@@ -307,7 +334,7 @@ export function casesFor(field: FieldInfo): Case[] {
     {
       id: 'happy',
       kind: 'happy',
-      value: field.formatRule ? '/happy-path' : 'Happy path value',
+      value: field.formatRule ? `/happy-path-${token}` : `Happy path value ${token}`,
       why: 'a valid value saves and reaches the public page',
       expect: 'saves',
     },
@@ -335,8 +362,8 @@ export function casesFor(field: FieldInfo): Case[] {
       id: 'unicode',
       kind: 'boundary',
       value: field.formatRule
-        ? '/caf\u00e9-\ud83d\ude80'
-        : 'Caf\u00e9 \u2014 \u5e83\u544a \u2014 \ud83d\ude80\ud83c\udf89',
+        ? `/caf\u00e9-\ud83d\ude80-${token}`
+        : `Caf\u00e9 \u2014 \u5e83\u544a \u2014 \ud83d\ude80\ud83c\udf89 ${token}`,
       why: 'accented, CJK and astral-plane characters must round-trip byte-for-byte',
       expect: 'saves',
     },
@@ -344,15 +371,15 @@ export function casesFor(field: FieldInfo): Case[] {
       id: 'special',
       kind: 'boundary',
       value: field.formatRule
-        ? '/a\'b"c&d'
-        : `Ampersand & quote " apostrophe ' angle < > backslash \\ percent %`,
+        ? `/a'b"c&d-${token}`
+        : `Ampersand & quote " apostrophe ' angle < > backslash \\ percent % ${token}`,
       why: 'characters that need escaping in HTML, SQL and URLs must round-trip unescaped',
       expect: 'saves',
     },
     {
       id: 'long',
       kind: 'boundary',
-      value: field.formatRule ? `/${LONG}` : LONG,
+      value: field.formatRule ? `/${longValue(token)}` : longValue(token),
       // States only what the case asserts. The `why` is quoted into the test
       // title and into the failure message, and the old wording ("or be
       // refused") told a reader that a refusal was acceptable directly beside an
@@ -364,8 +391,8 @@ export function casesFor(field: FieldInfo): Case[] {
       id: 'injection',
       kind: 'injection',
       value: field.formatRule
-        ? '/x?y=<script>alert(1)</script>'
-        : '<script>alert(1)</script><img src=x onerror=alert(2)>',
+        ? `/x?y=<script>alert(1)</script>-${token}`
+        : `<script>alert(1)</script><img src=x onerror=alert(2)>${token}`,
       why: 'must be stored verbatim and rendered as text — no script or img element may appear in the section',
       expect: 'saves',
     },
@@ -382,14 +409,14 @@ export function casesFor(field: FieldInfo): Case[] {
       {
         id: 'format-anchor',
         kind: 'happy',
-        value: '#anchor',
+        value: `#anchor-${token}`,
         why: 'an anchor is one of the three accepted shapes',
         expect: 'saves',
       },
       {
         id: 'format-absolute',
         kind: 'happy',
-        value: 'https://example.com/p?q=1',
+        value: `https://example.com/p?q=1-${token}`,
         why: 'an absolute URL is one of the three accepted shapes',
         expect: 'saves',
       },
@@ -401,7 +428,7 @@ export function casesFor(field: FieldInfo): Case[] {
       {
         id: 'format-protocol-relative',
         kind: 'boundary',
-        value: '//example.com',
+        value: `//example.com/${token}`,
         why: 'documents that the validator accepts a protocol-relative URL as a relative path (known gap)',
         expect: 'saves',
       },
@@ -421,7 +448,7 @@ export function fieldMatrixMarkdown(page: PageInfo): string {
   ]
   const skipped: string[] = []
   for (const field of page.fields) {
-    const cases = casesFor(field)
+    const cases = casesFor(field, page.page)
     if (!cases.length) {
       skipped.push(`\`${field.name}\` (${field.type}) — no case template for this field type`)
       continue

@@ -21,11 +21,83 @@ import ExcelJS from 'exceljs'
 import { STATUS, summarise } from './scenarios.mjs'
 
 const HEADER_FILL = 'FF1F2933'
+/** The fill behind a status cell, and the tint behind that row. */
 const STATUS_FILL = {
   [STATUS.pass]: 'FFDDF3E4',
   [STATUS.fail]: 'FFF9DEDC',
   [STATUS.notRun]: 'FFFDF1D6',
   [STATUS.notExecuted]: 'FFEFEFED',
+}
+/** Text colour for a status, dark enough on its own fill to stay readable. */
+const STATUS_INK = {
+  [STATUS.pass]: 'FF1B5E35',
+  [STATUS.fail]: 'FF8C1D18',
+  [STATUS.notRun]: 'FF7A5B00',
+  [STATUS.notExecuted]: 'FF5F6B6B',
+}
+/** A whole-row wash, lighter than the status cell so the cell still reads. */
+const ROW_TINT = {
+  [STATUS.fail]: 'FFFDF3F2',
+  [STATUS.notRun]: 'FFFFFBF0',
+  [STATUS.notExecuted]: 'FFF7F7F6',
+}
+const ZEBRA = 'FFF7F9FA'
+/**
+ * One colour per case kind, so a tester scanning the Category column sees the
+ * security and negative cases without filtering for them.
+ */
+const CATEGORY_FILL = {
+  'Happy path': 'FFE8F1FB',
+  Boundary: 'FFFFF4E0',
+  Negative: 'FFF3EAFB',
+  'Security (injection)': 'FFFDE7EA',
+  'Not executed': 'FFEFEFED',
+}
+const GAP_FILL = 'FFF9DEDC'
+const OK_FILL = 'FFDDF3E4'
+const COVERED_FILL = { YES: 'FFDDF3E4', PARTIAL: 'FFFDF1D6', NO: 'FFF9DEDC' }
+const THIN = 'FFD8DEE3'
+
+/**
+ * The columns a tester fills in, and the only ones that get a dropdown.
+ *
+ * Deliberately not `Status`, `Public page` or `Covered?`. Those are what the run
+ * observed, read from Playwright's own report — putting a picker on them invites
+ * the one edit that turns evidence into an opinion, and a sheet where the
+ * observed column is editable cannot be told apart from one where it was edited.
+ * A tester's judgement gets its own columns instead, beside the measurement
+ * rather than on top of it.
+ */
+const VERDICTS = ['Accepted', 'Rejected', 'Needs retest', 'Blocked', 'Not checked']
+const SEVERITIES = ['Blocker', 'Critical', 'Major', 'Minor', 'Trivial', 'Not a defect']
+const DISPOSITIONS = ['Accepted risk', 'Will fix', 'Deferred', 'Not applicable', 'Undecided']
+
+/**
+ * An inline list validation.
+ *
+ * The list is inlined rather than pointed at a range on a hidden sheet: Excel
+ * caps an inline list at 255 characters and these are far short of it, so the
+ * extra sheet would be a second thing to keep in step for no gain. Commas
+ * separate the items, which is why no item may contain one.
+ */
+function dropdown(cell, options, title) {
+  cell.dataValidation = {
+    type: 'list',
+    allowBlank: true,
+    formulae: [`"${options.join(',')}"`],
+    showErrorMessage: true,
+    errorStyle: 'warning',
+    errorTitle: title,
+    error: `Pick one of: ${options.join(', ')}`,
+  }
+}
+
+const solid = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
+
+/** Hairline borders, so a wrapped 62-column row stays readable across the sheet. */
+const boxed = () => {
+  const edge = { style: 'thin', color: { argb: THIN } }
+  return { top: edge, left: edge, bottom: edge, right: edge }
 }
 
 /** Column widths a human chose, because auto-fit does not exist in the format. */
@@ -48,8 +120,26 @@ const SCENARIO_COLUMNS = [
   { header: 'Status', key: 'status', width: 15 },
   { header: 'Public page', key: 'publicPage', width: 34 },
   { header: 'Evidence (video)', key: 'evidence', width: 40 },
+  // Everything from here on is the tester's, not the run's. Blank on write.
+  { header: 'Tester verdict', key: 'verdict', width: 16 },
+  { header: 'Severity', key: 'severity', width: 14 },
   { header: 'Tester notes', key: 'notes', width: 30 },
 ]
+
+/**
+ * Columns the run measured. Never given a dropdown — see VERDICTS above.
+ *
+ * Exported so the test that enforces the rule reads the same list the writer
+ * does: two copies of "which columns are evidence" is how one of them drifts.
+ */
+export const MEASURED_KEYS = ['status', 'publicPage', 'actual', 'evidence']
+
+/** Columns a tester authors, and the options each offers. */
+export const AUTHORED_OPTIONS = {
+  verdict: VERDICTS,
+  severity: SEVERITIES,
+  disposition: DISPOSITIONS,
+}
 
 function styleHeader(sheet) {
   const row = sheet.getRow(1)
@@ -92,8 +182,25 @@ function addSummary(book, { runId, reproduce, inventory, rows, ranPages }) {
       'Local next dev on port 3100, started by Playwright. Not safe against a shared database: every case writes.',
     ],
   ]
-  for (const [k, v] of facts) sheet.addRow({ k, v })
+  for (const [k, v] of facts) {
+    const row = sheet.addRow({ k, v })
+    row.getCell('k').font = { bold: true, color: { argb: 'FF52606D' } }
+    if (k !== 'Verdict') continue
+    // The one cell somebody screenshots. Coloured like the verdict it carries,
+    // and named in words rather than left as a number to add up.
+    const cell = row.getCell('v')
+    const status = s.fail > 0 ? STATUS.fail : s.notRun > 0 ? STATUS.notRun : STATUS.pass
+    cell.font = { bold: true, size: 13, color: { argb: STATUS_INK[status] } }
+    cell.fill = solid(STATUS_FILL[status])
+    cell.alignment = { vertical: 'middle' }
+    row.height = 26
+  }
   sheet.getColumn('v').alignment = { wrapText: true, vertical: 'top' }
+
+  // Restated after the loop: setting the column alignment above resets what the
+  // verdict row asked for, and a wrapped one-word verdict loses its size.
+  const verdictRow = sheet.getRow(facts.findIndex(([k]) => k === 'Verdict') + 2)
+  verdictRow.getCell('v').alignment = { vertical: 'middle', wrapText: false }
 
   sheet.addRow({})
   const gapsHeader = sheet.addRow({ k: 'What this run does not cover', v: '' })
@@ -140,31 +247,63 @@ function addScenarios(book, rows) {
   sheet.columns = SCENARIO_COLUMNS
   styleHeader(sheet)
 
-  for (const r of rows) {
+  rows.forEach((r, i) => {
     const row = sheet.addRow({
       ...r,
-      stepsText: r.steps.map((s, i) => `${i + 1}. ${s}`).join('\n'),
+      stepsText: r.steps.map((s, i2) => `${i2 + 1}. ${s}`).join('\n'),
+      verdict: '',
+      severity: '',
       notes: '',
     })
     row.alignment = { wrapText: true, vertical: 'top' }
+
+    // Row wash first: a status tint if the row needs attention, otherwise a
+    // zebra stripe. Both are applied before the per-cell fills below, which are
+    // meant to sit on top of them.
+    const wash = ROW_TINT[r.status] ?? (i % 2 ? ZEBRA : null)
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      if (wash) cell.fill = solid(wash)
+      cell.border = boxed()
+    })
+
     const status = row.getCell('status')
-    status.font = { bold: true }
-    const fill = STATUS_FILL[r.status]
-    if (fill) {
-      status.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }
+    status.font = { bold: true, color: { argb: STATUS_INK[r.status] ?? 'FF1F2933' } }
+    status.alignment = { vertical: 'middle', horizontal: 'center' }
+    if (STATUS_FILL[r.status]) status.fill = solid(STATUS_FILL[r.status])
+
+    const category = row.getCell('category')
+    if (CATEGORY_FILL[r.category]) category.fill = solid(CATEGORY_FILL[r.category])
+
+    // The gap this suite exists to find, coloured like the failure it is. `NOT
+    // found` is the marker `publicPageCell` writes and `summarise` counts, so
+    // the colour and the figure cannot disagree.
+    const publicPage = row.getCell('publicPage')
+    if (r.publicPage.startsWith('NOT found')) {
+      publicPage.fill = solid(GAP_FILL)
+      publicPage.font = { bold: true, color: { argb: STATUS_INK[STATUS.fail] } }
+    } else if (r.publicPage.startsWith('Found')) {
+      publicPage.fill = solid(OK_FILL)
     }
+
     // A relative path, so the workbook keeps working when the whole evidence
     // directory is zipped and sent on. An absolute one would break on the first
     // machine that is not this one.
     if (r.evidence) {
       row.getCell('evidence').value = { text: r.evidence, hyperlink: r.evidence }
+      row.getCell('evidence').font = { color: { argb: 'FF1155CC' }, underline: true }
     }
-  }
+
+    dropdown(row.getCell('verdict'), VERDICTS, 'Tester verdict')
+    dropdown(row.getCell('severity'), SEVERITIES, 'Severity')
+  })
 
   sheet.autoFilter = {
     from: { row: 1, column: 1 },
     to: { row: sheet.rowCount, column: SCENARIO_COLUMNS.length },
   }
+  // Freeze the header and the Test ID column: a tester scrolling right to the
+  // verdict columns otherwise loses which row they are signing.
+  sheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }]
   return sheet
 }
 
@@ -187,12 +326,13 @@ function addTraceability(book, inventory, rows) {
   // Only the pages this run targeted. A field list for a page nobody ran is a
   // list of NOs that says nothing about the run; `Not Covered` names those pages.
   const ran = new Set(rows.map((r) => r.page))
+  let striped = 0
   for (const p of inventory.pages.filter((x) => ran.has(x.page))) {
     for (const f of p.fields) {
       const mine = rows.filter((r) => r.page === p.page && r.field === f.name)
       const t = summarise(mine)
       const executed = t.pass + t.fail + t.notRun
-      sheet.addRow({
+      const row = sheet.addRow({
         page: p.page,
         field: f.name,
         type: f.type,
@@ -209,7 +349,24 @@ function addTraceability(book, inventory, rows) {
             : !f.cases?.length
               ? `No case template exists for a \`${f.type}\` field.`
               : 'The page was discovered but not executed by this run.',
-      }).alignment = { wrapText: true, vertical: 'top' }
+      })
+      row.alignment = { wrapText: true, vertical: 'top' }
+
+      const wash = striped % 2 ? ZEBRA : null
+      striped += 1
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        if (wash) cell.fill = solid(wash)
+        cell.border = boxed()
+      })
+
+      // `Covered?` is derived from the run, so it is coloured but not editable —
+      // the same rule as `Status` on the scenario sheet.
+      const covered = row.getCell('covered')
+      covered.font = { bold: true }
+      covered.alignment = { vertical: 'middle', horizontal: 'center' }
+      if (COVERED_FILL[covered.value]) covered.fill = solid(COVERED_FILL[covered.value])
+      if (t.fail > 0)
+        row.getCell('fail').font = { bold: true, color: { argb: STATUS_INK[STATUS.fail] } }
     }
   }
   sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: sheet.rowCount, column: 10 } }
@@ -222,39 +379,66 @@ function addNotCovered(book, inventory, rows) {
     { header: 'Kind', key: 'kind', width: 26 },
     { header: 'Subject', key: 'subject', width: 34 },
     { header: 'Why it is not covered', key: 'why', width: 96 },
+    // The tester's, not the run's: every gap on this sheet needs somebody to say
+    // out loud whether it is acceptable, which is the point of listing them.
+    { header: 'Disposition', key: 'disposition', width: 18 },
+    { header: 'Owner', key: 'owner', width: 20 },
+    { header: 'Tester notes', key: 'notes', width: 40 },
   ]
   styleHeader(sheet)
+
+  /** Every gap row looks the same to a reader: one colour per kind, one picker. */
+  const GAP_TINT = {
+    'Run-wide gap': 'FFF7F7F6',
+    'Page not run': 'FFFDF1D6',
+    'Field not executed': 'FFEFEFED',
+    'Saved but not rendered': GAP_FILL,
+  }
+  const gap = (data) => {
+    const row = sheet.addRow(data)
+    row.alignment = { wrapText: true, vertical: 'top' }
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      cell.fill = solid(GAP_TINT[data.kind] ?? ZEBRA)
+      cell.border = boxed()
+    })
+    const kind = row.getCell('kind')
+    kind.font = {
+      bold: true,
+      color: {
+        argb: data.kind === 'Saved but not rendered' ? STATUS_INK[STATUS.fail] : 'FF1F2933',
+      },
+    }
+    dropdown(row.getCell('disposition'), DISPOSITIONS, 'Disposition')
+    return row
+  }
   for (const line of coverageGaps(inventory)) {
     const [head, ...rest] = line.split(':')
-    sheet.addRow({ kind: 'Run-wide gap', subject: head, why: rest.join(':').trim() }).alignment = {
-      wrapText: true,
-      vertical: 'top',
-    }
+    gap({ kind: 'Run-wide gap', subject: head, why: rest.join(':').trim() })
   }
   // Derived from the rows rather than taken as another argument: the rows are
   // already scoped to the pages the run targeted, so they are the authority on
   // which pages these are. A second source could disagree with the sheet beside it.
   const ranPageNames = new Set(rows.map((r) => r.page))
   for (const page of inventory.pages.map((p) => p.page).filter((p) => !ranPageNames.has(p))) {
-    sheet.addRow({
+    gap({
       kind: 'Page not run',
       subject: page,
       why: 'This invocation did not target the page. Its matrix is generated at <page>/field-matrix.md and no case was executed against it. Run `bun run cms:e2e --all` to cover the whole CMS.',
-    }).alignment = { wrapText: true, vertical: 'top' }
+    })
   }
   for (const r of rows.filter((x) => x.status === STATUS.notExecuted)) {
-    sheet.addRow({
+    gap({
       kind: 'Field not executed',
       subject: `${r.page}.${r.field}`,
       why: r.actual,
-    }).alignment = { wrapText: true, vertical: 'top' }
+    })
   }
   for (const r of rows.filter((x) => x.publicPage.startsWith('NOT found'))) {
-    sheet.addRow({
+    gap({
       kind: 'Saved but not rendered',
       subject: `${r.page}.${r.field} / ${r.caseId}`,
       why: 'The value saved and re-read from the database, but was not in the HTML served for /. Either no component renders that field, or it renders from something other than the CMS.',
-    }).alignment = { wrapText: true, vertical: 'top' }
+    })
   }
   return sheet
 }

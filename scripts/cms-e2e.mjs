@@ -19,17 +19,71 @@
  *   rollup counts failures and exits non-zero. What it must never do is omit a
  *   page: a bundle with nine reports out of ten looks complete.
  */
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { buildScenarios, renderReport, summarise, writeWorkbook } from 'cms-to-qa'
+import {
+  applyEvent,
+  beginPage,
+  createRunState,
+  endPage,
+  noteCaseFinished,
+  renderFrame,
+} from 'cms-to-qa/live-view'
 import { REPORT_CSS } from './report-style.mjs'
 
 const WEB = path.resolve(import.meta.dir, '../apps/web')
 const ARG = process.argv.slice(2)
 const ALL = ARG.includes('--all')
 const DISCOVER_ONLY = ARG.includes('--discover-only')
-const NAMED = ARG.filter((a) => !a.startsWith('--'))
+const NAMED = ARG.filter((a) => !a.startsWith('--') && a !== String(Number.parseInt(a, 10)))
+
+/**
+ * `--verbose` swaps the runner's raw stream for a frame redrawn in place.
+ *
+ * Not "more output" — there is already a line per case, 213 characters wide and
+ * roughly 770 wrapped rows for `--all`, and none of it says how far along the run
+ * is or whether a value saved without reaching the page. Verbose captures that
+ * stream, keeps every line in `<page>/logs/runner.log`, and renders progress
+ * instead. Only on a TTY: cursor moves into a pipe or a CI log produce escape
+ * soup, so there the raw stream is still the better artefact.
+ */
+const VERBOSE = ARG.includes('--verbose') || ARG.includes('-v')
+const LIVE = VERBOSE && Boolean(process.stdout.isTTY) && !process.env.CI
+
+/**
+ * `--concurrency=N` runs N pages at once. Sequential by default, deliberately.
+ *
+ * Safe because of what is *not* shared: every browser talks HTTP to the one
+ * `next dev` on 3100, so that single process owns every database write and there
+ * is no second writer for SQLite to lock against, and each page edits its own
+ * document, so the per-field restore cannot reach across pages.
+ *
+ * What made it unsafe until now was the case values. They were module constants
+ * — `'L'.repeat(5000)`, `'Happy path value'` — shared by every field of every
+ * page, so page B looking for its own value in the HTML served for `/` could find
+ * page A's identical one and record `renderedOnPublicPage: true` for a field that
+ * renders nothing: a false pass on the one check this suite exists for. The
+ * generator now salts each value with its own page and field, which is what makes
+ * this flag safe to offer (`cms-discover.ts`, ADR-0020).
+ */
+const CONCURRENCY = (() => {
+  const flag = ARG.find((a) => a.startsWith('--concurrency=') || a.startsWith('-j='))
+  const raw = flag
+    ? flag.split('=').slice(1).join('=')
+    : ARG.includes('-j')
+      ? ARG[ARG.indexOf('-j') + 1]
+      : '1'
+  const n = Number.parseInt(raw, 10)
+  if (!Number.isInteger(n) || n < 1 || String(n) !== String(raw).trim()) {
+    throw new Error(
+      `--concurrency needs a positive integer, got ${JSON.stringify(raw)}. ` +
+        'Use --concurrency=4, or -j 4.',
+    )
+  }
+  return n
+})()
 
 // Directory name a reviewer can order and a second run cannot overwrite.
 const RUN_ID = new Date().toISOString().replace(/[:.]/g, '-')
@@ -367,24 +421,353 @@ function normaliseVideos(page, dir, collected) {
   }
 }
 
-const results = []
-for (const page of DISCOVER_ONLY ? [] : pages) {
+/**
+ * The live frame, or nothing.
+ *
+ * Owns every terminal side effect the display needs — the cursor, the timer, the
+ * rewind — so that `live-view.mjs` can stay a pure function of its arguments and
+ * be tested on the exact string it returns.
+ *
+ * Redraw is "clear each line and rewrite it" rather than a full-screen clear:
+ * the alternate screen buffer would take the run's scrollback with it, and the
+ * scrollback is where the failure a reader wants is written.
+ */
+function createDisplay(state) {
+  if (!LIVE) {
+    return { redraw() {}, stop() {}, note: (line) => console.log(line) }
+  }
+  let height = 0
+  let tick = 0
+  const out = process.stdout
+  const rows = () => Math.max(10, (out.rows || 40) - 1)
+
+  const paint = () => {
+    const frame = renderFrame(state, {
+      width: out.columns || 100,
+      rows: rows(),
+      now: Date.now(),
+      tick,
+      colour: true,
+    })
+    const lines = frame.split('\n')
+    // Rewind over exactly what was drawn last time. Off by one here is the
+    // cascade of half-frames that makes a live view worse than plain lines,
+    // which is why renderFrame is clamped rather than trusted to be short.
+    if (height > 0) out.write(`\x1b[${height}A`)
+    for (const line of lines) out.write(`\x1b[2K${line}\n`)
+    // Shrinking frame: wipe the rows the last one used and this one does not.
+    for (let i = lines.length; i < height; i += 1) out.write('\x1b[2K\n')
+    if (lines.length < height) out.write(`\x1b[${height - lines.length}A`)
+    height = lines.length
+  }
+
+  out.write('\x1b[?25l')
+  const timer = setInterval(() => {
+    tick += 1
+    paint()
+  }, 90)
+  // Unref so a hung child cannot keep the process alive on the timer alone.
+  timer.unref?.()
+
+  const stop = () => {
+    clearInterval(timer)
+    paint()
+    out.write('\x1b[?25h')
+  }
+  // The cursor is hidden by an escape code, not by a setting: leaving without
+  // restoring it hands the user a terminal with no cursor.
+  const restore = () => out.write('\x1b[?25h')
+  process.on('exit', restore)
+  process.on('SIGINT', () => {
+    restore()
+    process.exit(130)
+  })
+
+  return { redraw: paint, stop, note() {} }
+}
+
+/**
+ * Runs one page's matrix, resolving to what the rollup needs.
+ *
+ * `spawn` rather than `spawnSync`, which is what makes both the live frame and
+ * `--concurrency` possible: a synchronous child blocks the event loop, so
+ * nothing can tail a log or drive a timer while it runs.
+ */
+function runPage(page, { onCaseFinished, onLine }) {
   const dir = path.join(ROOT, page)
   mkdirSync(path.join(dir, 'logs'), { recursive: true })
   mkdirSync(path.join(dir, 'traces'), { recursive: true })
-  console.log(`\n▸ ${page}: running the field matrix`)
-  const proc = run('bunx', ['playwright', 'test', '--project=cms-fields', '--reporter=list,json'], {
-    CMS_E2E_PAGE: page,
-    CMS_E2E_EVIDENCE: dir,
-    CMS_E2E_INVENTORY: inventoryPath,
-    // Playwright's JSON reporter writes to stdout unless told otherwise, and
-    // stdout is exactly what must not be the source of the figures.
-    PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(dir, 'logs', 'results.json'),
+
+  return new Promise((resolve) => {
+    const child = spawn(
+      'bunx',
+      [
+        'playwright',
+        'test',
+        '--project=cms-fields',
+        '--reporter=list,json',
+        // N pages share one `next dev`, which compiles on demand and one at a
+        // time. The default 30s is a fine budget for a browser talking to a warm
+        // server on its own, and not for one queued behind N-1 others. Raised
+        // only when the run is actually concurrent, so a sequential run keeps
+        // the tighter timeout that catches a genuinely stuck page.
+        ...(CONCURRENCY > 1 ? [`--timeout=${30_000 * CONCURRENCY}`] : []),
+      ],
+      {
+        cwd: WEB,
+        // Piped whenever the frame owns the terminal, or two pages would
+        // interleave their output into an unreadable braid. Inherited otherwise,
+        // which keeps the default behaviour of this script exactly as it was.
+        stdio: LIVE || CONCURRENCY > 1 ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+        env: {
+          ...ENV_FILE,
+          ...process.env,
+          CMS_E2E_PAGE: page,
+          CMS_E2E_EVIDENCE: dir,
+          CMS_E2E_INVENTORY: inventoryPath,
+          // Playwright's JSON reporter writes to stdout unless told otherwise,
+          // and stdout is exactly what must not be the source of the figures.
+          PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(dir, 'logs', 'results.json'),
+        },
+      },
+    )
+
+    const captured = []
+    let pending = ''
+    const consume = (chunk) => {
+      const text = String(chunk)
+      captured.push(text)
+      pending += text
+      const lines = pending.split('\n')
+      pending = lines.pop() ?? ''
+      for (const line of lines) {
+        onLine?.(page, line)
+        // Decoration, never a verdict. A line the runner prints when a case ends
+        // advances the denominator's counterpart so a failing case does not read
+        // as a stall; a pass is only ever counted from `cases.jsonl`. If
+        // Playwright changes this formatting the bar under-counts and every
+        // figure in the pack is still right, which is the test of whether
+        // parsing an output line is acceptable at all.
+        if (/^\s*[\u2713\u2714\u2717\u2718\u00d7-]\s+\d+\s/.test(line)) onCaseFinished?.(page)
+      }
+    }
+    child.stdout?.on('data', consume)
+    child.stderr?.on('data', consume)
+
+    child.on('close', (code) => {
+      if (pending) onLine?.(page, pending)
+      // The raw stream still exists, it just is not on the terminal any more.
+      // Deleting it would trade a readable display for a lost diagnosis.
+      if (captured.length) {
+        writeFileSync(path.join(dir, 'logs', 'runner.log'), captured.join(''))
+      }
+      const exit = code ?? -1
+      const collected = collect(dir)
+      normaliseVideos(page, dir, collected)
+      writeFileSync(path.join(dir, 'report.md'), pageReport(page, dir, collected, exit))
+      resolve({ page, exit, collected })
+    })
   })
-  const collected = collect(dir)
-  normaliseVideos(page, dir, collected)
-  writeFileSync(path.join(dir, 'report.md'), pageReport(page, dir, collected, proc.status ?? -1))
-  results.push({ page, exit: proc.status ?? -1, collected })
+}
+
+const PORT = 3100
+const ORIGIN = `http://localhost:${PORT}`
+
+async function serverIsUp() {
+  try {
+    const res = await fetch(`${ORIGIN}/admin/login`, { signal: AbortSignal.timeout(2000) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Owns `next dev` for the whole run, when the run is concurrent.
+ *
+ * Playwright's `webServer` cannot do this job here. `reuseExistingServer` makes
+ * an invocation attach to a server that is already up, but the invocation that
+ * *started* one also tears it down when it exits — so warming the port with a
+ * first page does not keep it warm, and the next two pages race to bind 3100.
+ * One wins and one dies with `EADDRINUSE`, reporting zero cases for a page whose
+ * fields were never the problem. That is the failure this function removes, and
+ * it was observed rather than predicted.
+ *
+ * Sequential runs keep the old behaviour, where Playwright manages the server
+ * per page — no race is possible with one child, and leaving that path untouched
+ * keeps the default exactly as it was.
+ */
+async function startDevServer(warmRoutes = []) {
+  if (await serverIsUp()) {
+    // Somebody else's server, so it is not ours to stop either.
+    return { stop() {}, adopted: true }
+  }
+  const child = spawn('bun', ['run', 'dev', '--', '--port', String(PORT)], {
+    cwd: WEB,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // Own process group, so stopping it takes `next dev`'s children with it.
+    // Killing only the parent leaves the port bound and the next run racing a
+    // server nobody is watching.
+    detached: true,
+    env: {
+      ...ENV_FILE,
+      ...process.env,
+      E2E: '1',
+      PAYLOAD_SECRET: process.env.PAYLOAD_SECRET ?? ENV_FILE.PAYLOAD_SECRET ?? 'e2e-secret',
+    },
+  })
+  const log = []
+  child.stdout?.on('data', (c) => log.push(String(c)))
+  child.stderr?.on('data', (c) => log.push(String(c)))
+
+  let exited = false
+  child.on('close', () => {
+    exited = true
+  })
+
+  const deadline = Date.now() + 120_000
+  while (Date.now() < deadline) {
+    if (exited) {
+      throw new Error(
+        `the dev server on ${PORT} exited before it was ready. Its output:\n${log.join('')}`,
+      )
+    }
+    if (await serverIsUp()) break
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  if (!(await serverIsUp())) {
+    throw new Error(
+      `the dev server on ${PORT} did not come up in 120s. Its output:\n${log.join('')}`,
+    )
+  }
+
+  // Compile every route the run will hit, before any browser competes for one.
+  //
+  // `next dev` compiles on demand and serialises those compiles, and each page's
+  // admin document is its own route segment. Warming only `/admin/login` was not
+  // enough: the second page still starved waiting for its own
+  // `/admin/globals/<Page>` to compile behind the first page's, and died on a
+  // `beforeAll` timeout that said nothing about its fields — the login form in
+  // its own failure screenshot was still empty. Warming each target's admin URL
+  // costs one request per page, once, against minutes of contention.
+  const warm = ['/admin/login', '/', ...warmRoutes]
+  for (const route of warm) {
+    try {
+      await fetch(`${ORIGIN}${route}`, { signal: AbortSignal.timeout(180_000) })
+    } catch {
+      // A route that will not warm fails loudly in the run itself, with a real
+      // error, rather than here with a guess about why.
+    }
+  }
+
+  const stop = () => {
+    if (exited) return
+    try {
+      process.kill(-child.pid, 'SIGTERM')
+    } catch {
+      // Already gone, or never got a group. Either way there is nothing to stop.
+    }
+  }
+  // A crash between here and the explicit stop would otherwise leave the port
+  // bound and the next run racing it.
+  process.on('exit', stop)
+  return { stop, adopted: false }
+}
+
+const targets = DISCOVER_ONLY ? [] : pages
+const state = createRunState({ runId: RUN_ID, pages: targets, inventory, now: Date.now() })
+const display = createDisplay(state)
+
+/** Byte offset already folded into the frame, per page. */
+const logOffsets = new Map()
+function drainCaseLog(page) {
+  const file = path.join(ROOT, page, 'logs', 'cases.jsonl')
+  if (!existsSync(file)) return
+  const text = readFileSync(file, 'utf8')
+  const from = logOffsets.get(page) ?? 0
+  if (text.length <= from) return
+  const fresh = text.slice(from)
+  // Keep the trailing partial line for the next pass: the suite is appending to
+  // this file while it is read, so the last line can be half written.
+  const lastBreak = fresh.lastIndexOf('\n')
+  if (lastBreak === -1) return
+  logOffsets.set(page, from + lastBreak + 1)
+  for (const line of fresh.slice(0, lastBreak).split('\n')) {
+    if (!line.trim()) continue
+    try {
+      applyEvent(state, page, JSON.parse(line))
+    } catch {
+      // A line that does not parse is a line still being written. Skipping it
+      // costs one frame; throwing would take the display down mid-run.
+    }
+  }
+}
+
+const results = []
+if (targets.length) {
+  const hooks = {
+    onCaseFinished: (page) => {
+      noteCaseFinished(state, page)
+      drainCaseLog(page)
+    },
+    onLine: (page, line) => {
+      if (!LIVE && CONCURRENCY > 1) console.log(`[${page}] ${line}`)
+    },
+  }
+
+  const start = (page) => {
+    beginPage(state, page, Date.now())
+    if (!LIVE) console.log(`\n▸ ${page}: running the field matrix`)
+    return runPage(page, hooks).then((r) => {
+      drainCaseLog(page)
+      const t = r.collected ? tally(r.collected) : null
+      endPage(state, page, {
+        exit: r.exit,
+        tally: t
+          ? {
+              pass: t.passed,
+              fail: t.failed.length,
+              notRun: t.notRun.length,
+              gaps: r.collected.log.filter((e) => e.renderedOnPublicPage === false).length,
+            }
+          : null,
+        failure: t?.failed?.[0]?.error ?? (r.collected ? null : 'no report was written'),
+        now: Date.now(),
+      })
+      display.redraw()
+      results.push(r)
+      return r
+    })
+  }
+
+  const queue = [...targets]
+  // The runner holds the server open for the whole concurrent run, so every
+  // Playwright invocation attaches to one that is already up rather than racing
+  // to start its own.
+  // Every targeted page's admin document, so no browser waits on a cold compile.
+  const adminRoutes = inventory.pages
+    .filter((p) => targets.includes(p.page))
+    .map((p) => p.adminUrl)
+    .filter(Boolean)
+  const server = CONCURRENCY > 1 ? await startDevServer(adminRoutes) : null
+
+  try {
+    const workers = Array.from(
+      { length: Math.min(CONCURRENCY, Math.max(queue.length, 1)) },
+      async () => {
+        while (queue.length) await start(queue.shift())
+      },
+    )
+    await Promise.all(workers)
+  } finally {
+    // Stopped even if a page threw: a server left running holds the port and
+    // silently changes what the next run is testing against.
+    server?.stop()
+    display.stop()
+  }
+  // Report in the order the inventory lists, not the order the pool finished:
+  // a rollup whose row order changes run to run cannot be diffed.
+  results.sort((a, b) => targets.indexOf(a.page) - targets.indexOf(b.page))
 }
 
 const rollupLines = [

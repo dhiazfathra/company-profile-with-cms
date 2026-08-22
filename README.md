@@ -174,7 +174,27 @@ not walk up to the root's `package.json` from inside a workspace.
 bun run cms:e2e --discover-only   # inventory and per-page matrices, no browser
 bun run cms:e2e Header            # one page, 1–3 minutes
 bun run cms:e2e --all             # every page, around half an hour
+bun run cms:e2e --all --verbose   # the same run, as a live dashboard
 ```
+
+`--verbose` replaces the runner's raw stream with a frame redrawn in place: an
+overall bar, a row per page, the case currently being typed, and a running count
+of values that saved without reaching the public page — the finding this suite
+exists for, which otherwise stays invisible until the report is written. The raw
+stream is not discarded; it moves to `<page>/logs/runner.log`. It needs a TTY, so
+piped output and CI keep the plain lines, which is the better artefact there.
+
+`--concurrency=N` (or `-j N`) runs N pages at once and is **experimental, and off
+by default**. It roughly halves wall clock and currently costs correctness: pages
+that run alongside another fail their `beforeAll` on a timeout, because `next dev`
+compiles on demand and serialises those compiles. Measured on three pages —
+sequential 2m 49s with 3 of 3 passing, `-j 2` 1m 25s with 2 of 3, `-j 3` 1m 39s
+with 1 of 3. Those failures are the dev server starving, not fields breaking, and
+a red mark that does not mean a defect is as misleading as a green one that does
+not mean a pass. Owning the server for the run and pre-warming every route it
+touches did not fix it; a production server, which has no on-demand compile, is
+the likely answer and is not wired up yet. Use `-j` for a fast smoke pass, never
+for a run whose result anyone signs.
 
 Evidence lands in `apps/web/test-evidence/<run-id>/`, gitignored: a `rollup.md`, and
 per page a `field-matrix.md`, a `report.md`, Playwright's JSON report, a line per

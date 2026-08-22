@@ -29,7 +29,7 @@ const inventory = await buildInventory(config, sections)
 // exists for everything downstream, run or not.
 for (const page of inventory.pages) {
   for (const field of page.fields) {
-    field.cases = casesFor(field)
+    field.cases = casesFor(field, page.page)
   }
 }
 
@@ -44,5 +44,5 @@ for (const page of inventory.pages) {
 console.log(
   `${inventory.pages.length} pages, ` +
     `${inventory.pages.reduce((n, p) => n + p.fields.length, 0)} fields, ` +
-    `${inventory.pages.reduce((n, p) => n + p.fields.reduce((m, f) => m + casesFor(f).length, 0), 0)} cases`,
+    `${inventory.pages.reduce((n, p) => n + p.fields.reduce((m, f) => m + casesFor(f, p.page).length, 0), 0)} cases`,
 )

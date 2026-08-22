@@ -16,7 +16,7 @@ import ExcelJS from 'exceljs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { STATUS, buildScenarios } from '../src/scenarios.mjs'
 import { esc, renderReport } from '../src/report-html.mjs'
-import { coverageGaps, writeWorkbook } from '../src/workbook.mjs'
+import { AUTHORED_OPTIONS, MEASURED_KEYS, coverageGaps, writeWorkbook } from '../src/workbook.mjs'
 
 const INVENTORY = {
   locales: ['en'],
@@ -285,5 +285,152 @@ describe('writeWorkbook', () => {
     sheet.eachRow((row) => pairs.set(String(row.getCell(1).value), String(row.getCell(2).value)))
     expect(pairs.get('Verdict')).toBe('FAIL')
     expect(pairs.get('Saved but not found in the HTML served for /')).toBe('1')
+  })
+})
+
+/**
+ * Colour and dropdowns.
+ *
+ * The invariant worth a test is not "is it pretty" — no test here can judge
+ * that. It is the boundary between what the run measured and what a tester
+ * asserts: a picker on an observed column would let a sheet be edited into
+ * agreement with an opinion, and nothing downstream could tell that had
+ * happened. So the measured columns must have no validation, the authored
+ * columns must have one, and the colour must be derived from the same field the
+ * figures are counted from.
+ */
+describe('workbook colour and dropdowns', () => {
+  let dir
+  let book
+
+  const header = (sheet) => sheet.getRow(1).values.map((v) => v ?? '')
+  const cellsUnder = (sheet, name) => {
+    const col = header(sheet).indexOf(name)
+    const out = []
+    sheet.eachRow((row, n) => n > 1 && out.push(row.getCell(col)))
+    return out
+  }
+
+  beforeAll(async () => {
+    dir = mkdtempSync(join(tmpdir(), 'cms-to-qa-colour-'))
+    const file = join(dir, 'test-scenarios.xlsx')
+    await writeWorkbook(file, {
+      runId: '2026-08-23T00-00-00-000Z',
+      reproduce: 'bun run cms:e2e Header',
+      inventory: INVENTORY,
+      rows,
+      ranPages: 1,
+    })
+    book = new ExcelJS.Workbook()
+    await book.xlsx.readFile(file)
+  })
+
+  afterAll(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('offers a dropdown on every column a tester authors', () => {
+    const scenarios = book.getWorksheet('Test Scenarios')
+    for (const [name, options] of [
+      ['Tester verdict', AUTHORED_OPTIONS.verdict],
+      ['Severity', AUTHORED_OPTIONS.severity],
+    ]) {
+      const cells = cellsUnder(scenarios, name)
+      expect(cells.length, name).toBe(rows.length)
+      for (const cell of cells) {
+        expect(cell.dataValidation?.type, name).toBe('list')
+        // The options a tester sees are the exported list, so the sheet and the
+        // module cannot offer different vocabularies.
+        expect(cell.dataValidation.formulae[0]).toBe(`"${options.join(',')}"`)
+      }
+    }
+  })
+
+  it('offers a disposition dropdown on every gap, so no gap is left unanswered', () => {
+    const cells = cellsUnder(book.getWorksheet('Not Covered'), 'Disposition')
+    expect(cells.length).toBeGreaterThan(0)
+    for (const cell of cells) {
+      expect(cell.dataValidation?.type).toBe('list')
+      expect(cell.dataValidation.formulae[0]).toBe(`"${AUTHORED_OPTIONS.disposition.join(',')}"`)
+    }
+  })
+
+  it('leaves the authored columns empty, so nothing is signed on the run’s behalf', () => {
+    const scenarios = book.getWorksheet('Test Scenarios')
+    for (const name of ['Tester verdict', 'Severity', 'Tester notes']) {
+      for (const cell of cellsUnder(scenarios, name)) {
+        expect(cell.value ?? '', name).toBe('')
+      }
+    }
+  })
+
+  it('never puts a dropdown on a column the run measured', () => {
+    // The whole point of the split. A picker here turns evidence into an opinion
+    // that reads identically to a measurement.
+    const scenarios = book.getWorksheet('Test Scenarios')
+    const headers = { status: 'Status', publicPage: 'Public page', actual: 'Actual result' }
+    for (const key of MEASURED_KEYS) {
+      if (!headers[key]) continue
+      for (const cell of cellsUnder(scenarios, headers[key])) {
+        expect(cell.dataValidation, headers[key]).toBeUndefined()
+      }
+    }
+    for (const cell of cellsUnder(book.getWorksheet('Traceability'), 'Covered?')) {
+      expect(cell.dataValidation).toBeUndefined()
+    }
+  })
+
+  it('fills a status cell with the colour for that status, and never leaves one bare', () => {
+    for (const cell of cellsUnder(book.getWorksheet('Test Scenarios'), 'Status')) {
+      expect(cell.fill?.type, String(cell.value)).toBe('pattern')
+      expect(cell.font?.bold).toBe(true)
+    }
+  })
+
+  it('colours the saved-but-not-rendered cell like the failure it is', () => {
+    // The gap and its colour are read from the same field `summarise` counts, so
+    // a red cell and the Summary figure cannot disagree.
+    const gapCells = cellsUnder(book.getWorksheet('Test Scenarios'), 'Public page').filter((c) =>
+      String(c.value ?? '').startsWith('NOT found'),
+    )
+    expect(gapCells.length).toBeGreaterThan(0)
+    for (const cell of gapCells) {
+      expect(cell.fill?.fgColor?.argb).toBe('FFF9DEDC')
+      expect(cell.font?.bold).toBe(true)
+    }
+  })
+
+  it('colours the Covered? verdict on the traceability sheet', () => {
+    const cells = cellsUnder(book.getWorksheet('Traceability'), 'Covered?')
+    expect(cells.length).toBeGreaterThan(0)
+    for (const cell of cells) {
+      expect(['YES', 'PARTIAL', 'NO']).toContain(cell.value)
+      expect(cell.fill?.type, String(cell.value)).toBe('pattern')
+    }
+  })
+
+  it('colours the summary verdict cell, which is the one somebody screenshots', () => {
+    const summary = book.getWorksheet('Summary')
+    let verdict
+    summary.eachRow((row) => {
+      if (row.getCell(1).value === 'Verdict') verdict = row.getCell(2)
+    })
+    expect(verdict).toBeDefined()
+    expect(verdict.value).toBe('FAIL')
+    expect(verdict.fill?.fgColor?.argb).toBe('FFF9DEDC')
+  })
+
+  it('keeps the header frozen and the Test ID column pinned for the signing scroll', () => {
+    // A tester scrolling right to the verdict columns otherwise loses the row.
+    expect(book.getWorksheet('Test Scenarios').views[0]).toMatchObject({
+      state: 'frozen',
+      xSplit: 1,
+      ySplit: 1,
+    })
+  })
+
+  it('still round-trips the punctuation and the long value with the styling applied', () => {
+    // Styling every cell is a lot more XML per row; the values must survive it.
+    const sheet = book.getWorksheet('Test Scenarios')
+    const values = cellsUnder(sheet, 'Test data').map((c) => c.value)
+    expect(values).toContain(`Tom & "Jerry" <b>'x'</b>`)
   })
 })

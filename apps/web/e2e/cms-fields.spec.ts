@@ -173,7 +173,7 @@ async function save(page: Page, info: PageInfo): Promise<{ status: number; body:
  * them would need the REST API, which is not the journey this suite exists to
  * show.
  */
-const fields = target.fields.filter((f) => !f.hidden && casesFor(f).length > 0)
+const fields = target.fields.filter((f) => !f.hidden && casesFor(f, target.page).length > 0)
 
 test.describe.configure({ mode: 'serial' })
 
@@ -214,7 +214,7 @@ test.describe(`CMS fields — ${target.page}`, () => {
         await page.close()
       })
 
-      for (const kase of casesFor(field)) {
+      for (const kase of casesFor(field, target.page)) {
         test(`${kase.id} (${kase.kind}) — ${kase.why}`, async ({ page }) => {
           expect(docUrl, 'setup did not resolve a document to edit').toBeTruthy()
           await login(page)

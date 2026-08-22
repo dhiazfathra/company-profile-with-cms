@@ -11,7 +11,8 @@
     ".": "./src/index.mjs",
     "./scenarios": "./src/scenarios.mjs",
     "./report-html": "./src/report-html.mjs",
-    "./workbook": "./src/workbook.mjs"
+    "./workbook": "./src/workbook.mjs",
+    "./live-view": "./src/live-view.mjs"
   },
   "files": [
     "SKILL.md",
