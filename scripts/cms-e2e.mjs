@@ -37,7 +37,11 @@ const WEB = path.resolve(import.meta.dir, '../apps/web')
 const ARG = process.argv.slice(2)
 const ALL = ARG.includes('--all')
 const DISCOVER_ONLY = ARG.includes('--discover-only')
-const NAMED = ARG.filter((a) => !a.startsWith('--') && a !== String(Number.parseInt(a, 10)))
+// Every flag, long or short, plus the value that follows a bare `-j`. Filtering
+// only `--` left `-j` and `-v` in the page list, and the unknown-page check then
+// rejected the run — the two short forms this file documents were unusable.
+const J_AT = ARG.indexOf('-j')
+const NAMED = ARG.filter((a, i) => !a.startsWith('-') && !(J_AT !== -1 && i === J_AT + 1))
 
 /**
  * `--verbose` swaps the runner's raw stream for a frame redrawn in place.
@@ -67,14 +71,15 @@ const LIVE = VERBOSE && Boolean(process.stdout.isTTY) && !process.env.CI
  * renders nothing: a false pass on the one check this suite exists for. The
  * generator now salts each value with its own page and field, which is what makes
  * this flag safe to offer (`cms-discover.ts`, ADR-0020).
+ *
+ * One exception, stated because it bounds the claim: a number field's cases are
+ * `7`, `0` and `-1`, which cannot be made unique and would match any digit
+ * anywhere in the document. Those cases skip the public-page check entirely and
+ * record it as unchecked rather than as a pass.
  */
 const CONCURRENCY = (() => {
   const flag = ARG.find((a) => a.startsWith('--concurrency=') || a.startsWith('-j='))
-  const raw = flag
-    ? flag.split('=').slice(1).join('=')
-    : ARG.includes('-j')
-      ? ARG[ARG.indexOf('-j') + 1]
-      : '1'
+  const raw = flag ? flag.split('=').slice(1).join('=') : J_AT !== -1 ? ARG[J_AT + 1] : '1'
   const n = Number.parseInt(raw, 10)
   if (!Number.isInteger(n) || n < 1 || String(n) !== String(raw).trim()) {
     throw new Error(
@@ -597,6 +602,24 @@ async function serverIsUp() {
  * per page — no race is possible with one child, and leaving that path untouched
  * keeps the default exactly as it was.
  */
+/**
+ * The secret the run's own server must use, or a named failure.
+ *
+ * A committed fallback would start a server whose sessions do not match one
+ * started by `bun run dev`, and the run would measure that other server without
+ * saying so. Better to stop and name the file to fix.
+ */
+function devSecret() {
+  const secret = process.env.PAYLOAD_SECRET ?? ENV_FILE.PAYLOAD_SECRET
+  if (!secret) {
+    throw new Error(
+      'PAYLOAD_SECRET is not set, so this run cannot start the dev server it would measure. ' +
+        'Set it in apps/web/.env (copy apps/web/.env.example) or in the environment.',
+    )
+  }
+  return secret
+}
+
 async function startDevServer(warmRoutes = []) {
   if (await serverIsUp()) {
     // Somebody else's server, so it is not ours to stop either.
@@ -613,7 +636,7 @@ async function startDevServer(warmRoutes = []) {
       ...ENV_FILE,
       ...process.env,
       E2E: '1',
-      PAYLOAD_SECRET: process.env.PAYLOAD_SECRET ?? ENV_FILE.PAYLOAD_SECRET ?? 'e2e-secret',
+      PAYLOAD_SECRET: devSecret(),
     },
   })
   const log = []

@@ -366,14 +366,27 @@ describe('workbook colour and dropdowns', () => {
     // The whole point of the split. A picker here turns evidence into an opinion
     // that reads identically to a measurement.
     const scenarios = book.getWorksheet('Test Scenarios')
-    const headers = { status: 'Status', publicPage: 'Public page', actual: 'Actual result' }
+    const headers = {
+      status: 'Status',
+      publicPage: 'Public page',
+      actual: 'Actual result',
+      evidence: 'Evidence (video)',
+    }
     for (const key of MEASURED_KEYS) {
-      if (!headers[key]) continue
-      for (const cell of cellsUnder(scenarios, headers[key])) {
-        expect(cell.dataValidation, headers[key]).toBeUndefined()
+      // A key with no header here was silently skipped before, and `cellsUnder`
+      // returns nothing for a header that has been renamed — so this test could
+      // pass having asserted on no cells at all.
+      const header = headers[key]
+      expect(header, `no header mapped for measured key ${key}`).toBeTruthy()
+      const cells = cellsUnder(scenarios, header)
+      expect(cells.length, `no cells found under ${header}`).toBeGreaterThan(0)
+      for (const cell of cells) {
+        expect(cell.dataValidation, header).toBeUndefined()
       }
     }
-    for (const cell of cellsUnder(book.getWorksheet('Traceability'), 'Covered?')) {
+    const covered = cellsUnder(book.getWorksheet('Traceability'), 'Covered?')
+    expect(covered.length, 'no cells found under Covered?').toBeGreaterThan(0)
+    for (const cell of covered) {
       expect(cell.dataValidation).toBeUndefined()
     }
   })

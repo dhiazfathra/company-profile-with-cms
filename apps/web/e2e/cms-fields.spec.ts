@@ -278,7 +278,11 @@ test.describe(`CMS fields — ${target.page}`, () => {
           // logged in with. A value only an authenticated user can see is not
           // evidence about the public page, which is what the report calls it.
           let rendered: boolean | null = null
-          if (target.section && kase.value.trim().length > 0) {
+          // Number cases are excluded, not merely salted: `7`, `0` and `-1` match a
+          // digit anywhere in the document, so `includes` would report the field
+          // as rendered whatever it renders. `null` records the check as never
+          // run, which the report shows as unchecked rather than as a pass.
+          if (target.section && kase.value.trim().length > 0 && field.type !== 'number') {
             const anonymous = await playwrightRequest.newContext({
               baseURL: page.url().replace(/(^https?:\/\/[^/]+).*/, '$1'),
             })

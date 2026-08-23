@@ -265,6 +265,22 @@ describe('the eval suite', () => {
             : `pattern does not match its own matchExample — it may match nothing at all:\n` +
                 `  pattern: ${g.fields.pattern}\n  example: ${g.fields.matchExample}`,
         ).toBe(!isNegated)
+        // Optional, and the only guard against the failure a matchExample cannot
+        // see: a pattern loose enough to match an answer that is wrong. The gap-list
+        // grader accepted "we preserved the original report" — the refusal verb with
+        // no mention of what was protected — so a grader whose vocabulary is broad
+        // states one wrong answer it must reject, beside the right one it must match.
+        if (g.fields.nonMatchExample !== undefined) {
+          expect(
+            typeof g.fields.nonMatchExample,
+            'nonMatchExample must be a string: a fragment of a WRONG answer',
+          ).toBe('string')
+          expect(
+            re.test(g.fields.nonMatchExample),
+            `pattern matches its nonMatchExample — it accepts an answer it must reject:\n` +
+              `  pattern: ${g.fields.pattern}\n  example: ${g.fields.nonMatchExample}`,
+          ).toBe(isNegated)
+        }
       }
       if (g.fields.type === 'tool_used') expect(typeof g.fields.tool).toBe('string')
       if (g.fields.type === 'llm') expect(String(g.fields.criteria).length).toBeGreaterThan(40)

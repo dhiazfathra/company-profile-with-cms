@@ -269,13 +269,25 @@ export type Case = {
  *
  * Lower-case and hyphenated so it stays valid inside a path or an anchor, which
  * is what the format-validated fields need.
+ *
+ * Only text cases can carry it. A number field's values are `7`, `0` and `-1`;
+ * there is no token that keeps them a valid number, so those cases skip the
+ * public-page check rather than pass it on a digit that could have come from
+ * anywhere in the document.
  */
 const salt = (scope: string, field: string) =>
   `${scope}-${field}`.replace(/[^A-Za-z0-9]+/g, '-').toLowerCase()
 
-/** 5000 characters exactly, with the field's own token at the front. */
-const longValue = (token: string) => {
-  const head = `${token}-`
+/**
+ * 5000 characters exactly, counting any prefix the field's format rule needs.
+ *
+ * The prefix belongs in here rather than at the call site: prepending `/` there
+ * made the value 5001 characters while the `why` string — quoted into the test
+ * title, the failure message and the matrix — still said 5000, so a reader
+ * comparing the message with the recorded value saw two different lengths.
+ */
+const longValue = (token: string, prefix = '') => {
+  const head = `${prefix}${token}-`
   return head + 'L'.repeat(Math.max(0, 5000 - head.length))
 }
 
@@ -379,7 +391,7 @@ export function casesFor(field: FieldInfo, scope = ''): Case[] {
     {
       id: 'long',
       kind: 'boundary',
-      value: field.formatRule ? `/${longValue(token)}` : longValue(token),
+      value: field.formatRule ? longValue(token, '/') : longValue(token),
       // States only what the case asserts. The `why` is quoted into the test
       // title and into the failure message, and the old wording ("or be
       // refused") told a reader that a refusal was acceptable directly beside an
