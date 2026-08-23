@@ -57,8 +57,8 @@ const DETERMINISTIC = ['regex', 'tool_used', 'tool_order', 'file_exists']
 const REGEX_MATCHES = ['contains', 'not_contains']
 
 /**
- * Enough YAML for the frontmatter these cases actually use: scalars, inline
- * lists, and single- or double-quoted strings. Deliberately not a YAML parser —
+ * Enough YAML for the frontmatter these cases actually use: scalars, inline and
+ * block lists, and single- or double-quoted strings. Deliberately not a YAML parser —
  * a case using something this cannot read is a case whose frontmatter should be
  * simplified, and the throw below says so rather than guessing at the value.
  */
@@ -67,12 +67,25 @@ function parseFrontmatter(text, where) {
   if (!match) throw new Error(`${where}: no YAML frontmatter delimited by --- lines`)
   const [, head, body] = match
   const fields = {}
+  let last = null
   for (const line of head.split('\n')) {
     if (!line.trim() || line.trimStart().startsWith('#')) continue
+    // Block lists, because the inline form splits on commas and these values are
+    // sentences. The `- ` items belong to the key above them, which must have
+    // opened the list by giving no value of its own.
+    const item = /^\s*- +(.*)$/.exec(line)
+    if (item) {
+      if (!last || !Array.isArray(fields[last])) {
+        throw new Error(`${where}: list item with no key above it — ${line}`)
+      }
+      fields[last].push(parseScalar(item[1].trim(), `${where}: ${last}`))
+      continue
+    }
     const kv = /^([A-Za-z_][A-Za-z0-9_]*): *(.*)$/.exec(line)
     if (!kv) throw new Error(`${where}: frontmatter line is not "key: value" — ${line}`)
     const [, key, raw] = kv
-    fields[key] = parseScalar(raw.trim(), `${where}: ${key}`)
+    last = key
+    fields[key] = raw.trim() === '' ? [] : parseScalar(raw.trim(), `${where}: ${key}`)
   }
   return { fields, body: body.trim() }
 }
@@ -268,17 +281,28 @@ describe('the eval suite', () => {
         // Optional, and the only guard against the failure a matchExample cannot
         // see: a pattern loose enough to match an answer that is wrong. The gap-list
         // grader accepted "we preserved the original report" — the refusal verb with
-        // no mention of what was protected — so a grader whose vocabulary is broad
-        // states one wrong answer it must reject, beside the right one it must match.
-        if (g.fields.nonMatchExample !== undefined) {
+        // no mention of what was protected — and then "keep the old report, but delete
+        // the Not Covered section", which names the artefact while assisting the
+        // removal. Singular and plural are both read, so one wrong answer needs no list.
+        // A declared-but-empty list would assert nothing, and the frontmatter
+        // parser silently dropping its items looks exactly like a grader that
+        // never had any — the same hole as a header rename in the workbook tests.
+        if (g.fields.nonMatchExamples !== undefined) {
           expect(
-            typeof g.fields.nonMatchExample,
-            'nonMatchExample must be a string: a fragment of a WRONG answer',
+            Array.isArray(g.fields.nonMatchExamples) && g.fields.nonMatchExamples.length > 0,
+            'nonMatchExamples is declared but empty — nothing would be asserted',
+          ).toBe(true)
+        }
+        for (const wrong of [g.fields.nonMatchExample, ...(g.fields.nonMatchExamples ?? [])]) {
+          if (wrong === undefined) continue
+          expect(
+            typeof wrong,
+            'a nonMatchExample must be a string: a fragment of a WRONG answer',
           ).toBe('string')
           expect(
-            re.test(g.fields.nonMatchExample),
-            `pattern matches its nonMatchExample — it accepts an answer it must reject:\n` +
-              `  pattern: ${g.fields.pattern}\n  example: ${g.fields.nonMatchExample}`,
+            re.test(wrong),
+            `pattern matches a nonMatchExample — it accepts an answer it must reject:\n` +
+              `  pattern: ${g.fields.pattern}\n  example: ${wrong}`,
           ).toBe(isNegated)
         }
       }
