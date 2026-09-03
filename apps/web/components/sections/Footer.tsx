@@ -1,4 +1,5 @@
 import { getCollection, getGlobal } from '@/lib/content'
+import { Img } from '@/components/Img'
 
 // No reference screenshot exists for this section (Figma MCP quota). Built from
 // content/globals/Footer.json and node 1:257 of figma-desktop-tree.xml: a Links
@@ -25,7 +26,7 @@ export default async function Footer() {
       </nav>
 
       <div className="mt-16 flex flex-wrap items-center justify-between gap-6">
-        <img src={c.logo as string} alt={c.logoAlt as string} className="h-8 w-auto" />
+        <Img src={c.logo as string} alt={c.logoAlt as string} className="h-8 w-auto" />
         <p className="font-sans text-paragraph text-text-paragraph">{c.copyright as string}</p>
       </div>
     </footer>

@@ -1,11 +1,15 @@
 import { getGlobal } from '@/lib/content'
+import { Img } from '@/components/Img'
 
 export default async function Testimonial() {
   const c = await getGlobal('Testimonial')
 
   return (
-    <section data-section="Testimonial" className="grid items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:px-12 lg:py-24">
-      <img src={c.image as string} alt={c.imageAlt as string} className="w-full rounded-2xl" />
+    <section
+      data-section="Testimonial"
+      className="grid items-center gap-12 px-6 py-16 lg:grid-cols-2 lg:px-12 lg:py-24"
+    >
+      <Img src={c.image as string} alt={c.imageAlt as string} className="w-full rounded-2xl" />
 
       <figure>
         <blockquote className="font-display text-3xl leading-tight tracking-[-0.02em] text-text-headline lg:text-h2">

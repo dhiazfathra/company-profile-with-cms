@@ -1,5 +1,6 @@
 import Cta from '@/components/Cta'
 import { getCollection, getGlobal } from '@/lib/content'
+import { Img } from '@/components/Img'
 
 export default async function Specifications() {
   const c = await getGlobal('Specifications')
@@ -16,7 +17,11 @@ export default async function Specifications() {
   }))
 
   return (
-    <section data-section="Specifications" id="specifications" className="px-6 py-16 lg:px-12 lg:py-24">
+    <section
+      data-section="Specifications"
+      id="specifications"
+      className="px-6 py-16 lg:px-12 lg:py-24"
+    >
       <div className="mx-auto max-w-2xl text-center">
         <p className="font-mono text-caption text-text-captions">{c.eyebrow as string}</p>
         <h2 className="mt-6 font-display text-4xl leading-[0.9] tracking-[-0.03em] text-text-headline lg:text-h1">
@@ -51,7 +56,11 @@ export default async function Specifications() {
                   key={cell.row as number}
                   className="flex items-center gap-3 border-b border-divider-1 px-10 py-9 last:border-b-0"
                 >
-                  <img src={cell.icon as string} alt={cell.iconAlt as string} className="h-3.5 w-3.5" />
+                  <Img
+                    src={cell.icon as string}
+                    alt={cell.iconAlt as string}
+                    className="h-3.5 w-3.5"
+                  />
                   <span className="font-mono text-caption tracking-[-0.12px] text-text-headline">
                     {cell.label as string}
                   </span>

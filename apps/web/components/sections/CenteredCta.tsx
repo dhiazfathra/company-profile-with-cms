@@ -5,7 +5,11 @@ export default async function CenteredCta() {
   const c = await getGlobal('CenteredCta')
 
   return (
-    <section data-section="CenteredCta" id="contact" className="px-6 py-20 text-center lg:px-12 lg:py-32">
+    <section
+      data-section="CenteredCta"
+      id="contact"
+      className="px-6 py-20 text-center lg:px-12 lg:py-32"
+    >
       <div className="mx-auto max-w-2xl">
         <h2 className="font-display text-4xl leading-[0.9] tracking-[-0.03em] text-text-headline lg:text-h1">
           {c.headline as string}

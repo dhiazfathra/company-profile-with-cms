@@ -1,4 +1,5 @@
 import { getGlobal } from '@/lib/content'
+import { Img } from '@/components/Img'
 
 export default async function ShowcaseImage() {
   const c = await getGlobal('ShowcaseImage')
@@ -11,7 +12,7 @@ export default async function ShowcaseImage() {
     // section briefly having no padding and a 40px-too-tall image — see the
     // Showcase entry in design/figma.targets.json.
     <section data-section="ShowcaseImage" className="py-5">
-      <img src={c.image as string} alt={c.imageAlt as string} className="w-full rounded-2xl" />
+      <Img src={c.image as string} alt={c.imageAlt as string} className="w-full rounded-2xl" />
     </section>
   )
 }

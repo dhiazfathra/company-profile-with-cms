@@ -226,6 +226,20 @@ reseed keeps them: `uploadImage` reuses a row it finds by `sourcePath`, so the
 pre-blob rows are exactly the ones it skips. Clear the collection first —
 `bun run --cwd apps/web reset-media`, then `seed`.
 
+**Blob being unreachable is a different failure from Blob being empty, and looks
+identical.** A suspended store — inactive billing, on a project nobody deployed
+to — answers `403` to every read, so the media route `404`s and the page renders
+its sections around empty boxes. `reset-media` is the wrong tool for that: the
+rows and files are fine, and clearing them deletes good data. Check the store
+first (`vercel blob list-stores` prints its status, `vercel blob get-store
+<id>` its billing state) and fix it there. Since 2026-09-03 the site also
+degrades rather than breaking: an image whose src fails falls back to the
+`public/` path the row was seeded from, which ships in the deployment bundle, so
+a total Blob outage shows the seeded artwork instead of nothing. Editor-uploaded
+assets have no bundled counterpart and still break. Both halves —
+[the incident](docs/incidents/2026-09-03-media-blob-store-suspended.md) and
+[ADR-0020](docs/decisions/0020-media-falls-back-to-the-bundle-and-the-probe-runs-on-a-clock.md).
+
 Details in [`apps/web/README.md`](apps/web/README.md), the sequence in
 [`packages/deploy-to-vercel/SKILL.md`](packages/deploy-to-vercel/SKILL.md).
 
@@ -236,7 +250,14 @@ is how the media defect above shipped behind four green checks.
 deployment the same questions and writes `parity-report/report.html`: each
 section's design reference, local render and deployed render side by side, plus
 what loaded and what did not. It exits non-zero on a disagreement, and
-`.github/workflows/parity.yml` runs it against a deployment URL.
+`.github/workflows/parity.yml` runs it against a deployment URL — on demand, on
+a successful production deployment, and **daily at 06:17 UTC**. The schedule is
+there because the next storage failure need not involve a deploy: the Blob store
+behind every image was suspended for inactive billing on 2026-08-30 and the site
+served broken images for four days, with every runner-side check green, until a
+human looked at the page
+([the incident](docs/incidents/2026-09-03-media-blob-store-suspended.md),
+[ADR-0020](docs/decisions/0020-media-falls-back-to-the-bundle-and-the-probe-runs-on-a-clock.md)).
 [`docs/parity-gaps.md`](docs/parity-gaps.md) is the gap list it was built from —
 what differed, why, and what was deferred.
 
@@ -259,27 +280,28 @@ grade the sections, rather than reporting every section as missing
 
 ## Decisions
 
-| ADR                                                                              | Decision                                                                    |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                        | Next.js + Payload in a single repository                                    |
-| [0002](docs/decisions/0002-manifest-driven-generation.md)                        | Generate components, content, and schema from one manifest                  |
-| [0003](docs/decisions/0003-token-and-section-rebuild.md)                         | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
-| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                         | Phase 1 content stored in the CMS's shape                                   |
-| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)            | Payload native localization; `_en` suffix as interchange format             |
-| [0006](docs/decisions/0006-bun-as-package-manager.md)                            | Bun as package manager and script runner; Node.js as the runtime            |
-| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                       | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
-| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                    | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
-| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)               | Monorepo, with the Figma pipeline as a reusable package                     |
-| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                   | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
-| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                         | Every pull request carries a generated evidence pack                        |
-| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                        | The CMS step is a second skill, evals only, with no extracted code          |
-| [0013](docs/decisions/0013-deployment-configuration.md)                          | Deployment config in repository secrets/variables; sqlite is not serverless |
-| [0014](docs/decisions/0014-media-on-blob-storage.md)                             | Uploaded media on blob storage; a production build without it fails         |
-| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)   | A check that cannot confirm what it looked at says so, once                 |
-| [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md) | The admin import map must not depend on the environment that generated it   |
-| [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)         | A second design language for the showcase, as a second file                 |
-| [0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)        | The CMS field matrix is discovered from the config, not written down        |
-| [0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)                   | SIT evidence a tester can check: HTML with recordings, a workbook, videos   |
+| ADR                                                                                         | Decision                                                                    |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                                   | Next.js + Payload in a single repository                                    |
+| [0002](docs/decisions/0002-manifest-driven-generation.md)                                   | Generate components, content, and schema from one manifest                  |
+| [0003](docs/decisions/0003-token-and-section-rebuild.md)                                    | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
+| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                                    | Phase 1 content stored in the CMS's shape                                   |
+| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)                       | Payload native localization; `_en` suffix as interchange format             |
+| [0006](docs/decisions/0006-bun-as-package-manager.md)                                       | Bun as package manager and script runner; Node.js as the runtime            |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                                  | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                               | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)                          | Monorepo, with the Figma pipeline as a reusable package                     |
+| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                              | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
+| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                                    | Every pull request carries a generated evidence pack                        |
+| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                                   | The CMS step is a second skill, evals only, with no extracted code          |
+| [0013](docs/decisions/0013-deployment-configuration.md)                                     | Deployment config in repository secrets/variables; sqlite is not serverless |
+| [0014](docs/decisions/0014-media-on-blob-storage.md)                                        | Uploaded media on blob storage; a production build without it fails         |
+| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)              | A check that cannot confirm what it looked at says so, once                 |
+| [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md)            | The admin import map must not depend on the environment that generated it   |
+| [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)                    | A second design language for the showcase, as a second file                 |
+| [0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)                   | The CMS field matrix is discovered from the config, not written down        |
+| [0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)                              | SIT evidence a tester can check: HTML with recordings, a workbook, videos   |
+| [0020](docs/decisions/0020-media-falls-back-to-the-bundle-and-the-probe-runs-on-a-clock.md) | Media falls back to the bundled copy; the deployment probe runs on a clock  |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).

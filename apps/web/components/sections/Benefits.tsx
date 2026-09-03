@@ -1,4 +1,5 @@
 import { getCollection, getGlobal } from '@/lib/content'
+import { Img } from '@/components/Img'
 
 export default async function Benefits() {
   const c = await getGlobal('Benefits')
@@ -17,7 +18,7 @@ export default async function Benefits() {
       <ul className="mt-24 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
         {items.map((item) => (
           <li key={item.title as string} className="border-t border-divider-1 pt-8">
-            <img src={item.icon as string} alt="" aria-hidden="true" className="h-6 w-auto" />
+            <Img src={item.icon as string} alt="" aria-hidden="true" className="h-6 w-auto" />
             <h3 className="mt-8 font-display text-h3 text-text-headline">{item.title as string}</h3>
             <p className="mt-4 font-sans text-paragraph text-text-paragraph">
               {item.body as string}
@@ -26,7 +27,7 @@ export default async function Benefits() {
         ))}
       </ul>
 
-      <img
+      <Img
         src={c.image as string}
         alt={c.imageAlt as string}
         className="mt-24 aspect-video w-full rounded-2xl object-cover"

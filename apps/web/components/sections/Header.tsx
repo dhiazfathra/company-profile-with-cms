@@ -1,4 +1,5 @@
 import { getGlobal } from '@/lib/content'
+import { Img } from '@/components/Img'
 
 /**
  * Geometry measured off `design/refs/Header.png`, in the 1200x738 design px the
@@ -35,7 +36,7 @@ export default async function Header() {
       </h1>
 
       <div className="relative mt-10 aspect-[1200/362] rounded-[20px] bg-mid-green lg:mt-[225px]">
-        <img
+        <Img
           src={c.image as string}
           alt={c.imageAlt as string}
           className="absolute bottom-0 left-1/2 w-[75.333%] -translate-x-1/2"
