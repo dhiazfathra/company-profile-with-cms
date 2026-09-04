@@ -19,10 +19,17 @@ async function renderedWidths(page: import('@playwright/test').Page) {
   await page.waitForLoadState('networkidle')
   // Most `Img` instances render `loading="lazy"` (see ADR-0022), so an
   // offscreen image can still have `naturalWidth === 0` here even when the
-  // media route is perfectly healthy. Force every image eager and let each
-  // one finish decoding before reading its dimensions.
-  return page.locator('img').evaluateAll(async (images) => {
+  // media route is perfectly healthy. Force every image eager...
+  await page.locator('img').evaluateAll((images) => {
     for (const image of images) (image as HTMLImageElement).loading = 'eager'
+  })
+  // ...then wait again: forcing `eager` (and, on the "dead" test, `Img`'s own
+  // onError -> setFailed(true) -> re-render with the fallback src) both start
+  // fresh fetches after the first `networkidle`, and the fallback route's 302
+  // to `/img/...` is one more round trip on top of that. Only after all of
+  // that settles is `decode()` looking at each image's final src.
+  await page.waitForLoadState('networkidle')
+  return page.locator('img').evaluateAll(async (images) => {
     await Promise.all(
       images.map((image) => (image as HTMLImageElement).decode().catch(() => undefined)),
     )

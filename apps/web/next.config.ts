@@ -35,7 +35,15 @@ const securityHeaders = [
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
-      'upgrade-insecure-requests',
+      // Only in production: this directive applies to every insecure absolute
+      // URL a page fetches, regardless of the scheme the page itself was
+      // served over. `next dev` (and every e2e/CI run against it) is plain
+      // http with no TLS listener, so a same-origin http:// redirect target
+      // — e.g. `/api/media-fallback/*`'s 302 to `/img/...` — gets rewritten to
+      // https and fails with ERR_SSL_PROTOCOL_ERROR. Production is Vercel,
+      // always https, so this never fires there and the directive is a no-op
+      // in the case that matters.
+      ...(process.env.NODE_ENV === 'production' ? ['upgrade-insecure-requests'] : []),
     ].join('; '),
   },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
