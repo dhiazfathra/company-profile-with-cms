@@ -39,6 +39,16 @@ describe('media fallback route', () => {
     const response = await get('x.png')
     expect(response.status).toBe(404)
   })
+
+  it('refuses a backslash-prefixed sourcePath instead of redirecting off-origin', async () => {
+    // `URL` treats a leading backslash as a path separator, so `/\evil.example/x.png`
+    // passes the `startsWith('/')` / `!startsWith('//')` check yet still resolves to
+    // `https://evil.example/x.png` — an open redirect the protocol-relative check
+    // above does not catch (CWE-601).
+    rows = [{ sourcePath: '/\\evil.example/x.png' }]
+    const response = await get('x.png')
+    expect(response.status).toBe(404)
+  })
 })
 
 describe('Img', () => {

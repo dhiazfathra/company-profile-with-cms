@@ -46,18 +46,22 @@ export async function GET(
   // means a media doc created outside the seed (an editor's upload). Those have
   // no bundled copy to fall back to, and a redirect to "/" would answer an
   // image request with a page — 404 is the honest answer.
-  // `//host/path` is a protocol-relative URL: it would resolve to a different
-  // origin, turning a fallback into an open redirect. Rejected rather than
-  // sanitised — a seeded path never looks like that.
-  if (
-    typeof sourcePath !== 'string' ||
-    !sourcePath.startsWith('/') ||
-    sourcePath.startsWith('//')
-  ) {
+  // `//host/path` is a protocol-relative URL, and a leading backslash
+  // (`/\host/path`) is treated as a path separator by `URL` too — both would
+  // resolve to a different origin, turning a fallback into an open redirect.
+  // Rejected rather than sanitised — a seeded path never looks like that. The
+  // origin check below is belt-and-braces for any other WHATWG-URL quirk that
+  // does the same thing.
+  if (typeof sourcePath !== 'string' || !sourcePath.startsWith('/') || sourcePath.startsWith('//')) {
     return NextResponse.json({ error: `No bundled asset for "${filename}"` }, { status: 404 })
   }
 
-  const redirect = NextResponse.redirect(new URL(sourcePath, _request.url), 302)
+  const target = new URL(sourcePath, _request.url)
+  if (target.origin !== new URL(_request.url).origin) {
+    return NextResponse.json({ error: `No bundled asset for "${filename}"` }, { status: 404 })
+  }
+
+  const redirect = NextResponse.redirect(target, 302)
   // One database lookup per filename per browser session instead of one per
   // image request during an outage — short enough that restoring storage
   // un-sticks the page without a hard reload.

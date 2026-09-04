@@ -32,6 +32,14 @@ on:
     # 06:17 UTC daily. Off the hour deliberately: scheduled workflows queue
     # behind everyone else's on-the-hour crons, and a delayed run reports its
     # findings late.
+    #
+    # GitHub silently disables a scheduled workflow in a public repo after 60
+    # days with no repository activity (a push or a manual run — commenting on
+    # an issue does not count), and it does not resume on its own. There is no
+    # email for this: the only external alert is that the daily parity report
+    # stops arriving. Notice that, then re-enable it either from Actions → this
+    # workflow → "Enable workflow", or by pushing any commit, which clears the
+    # disabled state as a side effect.
     - cron: '17 6 * * *'
 
 permissions:

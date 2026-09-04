@@ -17,12 +17,20 @@ import { test, expect } from '@playwright/test'
 async function renderedWidths(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.waitForLoadState('networkidle')
-  return page.locator('img').evaluateAll((images) =>
-    images.map((image) => ({
+  // Most `Img` instances render `loading="lazy"` (see ADR-0022), so an
+  // offscreen image can still have `naturalWidth === 0` here even when the
+  // media route is perfectly healthy. Force every image eager and let each
+  // one finish decoding before reading its dimensions.
+  return page.locator('img').evaluateAll(async (images) => {
+    for (const image of images) (image as HTMLImageElement).loading = 'eager'
+    await Promise.all(
+      images.map((image) => (image as HTMLImageElement).decode().catch(() => undefined)),
+    )
+    return images.map((image) => ({
       src: (image as HTMLImageElement).currentSrc || (image as HTMLImageElement).src,
       width: (image as HTMLImageElement).naturalWidth,
-    })),
-  )
+    }))
+  })
 }
 
 test.describe('media fallback', () => {
