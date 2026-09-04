@@ -38,8 +38,9 @@ on:
     # an issue does not count), and it does not resume on its own. There is no
     # email for this: the only external alert is that the daily parity report
     # stops arriving. Notice that, then re-enable it either from Actions → this
-    # workflow → "Enable workflow", or by pushing any commit, which clears the
-    # disabled state as a side effect.
+    # workflow → "Enable workflow", or by pushing a commit to this repo's
+    # default branch — a commit on any other branch doesn't count — which
+    # clears the disabled state as a side effect.
     - cron: '17 6 * * *'
 
 permissions:
