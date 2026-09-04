@@ -142,7 +142,21 @@ const Users: CollectionConfig = {
 
 const Media: CollectionConfig = {
   slug: 'media',
-  upload: true,
+  // An allowlist rather than the default "anything": without one, an editor
+  // account can upload text/html or a .js file that /api/media/file/<name>
+  // then serves from this site's own origin, which is same-origin script
+  // execution — an XSS that outlives the session that uploaded it. The list is
+  // exactly the types \`scripts/seed.ts\` knows how to upload (MIME_BY_EXT), so
+  // it costs the seed nothing.
+  //
+  // image/svg+xml stays on the list because the seeded icons are SVG, and an
+  // SVG *is* a script container. What stops it executing is the
+  // \`default-src 'none'; sandbox\` CSP that next.config.ts pins to
+  // /api/media/file/* — the allowlist and that header are one control in two
+  // halves; removing either re-opens the hole. See ADR-0021.
+  upload: {
+    mimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'],
+  },
   // Public marketing site: every section renders an <img> from this
   // collection, so reads must not require auth (Payload's default access
   // blocks unauthenticated requests, which 403'd every image on the page).

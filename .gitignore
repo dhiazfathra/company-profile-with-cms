@@ -71,6 +71,15 @@ parity-report/
 
 # Payload CMS (Phase 2): local dev database, its generated types, and the
 # media collection's local upload storage (seeded from public/img at runtime)
+# Unanchored on purpose. The anchored `apps/web/payload.db` rule below missed a
+# copy at the repository root — every command run from the root creates one,
+# because the adapter's default url is the relative `file:./payload.db` — and
+# 548KB of it was committed. That file carries the `users` and `users_sessions`
+# tables: on any machine that had run `bun run seed` first it would have carried
+# an editor's password hash and a live session token into a public repository.
+# The committed copy happened to have zero user rows; the next one would not
+# have. See ADR-0021.
+payload.db
 apps/web/payload.db
 apps/web/payload-types.ts
 apps/web/media/
