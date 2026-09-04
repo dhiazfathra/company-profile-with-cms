@@ -14,13 +14,14 @@
     "build": "bun run --cwd apps/web build",
     "start": "bun run --cwd apps/web start",
     "lint": "bun run --cwd apps/web lint",
-    "test": "bun run --cwd apps/web test && bun run --cwd packages/figma-to-site test && bun run --cwd packages/site-to-cms test && bun run --cwd packages/deploy-to-vercel test",
+    "test": "bun run --cwd apps/web test && bun run --cwd packages/figma-to-site test && bun run --cwd packages/site-to-cms test && bun run --cwd packages/deploy-to-vercel test && bun run --cwd packages/cms-to-qa test",
     "validate:manifest": "bun run --cwd apps/web validate:manifest",
     "verify:design": "bun run --cwd apps/web verify:design",
     "capture:figma": "bun run --cwd apps/web capture:figma",
     "e2e": "bun run --cwd apps/web e2e",
     "e2e:report": "bun run --cwd apps/web e2e:report",
     "evidence": "bun scripts/e2e-evidence.mjs",
+    "cms:e2e": "bun scripts/cms-e2e.mjs",
     "parity-report": "bun scripts/parity-report.mjs"
   },
   "packageManager": "bun@1.3.11",
@@ -30,6 +31,7 @@
   ],
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "cms-to-qa": "workspace:*",
     "prettier": "^3.9.6",
     "sharp": "^0.35.3"
   }

@@ -2,7 +2,7 @@
 
 **v0.1.0**
 
-A monorepo with three outputs from one piece of work:
+A monorepo with four outputs from one piece of work:
 
 | Workspace                                                | What it is                                                                                                            |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -10,8 +10,9 @@ A monorepo with three outputs from one piece of work:
 | [`packages/figma-to-site`](packages/figma-to-site)       | Step one as a reusable skill: capture a Figma file by screenshot with no paid seat, and prove the render matches      |
 | [`packages/site-to-cms`](packages/site-to-cms)           | Step two: move that page's content into a CMS, and prove the page actually reads from it                              |
 | [`packages/deploy-to-vercel`](packages/deploy-to-vercel) | Step three: deploy to Vercel from a fresh machine, and verify the deployment rather than stopping at a green build    |
+| [`packages/cms-to-qa`](packages/cms-to-qa)               | Step four: test every CMS field through the panel and hand a manual tester an evidence pack they can check            |
 
-The site is the instance. The three skills are the transferable part, and each exists
+The site is the instance. The four skills are the transferable part, and each exists
 because of a failure the site had already shipped or nearly shipped.
 
 [`figma-to-site`](packages/figma-to-site/SKILL.md) comes from a hero section that
@@ -24,6 +25,14 @@ build — all of which would have been just as green with the CMS not connected 
 all, because the seed wrote into Payload exactly the strings the components had
 hardcoded. Its rule: **prove the seam, not the render.**
 
+[`cms-to-qa`](packages/cms-to-qa/SKILL.md) comes from what the round trip cannot
+see. It proves one field, and a field an editor can save that reaches no component
+fails invisibly and identically to success. Handing a manual tester a green
+markdown table then asks them to sign for an exit code. Its rule: **discover the
+fields, then hand over what a human can check** — an HTML walkthrough with a
+recording per case, a test-scenario workbook, and one video per case
+([ADR-0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)).
+
 [ADR-0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md) records why
 the site and the skills are separated;
 [ADR-0012](docs/decisions/0012-cms-step-as-a-second-skill.md) why the CMS step is
@@ -34,7 +43,7 @@ its own skill and ships no extracted code.
 ```bash
 bun install          # links every workspace
 bun run dev          # the site at http://localhost:3000
-bun run test         # the site's suite and both skills' suites
+bun run test         # the site's suite and all four skills' suites
 ```
 
 [`docs/reproduce.md`](docs/reproduce.md) is the long version: clone to running
@@ -67,22 +76,24 @@ for the site's own detail.
 ## Commands
 
 Each root command delegates to the workspace that owns it, so the names work from
-either place.
+either place — except `cms:e2e`, which only resolves from the repository root
+(see [below](#the-cms-field-matrix)).
 
-| Command                     | Description                                                                             |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| `bun install`               | Install and link all workspaces                                                         |
-| `bun run dev`               | Start the site's development server                                                     |
-| `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)  |
-| `bun run start`             | Serve the production build (`next start`)                                               |
-| `bun run test`              | Unit tests for the site and both skills, plus each eval suite's structure               |
-| `bun run lint`              | Lint the site                                                                           |
-| `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                        |
-| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)              |
-| `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only |
-| `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                        |
-| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                               |
-| `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                        |
+| Command                     | Description                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------ |
+| `bun install`               | Install and link all workspaces                                                                  |
+| `bun run dev`               | Start the site's development server                                                              |
+| `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)           |
+| `bun run start`             | Serve the production build (`next start`)                                                        |
+| `bun run test`              | Unit tests for the site and all four skills, plus each eval suite's structure                    |
+| `bun run lint`              | Lint the site                                                                                    |
+| `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                                 |
+| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                       |
+| `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only          |
+| `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                                 |
+| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                        |
+| `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                                 |
+| `bun run cms:e2e <Page>`    | Field-by-field CMS matrix for one page, with an evidence bundle ([below](#the-cms-field-matrix)) |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
 Chromium, so capture needs a visible browser. What CI runs is the _verification_ —
@@ -119,6 +130,84 @@ admin UI ──writes a value no fixture contains──> Payload ──> lib/con
 **Prove the seam, not the render.** `apps/web/e2e/cms-round-trip.spec.ts` is that
 proof, and it is verified in the failing direction: hardcode the headline back into
 the component and it must go red.
+
+### The CMS field matrix
+
+The round trip proves one field. `bun run cms:e2e <Page>` does it for every
+supported, visible field on a page (`casesFor()` skips fields it has no
+template for, and the panel has no input for `admin.hidden` fields), with the
+cases an editor finds on their own eventually — unicode,
+quotes, whitespace, 5000 characters, script tags — and both halves of persistence:
+the value re-read from the database, and the value in the HTML the server sent.
+
+Nothing in the repository lists the fields. The runner imports
+`apps/web/payload.config.ts`, walks it, and calls each field's own validator with a
+bad value to learn what it rejects, because Payload attaches a `validate` function
+to every field and its presence therefore says nothing. Add a section to
+`site.manifest.json` and its cases exist
+([ADR-0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)).
+
+A browser run (`bun run cms:e2e <Page>` or `--all`) leaves three artefacts for
+the manual tester who signs SIT off before UAT, because a green row is not
+something they can re-derive:
+
+| Artefact               | What they do with it                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `report.html`          | Watch the executed cases they doubt — one recording per case, beside the value and outcome   |
+| `test-scenarios.xlsx`  | Filter to failures, follow the numbered steps by hand, annotate, sign                        |
+| `<page>/videos/*.webm` | One recording per executed case, named `<field>--<case>.webm`, to attach to a release ticket |
+
+Recordings exist only for cases the browser actually ran — a case marked `NOT RUN`
+or `NOT EXECUTED` has no video. `--discover-only` runs no browser at all: it
+writes `inventory.json` and the per-page field matrices, with none of the three
+artefacts above.
+
+A field the run could not execute gets a row saying so, and a page the invocation
+did not target is named rather than dropped — the denominator is the whole matrix
+for what was targeted
+([ADR-0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)).
+
+Run these **from the repository root**: the script lives there, and `bun run` does
+not walk up to the root's `package.json` from inside a workspace.
+
+```bash
+bun run cms:e2e --discover-only   # inventory and per-page matrices, no browser
+bun run cms:e2e Header            # one page, 1–3 minutes
+bun run cms:e2e --all             # every page, around half an hour
+bun run cms:e2e --all --verbose   # the same run, as a live dashboard
+```
+
+`--verbose` replaces the runner's raw stream with a frame redrawn in place: an
+overall bar, a row per page, the case currently being typed, and a running count
+of values that saved without reaching the public page — the finding this suite
+exists for, which otherwise stays invisible until the report is written. The raw
+stream is not discarded; it moves to `<page>/logs/runner.log`. It needs a TTY, so
+piped output and CI keep the plain lines, which is the better artefact there.
+
+`--concurrency=N` (or `-j N`) runs N pages at once and is **experimental, and off
+by default**. It roughly halves wall clock and currently costs correctness: pages
+that run alongside another fail their `beforeAll` on a timeout, because `next dev`
+compiles on demand and serialises those compiles. Measured on three pages —
+sequential 2m 49s with 3 of 3 passing, `-j 2` 1m 25s with 2 of 3, `-j 3` 1m 39s
+with 1 of 3. Those failures are the dev server starving, not fields breaking, and
+a red mark that does not mean a defect is as misleading as a green one that does
+not mean a pass. Owning the server for the run and pre-warming every route it
+touches did not fix it; a production server, which has no on-demand compile, is
+the likely answer and is not wired up yet. Use `-j` for a fast smoke pass, never
+for a run whose result anyone signs.
+
+Evidence lands in `apps/web/test-evidence/<run-id>/`, gitignored: a `rollup.md`, and
+per page a `field-matrix.md`, a `report.md`, Playwright's JSON report, a line per
+case, and traces on failure. Every figure in a report is read from the JSON, never
+from terminal output — same rule as `bun run evidence`, same reason
+([ADR-0011](docs/decisions/0011-evidence-pack-on-every-pr.md)).
+
+Read three sections of `report.md` that a pass does not cover: **saved but not
+observed on the public page** (round-tripped through the database and absent from
+the HTML — the bug class this exists for), **cases that never ran** (a failure
+abandons the rest of that field), and **what this run does not cover**. Needs
+`apps/web/.env` with `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` and a seeded local
+database; it writes to every row it tests, so it is local-only.
 
 ## Deploying
 
@@ -189,6 +278,8 @@ grade the sections, rather than reporting every section as missing
 | [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)   | A check that cannot confirm what it looked at says so, once                 |
 | [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md) | The admin import map must not depend on the environment that generated it   |
 | [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)         | A second design language for the showcase, as a second file                 |
+| [0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)        | The CMS field matrix is discovered from the config, not written down        |
+| [0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)                   | SIT evidence a tester can check: HTML with recordings, a workbook, videos   |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).

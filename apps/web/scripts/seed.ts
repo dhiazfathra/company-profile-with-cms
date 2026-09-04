@@ -173,7 +173,14 @@ export async function seedE2eUser(payload: BasePayload): Promise<'created' | 're
   }
   // Same email, unknown password (a database carried over from an earlier run).
   // Reset rather than assume, or the login fails for a reason no message names.
-  await payload.update({ collection: 'users', id, data: { password } })
+  // Also clear the lock Payload sets after repeated failed attempts — a prior
+  // run's own failures (e.g. this account's password being wrong at the time)
+  // otherwise survive the reset and the next login fails with no clue why.
+  await payload.update({
+    collection: 'users',
+    id,
+    data: { password, loginAttempts: 0, lockUntil: null },
+  })
   return 'reset'
 }
 
