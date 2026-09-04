@@ -25,6 +25,17 @@
     "parity-report": "bun scripts/parity-report.mjs"
   },
   "packageManager": "bun@1.3.11",
+  "//overrides": "Transitive dependencies pinned above the version a published advisory covers. Direct dependents (payload, @payloadcms/*, eslint, vitest) still range-match these, so the override raises the floor without forking anyone's API. Re-check with `bun audit` and drop an entry once every dependent has moved past it on its own.",
+  "overrides": {
+    "//fast-uri": "GHSA-5jgf-p345-68v8, -f65p-4m7j-42xc, -fph4-wmhf-6fwf, -jqff-g426-hqxp (4x high): SSRF and host confusion from IPv6 normalisation, repeated percent-decoding and skipped IDN canonicalisation. Reached through payload's ajv schema-URI parsing. Fixed in 3.1.6.",
+    "fast-uri": "3.1.7",
+    "//dompurify": "GHSA-55q2-fjhq-7xh7 and -cmwh-pvxp-8882 (moderate): IN_PLACE hook removal leaves a detached subtree executable, and ALLOWED_ATTR pollution survives setConfig. Reached through @payloadcms/richtext-lexical, which sanitises editor HTML.",
+    "dompurify": "3.4.14",
+    "//esbuild": "GHSA-67mh-4wv8-2f99 (moderate, dev only): any website can read the esbuild dev server's responses. Pulled in at 0.18.20 by a transitive @esbuild-kit shim under tsx.",
+    "esbuild": "0.25.12",
+    "//uuid": "GHSA-w5hq-g745-h8pq (moderate): missing buffer bounds check in v3/v5/v6 when a `buf` is passed. Payload already resolves 13.x; the flagged copy was an 8.3.2 pinned under exceljs, whose only use is the `v4` named export that 13.x still exports.",
+    "uuid": "13.0.2"
+  },
   "trustedDependencies": [
     "sharp",
     "unrs-resolver"
@@ -33,6 +44,6 @@
     "@playwright/test": "^1.62.1",
     "cms-to-qa": "workspace:*",
     "prettier": "^3.9.6",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.4"
   }
 }

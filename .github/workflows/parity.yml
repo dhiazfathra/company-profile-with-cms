@@ -9,6 +9,15 @@
 # yet reports the previous deployment's state as if it were this commit's, which
 # is a worse failure than no check at all. Trigger it by hand, or from a
 # deployment event once the Vercel project emits one.
+#
+# It is also on a daily schedule, and that is not redundant with the deployment
+# trigger: a deployment-triggered run only ever sees the moment just after a
+# push. On 2026-08-30 the Blob store behind every image was suspended for
+# inactive billing with no deploy involved at all, and the site served broken
+# images for four days until a human looked at the page. Nothing about that
+# outage was visible in a checkout, so no amount of CI on the runner could have
+# found it — only a clock and a fetch could
+# (docs/incidents/2026-09-03-media-blob-store-suspended.md, ADR-0020).
 name: Parity
 
 on:
@@ -19,6 +28,20 @@ on:
         required: false
         default: https://company-profile-with-cms-web.vercel.app
   deployment_status:
+  schedule:
+    # 06:17 UTC daily. Off the hour deliberately: scheduled workflows queue
+    # behind everyone else's on-the-hour crons, and a delayed run reports its
+    # findings late.
+    #
+    # GitHub silently disables a scheduled workflow in a public repo after 60
+    # days with no repository activity (a push or a manual run — commenting on
+    # an issue does not count), and it does not resume on its own. There is no
+    # email for this: the only external alert is that the daily parity report
+    # stops arriving. Notice that, then re-enable it either from Actions → this
+    # workflow → "Enable workflow", or by pushing a commit to this repo's
+    # default branch — a commit on any other branch doesn't count — which
+    # clears the disabled state as a side effect.
+    - cron: '17 6 * * *'
 
 permissions:
   contents: read
@@ -35,6 +58,7 @@ jobs:
     # is worth fetching.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (github.event.deployment_status.state == 'success' &&
        github.event.deployment_status.environment == 'production')
     runs-on: ubuntu-latest
