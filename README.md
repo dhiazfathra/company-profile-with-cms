@@ -79,21 +79,23 @@ Each root command delegates to the workspace that owns it, so the names work fro
 either place — except `cms:e2e`, which only resolves from the repository root
 (see [below](#the-cms-field-matrix)).
 
-| Command                     | Description                                                                                      |
-| --------------------------- | ------------------------------------------------------------------------------------------------ |
-| `bun install`               | Install and link all workspaces                                                                  |
-| `bun run dev`               | Start the site's development server                                                              |
-| `bun run build`             | Production build (Payload's `/admin` and API routes are server-rendered, not exported)           |
-| `bun run start`             | Serve the production build (`next start`)                                                        |
-| `bun run test`              | Unit tests for the site and all four skills, plus each eval suite's structure                    |
-| `bun run lint`              | Lint the site                                                                                    |
-| `bun run validate:manifest` | Validate `site.manifest.json` against its schema                                                 |
-| `bun run verify:design`     | Compare the running page against the Figma references (needs a dev server)                       |
-| `bun run capture:figma`     | Re-capture assets and references from Figma — opens a real Chrome window, so local only          |
-| `bun run e2e`               | End-to-end tests, including one design-fidelity test per section                                 |
-| `bun run e2e:report`        | Open the e2e HTML report (traces and videos for failures)                                        |
-| `bun run evidence`          | Run every gate and write the PR evidence pack to `e2e-evidence/`                                 |
-| `bun run cms:e2e <Page>`    | Field-by-field CMS matrix for one page, with an evidence bundle ([below](#the-cms-field-matrix)) |
+| Command                                  | Description                                                                                                                                     |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun install`                            | Install and link all workspaces                                                                                                                 |
+| `bun run dev`                            | Start the site's development server                                                                                                             |
+| `bun run build`                          | Production build (Payload's `/admin` and API routes are server-rendered, not exported)                                                          |
+| `bun run start`                          | Serve the production build (`next start`)                                                                                                       |
+| `bun run test`                           | Unit tests for the site and all four skills, plus each eval suite's structure                                                                   |
+| `bun run lint`                           | Lint the site                                                                                                                                   |
+| `bun run validate:manifest`              | Validate `site.manifest.json` against its schema                                                                                                |
+| `bun run verify:design`                  | Compare the running page against the Figma references (needs a dev server)                                                                      |
+| `bun run capture:figma`                  | Re-capture assets and references from Figma — opens a real Chrome window, so local only                                                         |
+| `bun run --cwd apps/web optimize:images` | Re-encode every PNG in `public/` as a palette PNG, in place ([ADR-0022](docs/decisions/0022-images-re-encoded-in-place-and-media-sandboxed.md)) |
+| `bun run --cwd apps/web check:images`    | Report PNGs that would still shrink, and exit non-zero — the CI form of the above                                                               |
+| `bun run e2e`                            | End-to-end tests, including one design-fidelity test per section                                                                                |
+| `bun run e2e:report`                     | Open the e2e HTML report (traces and videos for failures)                                                                                       |
+| `bun run evidence`                       | Run every gate and write the PR evidence pack to `e2e-evidence/`                                                                                |
+| `bun run cms:e2e <Page>`                 | Field-by-field CMS matrix for one page, with an evidence bundle ([below](#the-cms-field-matrix))                                                |
 
 `capture:figma` is deliberately not a CI step: Figma's CDN returns 403 to headless
 Chromium, so capture needs a visible browser. What CI runs is the _verification_ —
@@ -280,28 +282,30 @@ grade the sections, rather than reporting every section as missing
 
 ## Decisions
 
-| ADR                                                                                         | Decision                                                                    |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                                   | Next.js + Payload in a single repository                                    |
-| [0002](docs/decisions/0002-manifest-driven-generation.md)                                   | Generate components, content, and schema from one manifest                  |
-| [0003](docs/decisions/0003-token-and-section-rebuild.md)                                    | Rebuild Figma as semantic sections, not pixel-faithful codegen              |
-| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                                    | Phase 1 content stored in the CMS's shape                                   |
-| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)                       | Payload native localization; `_en` suffix as interchange format             |
-| [0006](docs/decisions/0006-bun-as-package-manager.md)                                       | Bun as package manager and script runner; Node.js as the runtime            |
-| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                                  | Capture Figma assets by cropping viewer screenshots, not MCP asset calls    |
-| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                               | Automated two-axis design-fidelity gate instead of pixel-diff snapshots     |
-| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)                          | Monorepo, with the Figma pipeline as a reusable package                     |
-| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                              | Evaluate the skill's judgement behaviourally; validate the suite in CI      |
-| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                                    | Every pull request carries a generated evidence pack                        |
-| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                                   | The CMS step is a second skill, evals only, with no extracted code          |
-| [0013](docs/decisions/0013-deployment-configuration.md)                                     | Deployment config in repository secrets/variables; sqlite is not serverless |
-| [0014](docs/decisions/0014-media-on-blob-storage.md)                                        | Uploaded media on blob storage; a production build without it fails         |
-| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)              | A check that cannot confirm what it looked at says so, once                 |
-| [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md)            | The admin import map must not depend on the environment that generated it   |
-| [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)                    | A second design language for the showcase, as a second file                 |
-| [0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)                   | The CMS field matrix is discovered from the config, not written down        |
-| [0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)                              | SIT evidence a tester can check: HTML with recordings, a workbook, videos   |
-| [0020](docs/decisions/0020-media-falls-back-to-the-bundle-and-the-probe-runs-on-a-clock.md) | Media falls back to the bundled copy; the deployment probe runs on a clock  |
+| ADR                                                                                         | Decision                                                                           |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [0001](docs/decisions/0001-nextjs-payload-single-repo.md)                                   | Next.js + Payload in a single repository                                           |
+| [0002](docs/decisions/0002-manifest-driven-generation.md)                                   | Generate components, content, and schema from one manifest                         |
+| [0003](docs/decisions/0003-token-and-section-rebuild.md)                                    | Rebuild Figma as semantic sections, not pixel-faithful codegen                     |
+| [0004](docs/decisions/0004-content-json-in-cms-shape.md)                                    | Phase 1 content stored in the CMS's shape                                          |
+| [0005](docs/decisions/0005-native-localization-suffix-interchange.md)                       | Payload native localization; `_en` suffix as interchange format                    |
+| [0006](docs/decisions/0006-bun-as-package-manager.md)                                       | Bun as package manager and script runner; Node.js as the runtime                   |
+| [0007](docs/decisions/0007-figma-capture-by-screenshot.md)                                  | Capture Figma assets by cropping viewer screenshots, not MCP asset calls           |
+| [0008](docs/decisions/0008-automated-design-fidelity-gate.md)                               | Automated two-axis design-fidelity gate instead of pixel-diff snapshots            |
+| [0009](docs/decisions/0009-monorepo-with-figma-to-site-package.md)                          | Monorepo, with the Figma pipeline as a reusable package                            |
+| [0010](docs/decisions/0010-behavioural-evals-for-the-skill.md)                              | Evaluate the skill's judgement behaviourally; validate the suite in CI             |
+| [0011](docs/decisions/0011-evidence-pack-on-every-pr.md)                                    | Every pull request carries a generated evidence pack                               |
+| [0012](docs/decisions/0012-cms-step-as-a-second-skill.md)                                   | The CMS step is a second skill, evals only, with no extracted code                 |
+| [0013](docs/decisions/0013-deployment-configuration.md)                                     | Deployment config in repository secrets/variables; sqlite is not serverless        |
+| [0014](docs/decisions/0014-media-on-blob-storage.md)                                        | Uploaded media on blob storage; a production build without it fails                |
+| [0015](docs/decisions/0015-a-checker-must-prove-it-checked-the-right-thing.md)              | A check that cannot confirm what it looked at says so, once                        |
+| [0016](docs/decisions/0016-the-import-map-must-not-depend-on-the-environment.md)            | The admin import map must not depend on the environment that generated it          |
+| [0017](docs/decisions/0017-a-second-design-language-for-the-showcase.md)                    | A second design language for the showcase, as a second file                        |
+| [0018](docs/decisions/0018-the-field-matrix-is-discovered-not-written.md)                   | The CMS field matrix is discovered from the config, not written down               |
+| [0019](docs/decisions/0019-sit-evidence-a-tester-can-check.md)                              | SIT evidence a tester can check: HTML with recordings, a workbook, videos          |
+| [0020](docs/decisions/0020-media-falls-back-to-the-bundle-and-the-probe-runs-on-a-clock.md) | Media falls back to the bundled copy; the deployment probe runs on a clock         |
+| [0021](docs/decisions/0021-uploads-are-allowlisted-and-served-sandboxed.md)                 | Uploads are MIME-allowlisted and served sandboxed; the database is not an artefact |
+| [0022](docs/decisions/0022-images-re-encoded-in-place-and-media-sandboxed.md)               | Images re-encoded in place rather than migrated to WebP; media gets a cache window |
 
 Full design spec:
 [`docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md`](docs/superpowers/specs/2026-08-21-figma-to-cms-pipeline-design.md).

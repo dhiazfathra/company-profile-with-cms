@@ -78,7 +78,26 @@ const nextConfig: NextConfig = {
           { key: 'Content-Security-Policy', value: "default-src 'none'; sandbox" },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Content-Disposition', value: 'inline' },
+          // Every media response was previously uncacheable, so each of the
+          // page's eleven images was re-proxied from Blob storage on every
+          // navigation. An hour of browser cache with a day of
+          // stale-while-revalidate behind it makes a repeat view cost nothing
+          // and still surfaces an editor's replacement within the hour.
+          //
+          // Deliberately not `immutable`: Payload's filename is not a content
+          // hash, so a replaced image can reuse a name and an immutable
+          // response would pin the old bytes until the cache is cleared.
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
+          },
         ],
+      },
+      // Hashed build output — the filename changes whenever the bytes do, so
+      // this is the one place `immutable` is correct.
+      {
+        source: '/_next/static/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ]
   },

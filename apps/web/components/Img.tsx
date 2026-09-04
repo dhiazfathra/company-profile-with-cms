@@ -58,6 +58,13 @@ export function Img({ src, alt, ...rest }: React.ComponentProps<'img'> & { alt: 
 
   return (
     <img
+      // Defaults, not overrides: every image below the fold should stay off the
+      // critical path, and decoding off the main thread keeps a large hero from
+      // blocking paint. The one above-fold image (Header) passes
+      // loading="eager" fetchPriority="high" and wins, because {...rest} spreads
+      // after these.
+      loading="lazy"
+      decoding="async"
       {...rest}
       ref={ref}
       alt={alt}

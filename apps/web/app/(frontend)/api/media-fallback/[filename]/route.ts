@@ -57,5 +57,10 @@ export async function GET(
     return NextResponse.json({ error: `No bundled asset for "${filename}"` }, { status: 404 })
   }
 
-  return NextResponse.redirect(new URL(sourcePath, _request.url), 302)
+  const redirect = NextResponse.redirect(new URL(sourcePath, _request.url), 302)
+  // One database lookup per filename per browser session instead of one per
+  // image request during an outage — short enough that restoring storage
+  // un-sticks the page without a hard reload.
+  redirect.headers.set('Cache-Control', 'public, max-age=60')
+  return redirect
 }

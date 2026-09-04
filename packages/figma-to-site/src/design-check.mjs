@@ -165,9 +165,23 @@ export async function screenshotSection(page, section, renderPath) {
  * would skip it entirely and swallowing `decode()` rejections would hide it.
  * Given that this whole check exists because the wrong pixels shipped once, a
  * missing asset is a hard failure, not a measurement.
+ *
+ * The `loading = 'eager'` pass is not a nicety. `decode()` on a `loading="lazy"`
+ * image that is below the fold never settles — the browser is under no
+ * obligation to fetch it — so the moment the site made lazy the default for
+ * images, all eleven section checks timed out at thirty seconds each and the
+ * gate reported a design regression that did not exist. The checker's job is to
+ * put the page in a fully-rendered state before measuring it; opting every
+ * image back into eager loading *is* that job, and it does not change what the
+ * site ships.
  */
 export async function awaitImages(page) {
   const broken = await page.evaluate(async () => {
+    // Two passes on purpose: flip every image eager first, so the fetches are
+    // all in flight together, before awaiting any of them. Flipping and
+    // awaiting in one pass would serialize the loads behind each other.
+    for (const img of document.images) img.loading = 'eager'
+
     const failures = await Promise.all(
       Array.from(document.images).map(async (img) => {
         try {
